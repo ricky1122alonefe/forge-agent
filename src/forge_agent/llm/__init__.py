@@ -54,6 +54,8 @@ from forge_agent.llm.protocol import (
 )
 from forge_agent.llm.registry import LLMRegistry, get_registry as get_llm_registry
 from forge_agent.llm.secrets import APIKeyManager, APIKeySource
+from forge_agent.llm.tracker import TokenTracker, estimate_cost, get_tracker
+from forge_agent.llm.usage_store import SQLiteUsageStore, TokenUsage
 
 __all__ = [
     # Core types
@@ -85,4 +87,10 @@ __all__ = [
     "chat",
     "multi_chat",
     "stream",
+    # Token tracking
+    "TokenTracker",
+    "TokenUsage",
+    "SQLiteUsageStore",
+    "get_tracker",
+    "estimate_cost",
 ]

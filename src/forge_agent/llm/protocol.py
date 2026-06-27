@@ -152,6 +152,8 @@ async def chat(
         temperature: 0.0-1.0.
         max_tokens: Cap on output tokens.
         **kwargs: Provider-specific options.
+            agent_id: Optional agent ID for token tracking.
+            session_id: Optional session ID for token tracking.
 
     Returns:
         LLMResponse with content + metadata.
@@ -159,6 +161,9 @@ async def chat(
     msgs = _normalize_messages(messages)
     registry = _get_default_registry()
     client = await registry.get_client(provider_id=provider)
+    # Extract tracking kwargs (not passed to provider)
+    agent_id = kwargs.pop("agent_id", None)
+    session_id = kwargs.pop("session_id", None)
     t0 = time.perf_counter()
     response = await client.chat(
         msgs,
@@ -168,6 +173,8 @@ async def chat(
         **kwargs,
     )
     response.latency_ms = (time.perf_counter() - t0) * 1000
+    # Auto-record token usage
+    _record_usage(response, agent_id=agent_id, session_id=session_id)
     return response
 
 
@@ -185,12 +192,16 @@ async def multi_chat(
     msgs = _normalize_messages(messages)
     registry = _get_default_registry()
     clients = await asyncio.gather(*[registry.get_client(pid) for pid in providers])
+    # Extract tracking kwargs
+    agent_id = kwargs.pop("agent_id", None)
+    session_id = kwargs.pop("session_id", None)
 
     async def _one(client, provider_id):  # type: ignore[no-untyped-def]
         try:
             t0 = time.perf_counter()
             r = await client.chat(msgs, **{k: v for k, v in kwargs.items() if k != "provider"})
             r.latency_ms = (time.perf_counter() - t0) * 1000
+            _record_usage(r, agent_id=agent_id, session_id=session_id)
             return r
         except Exception as exc:  # noqa: BLE001
             log.warning("multi_chat: %s failed: %s", provider_id, exc)
@@ -243,3 +254,19 @@ def _normalize_messages(  # type: ignore[no-untyped-def]
         else:
             raise TypeError(f"Unsupported message type: {type(m)}")
     return out
+
+
+def _record_usage(
+    response: LLMResponse,
+    *,
+    agent_id: str | None = None,
+    session_id: str | None = None,
+) -> None:
+    """Auto-record token usage after an LLM call. Best-effort, never raises."""
+    try:
+        from forge_agent.llm.tracker import get_tracker
+        tracker = get_tracker()
+        if tracker.enabled:
+            tracker.record(response, agent_id=agent_id, session_id=session_id)
+    except Exception:  # noqa: BLE001
+        log.debug("Token tracking skipped: tracker not available")
