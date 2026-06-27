@@ -6,7 +6,6 @@ Mounted at root path by create_app().
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -114,6 +113,7 @@ async def metrics_page(request: Request) -> HTMLResponse:
     """Metrics dashboard page."""
     templates = _get_templates()
     from forge_agent.dashboard.data.metrics import MetricsDataSource
+
     metrics_source = MetricsDataSource()
     snapshot = metrics_source.snapshot()
     return templates.TemplateResponse(
@@ -126,11 +126,23 @@ async def metrics_page(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/create", response_class=HTMLResponse)
+async def create_agent_page(request: Request) -> HTMLResponse:
+    """Create Agent page: form to generate a new agent."""
+    templates = _get_templates()
+    return templates.TemplateResponse(
+        request=request,
+        name="create_agent.html",
+        context={"title": "Create Agent — forge-agent Dashboard"},
+    )
+
+
 @router.get("/reports", response_class=HTMLResponse)
 async def reports_page(request: Request) -> HTMLResponse:
     """Reports history page."""
     templates = _get_templates()
     from forge_agent.dashboard.data.reports import ReportDataSource
+
     source = ReportDataSource()
     reports = source.list_reports(limit=50)
     summary = source.summary()

@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}Create Agent — forge-agent Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-section { transition: all 0.3s ease; }
+    .form-section.hidden { display: none; }
+    .type-card { cursor: pointer; transition: all 0.2s ease; }
+    .type-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .type-card.selected { border-color: #4f46e5; background-color: #eef2ff; }
+    .type-card.selected .type-icon { background-color: #4f46e5; color: white; }
+    .tag-input { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.5rem; min-height: 2.5rem; cursor: text; }
+    .tag-input:focus-within { border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79,70,229,0.1); }
+    .tag { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; background: #e0e7ff; color: #3730a3; border-radius: 0.25rem; font-size: 0.875rem; }
+    .tag button { color: #6366f1; font-weight: bold; }
+    .tag input { border: none; outline: none; flex: 1; min-width: 80px; font-size: 0.875rem; }
+    #generate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: white; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #result-panel { transition: all 0.3s ease; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6">
+        <a href="/" class="text-sm text-gray-500 hover:text-indigo-600">Agents</a>
+        <span class="text-gray-400 mx-2">/</span>
+        <span class="text-sm text-gray-700 font-medium">Create Agent</span>
+    </div>
+
+    <h2 class="text-2xl font-bold text-gray-900 mb-6">Create New Agent</h2>
+
+    <form id="create-form" class="space-y-6">
+        <!-- Step 1: Agent Type -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">1. Agent Type</h3>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3" id="type-selector">
+                <div class="type-card border-2 border-gray-200 rounded-lg p-4 text-center" data-type="scraper">
+                    <div class="type-icon w-10 h-10 mx-auto mb-2 rounded-lg bg-gray-100 flex items-center justify-center text-xl">&#128375;</div>
+                    <div class="text-sm font-medium text-gray-700">Scraper</div>
+                    <div class="text-xs text-gray-500 mt-1">数据抓取</div>
+                </div>
+                <div class="type-card border-2 border-gray-200 rounded-lg p-4 text-center" data-type="analyzer">
+                    <div class="type-icon w-10 h-10 mx-auto mb-2 rounded-lg bg-gray-100 flex items-center justify-center text-xl">&#128202;</div>
+                    <div class="text-sm font-medium text-gray-700">Analyzer</div>
+                    <div class="text-xs text-gray-500 mt-1">数据分析</div>
+                </div>
+                <div class="type-card border-2 border-gray-200 rounded-lg p-4 text-center" data-type="monitor">
+                    <div class="type-icon w-10 h-10 mx-auto mb-2 rounded-lg bg-gray-100 flex items-center justify-center text-xl">&#128276;</div>
+                    <div class="text-sm font-medium text-gray-700">Monitor</div>
+                    <div class="text-xs text-gray-500 mt-1">监控告警</div>
+                </div>
+                <div class="type-card border-2 border-gray-200 rounded-lg p-4 text-center" data-type="generator">
+                    <div class="type-icon w-10 h-10 mx-auto mb-2 rounded-lg bg-gray-100 flex items-center justify-center text-xl">&#9997;</div>
+                    <div class="text-sm font-medium text-gray-700">Generator</div>
+                    <div class="text-xs text-gray-500 mt-1">内容生成</div>
+                </div>
+                <div class="type-card border-2 border-gray-200 rounded-lg p-4 text-center" data-type="general">
+                    <div class="type-icon w-10 h-10 mx-auto mb-2 rounded-lg bg-gray-100 flex items-center justify-center text-xl">&#129302;</div>
+                    <div class="text-sm font-medium text-gray-700">General</div>
+                    <div class="text-xs text-gray-500 mt-1">通用 Agent</div>
+                </div>
+            </div>
+            <input type="hidden" id="agent_type" name="agent_type" value="">
+        </div>
+
+        <!-- Step 2: Basic Info -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">2. Basic Info</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Agent ID <span class="text-red-500">*</span></label>
+                    <input type="text" id="agent_id" name="agent_id" required placeholder="e.g. stock.price.monitor"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    <p class="text-xs text-gray-500 mt-1">唯一标识，小写+点号分隔</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="name" name="name" required placeholder="e.g. Stock Price Monitor"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Domain <span class="text-red-500">*</span></label>
+                    <input type="text" id="domain" name="domain" required value="generic" placeholder="e.g. finance, sports"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">LLM Provider</label>
+                    <select id="provider" name="provider"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <option value="">Auto (default)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description <span class="text-red-500">*</span></label>
+                <textarea id="description" name="description" required rows="3"
+                          placeholder="详细描述这个 Agent 要做什么..."
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"></textarea>
+            </div>
+        </div>
+
+        <!-- Scraper Config -->
+        <div id="section-scraper" class="form-section hidden bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">3. Scraper Configuration</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Target URLs</label>
+                    <div class="tag-input" id="urls-input" data-field="urls">
+                        <input type="text" placeholder="输入 URL 后按 Enter...">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Max Depth</label>
+                        <input type="number" id="max_depth" name="max_depth" value="2" min="1" max="10"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Rate Limit (req/s)</label>
+                        <input type="number" id="rate_limit" name="rate_limit" value="1" min="0.1" max="100" step="0.1"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Output Format</label>
+                        <select id="output_format" name="output_format"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <option value="json">JSON</option>
+                            <option value="csv">CSV</option>
+                            <option value="markdown">Markdown</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Data Fields to Extract</label>
+                    <textarea id="data_fields" name="data_fields" rows="2" placeholder="e.g. title, price, date"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monitor Config -->
+        <div id="section-monitor" class="form-section hidden bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">3. Monitor Configuration</h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Check Interval</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="check_interval" name="check_interval" value="30" min="1"
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <select id="interval_unit" name="interval_unit"
+                                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <option value="seconds">Seconds</option>
+                                <option value="minutes" selected>Minutes</option>
+                                <option value="hours">Hours</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Alert Threshold</label>
+                        <input type="text" id="alert_threshold" name="alert_threshold" placeholder="e.g. price_change > 5%"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cron Schedule (optional)</label>
+                    <input type="text" id="cron_schedule" name="cron_schedule" placeholder="e.g. */30 * * * *"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono">
+                    <p class="text-xs text-gray-500 mt-1">标准 crontab 格式，留空则使用上面的间隔时间</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notification Channels</label>
+                    <div class="flex flex-wrap gap-3 mt-1">
+                        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="notify_console" checked class="rounded text-indigo-600"> Console</label>
+                        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="notify_email" class="rounded text-indigo-600"> Email</label>
+                        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="notify_webhook" class="rounded text-indigo-600"> Webhook</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analyzer Config -->
+        <div id="section-analyzer" class="form-section hidden bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">3. Analyzer Configuration</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Data Source</label>
+                    <input type="text" id="data_source" name="data_source" placeholder="e.g. CSV file, API endpoint"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Analysis Type</label>
+                    <select id="analysis_type" name="analysis_type"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="trend">Trend Analysis</option>
+                        <option value="sentiment">Sentiment Analysis</option>
+                        <option value="anomaly">Anomaly Detection</option>
+                        <option value="comparison">Comparison Analysis</option>
+                        <option value="summary">Summary / Report</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Output Metrics</label>
+                    <textarea id="output_metrics" name="output_metrics" rows="2" placeholder="e.g. average, max, min"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generator Config -->
+        <div id="section-generator" class="form-section hidden bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">3. Generator Configuration</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Output Type</label>
+                    <select id="gen_output_type" name="gen_output_type"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="text">Text / Article</option>
+                        <option value="report">Structured Report</option>
+                        <option value="code">Code Snippet</option>
+                        <option value="email">Email Template</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tone / Style</label>
+                    <input type="text" id="tone_style" name="tone_style" placeholder="e.g. professional, casual"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Length</label>
+                    <input type="number" id="max_length" name="max_length" value="1000" min="100" max="10000" step="100"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+            </div>
+        </div>
+
+        <!-- General Config -->
+        <div id="section-general" class="form-section hidden bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">3. General Configuration</h3>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Capabilities Needed</label>
+                <div class="flex flex-wrap gap-3 mt-1">
+                    <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="cap_search" class="rounded text-indigo-600"> Web Search</label>
+                    <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="cap_llm" checked class="rounded text-indigo-600"> LLM</label>
+                    <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="cap_memory" class="rounded text-indigo-600"> Memory</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Constraints -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Constraints (optional)</h3>
+            <div class="tag-input" id="constraints-input" data-field="constraints">
+                <input type="text" placeholder="输入约束后按 Enter，如: no stock trading...">
+            </div>
+            <p class="text-xs text-gray-500 mt-1">Agent 必须遵守的硬性规则</p>
+        </div>
+
+        <!-- Deploy Mode -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Deploy Mode</h3>
+            <div class="flex flex-wrap gap-4">
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="radio" name="deploy_mode" value="manual_review" checked class="text-indigo-600">
+                    <span>Manual Review <span class="text-xs text-gray-500">(生成后手动审核)</span></span>
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="radio" name="deploy_mode" value="auto_deploy" class="text-indigo-600">
+                    <span>Auto Deploy <span class="text-xs text-gray-500">(自动部署)</span></span>
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="radio" name="deploy_mode" value="sandbox_only" class="text-indigo-600">
+                    <span>Sandbox Only <span class="text-xs text-gray-500">(仅沙箱测试)</span></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="flex justify-end gap-3">
+            <a href="/" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
+            <button type="submit" id="generate-btn"
+                    class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
+                Generate Agent
+            </button>
+        </div>
+    </form>
+
+    <!-- Result Panel -->
+    <div id="result-panel" class="hidden mt-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div id="result-loading" class="text-center py-8">
+                <div class="spinner w-8 h-8 border-4 mx-auto mb-4" style="border-color: rgba(79,70,229,0.3); border-top-color: #4f46e5;"></div>
+                <p class="text-gray-600">Generating Agent... This may take a minute.</p>
+            </div>
+            <div id="result-success" class="hidden">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-lg">&#10003;</span>
+                    <h3 class="text-lg font-semibold text-green-800">Agent Generated Successfully!</h3>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4 mb-4">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><span class="text-gray-600">Agent ID:</span> <span id="res-agent-id" class="font-mono font-medium"></span></div>
+                        <div><span class="text-gray-600">Status:</span> <span id="res-status" class="font-medium"></span></div>
+                        <div><span class="text-gray-600">Code Path:</span> <span id="res-path" class="font-mono text-xs"></span></div>
+                        <div><span class="text-gray-600">Attempts:</span> <span id="res-attempts"></span></div>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <a href="/" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">View in Agent List</a>
+                    <button onclick="location.reload()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Create Another</button>
+                </div>
+            </div>
+            <div id="result-error" class="hidden">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-red-600 text-lg">&#10007;</span>
+                    <h3 class="text-lg font-semibold text-red-800">Generation Failed</h3>
+                </div>
+                <div class="bg-red-50 rounded-lg p-4 mb-4">
+                    <p id="res-error-msg" class="text-sm text-red-700"></p>
+                </div>
+                <button onclick="document.getElementById('result-panel').classList.add('hidden')"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/create_agent.js"></script>
+{% endblock %}
