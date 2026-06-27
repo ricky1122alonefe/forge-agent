@@ -1,0 +1,4 @@
+# Runtime dependencies for forge-agent
+pydantic>=2.5
+structlog>=24.1
+typing-extensions>=4.9
