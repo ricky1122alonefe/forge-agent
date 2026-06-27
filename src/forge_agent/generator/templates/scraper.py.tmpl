@@ -1,0 +1,71 @@
+"""数据抓取类 Agent 模板 — 从网页/API 获取结构化数据。"""
+
+from __future__ import annotations
+
+from typing import ClassVar
+
+from forge_agent.core.base import BaseAgent
+from forge_agent.core.contracts import AgentReport
+from forge_agent.core.context import AgentContext
+from forge_agent.core.enums import Verdict
+
+
+class ScraperAgent(BaseAgent):
+    """数据抓取 Agent — 从指定数据源获取结构化信息。"""
+
+    agent_id: ClassVar[str] = "domain.scraper_name"
+    name: ClassVar[str] = "Scraper Agent"
+    domain: ClassVar[str] = "generic"
+    version: ClassVar[str] = "0.1.0"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        """从数据源获取原始数据。
+
+        典型实现：
+        - 从 ctx.payload 获取 URL / 关键词 / 查询参数
+        - 使用 httpx 或 self.searcher 发起请求
+        - 解析响应（JSON/HTML），提取结构化字段
+        """
+        target_url = ctx.payload.get("url", "")
+        keywords = ctx.payload.get("keywords", [])
+
+        # 使用 searcher 获取数据
+        raw_data = {}
+        if self.searcher:
+            results = await self.searcher.search(
+                query=" ".join(keywords),
+                max_results=5,
+            )
+            raw_data = {"search_results": results, "source": target_url}
+
+        return {
+            "raw_data": raw_data,
+            "target_url": target_url,
+            "keywords": keywords,
+            "fetched_at": ctx.now_iso(),
+        }
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        """评估抓取结果的质量和完整性。"""
+        raw_data = observation.get("raw_data", {})
+        has_data = bool(raw_data)
+        data_quality = "good" if has_data else "empty"
+
+        return {
+            "data_quality": data_quality,
+            "has_data": has_data,
+            "action": "proceed" if has_data else "retry",
+        }
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        """将抓取结果封装为 AgentReport。"""
+        has_data = decision.get("has_data", False)
+
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            verdict=Verdict.SAFE if has_data else Verdict.NEUTRAL,
+            confidence=0.9 if has_data else 0.3,
+            evidence=[f"数据质量: {decision.get('data_quality', 'unknown')}"],
+            recommended_action="proceed" if has_data else "retry",
+        )

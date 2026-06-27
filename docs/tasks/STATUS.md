@@ -65,9 +65,9 @@ Dashboard 高级       [░░░░░░░░░░] 0/5    (0%)  ← 放一�
 | ID | 任务 | 状态 | 完成时间 | 验证命令 | 通过 |
 |---|---|---|---|---|---|
 | T2.1.1 | AgentType 枚举 | ✅ | 2026-06-27 11:45 | `pytest tests/unit/test_agent_type.py` | 35/35 |
-| T2.1.2 | AgentRequirements 加字段 | ⬜ | — | `pytest tests/unit/test_requirements.py` | — |
-| T2.1.3 | prompts.py 按 type 分流 | ⬜ | — | `pytest tests/unit/test_prompts.py` | — |
-| T2.1.4 | CodeGenerator 按 type 选模板 | ⬜ | — | `pytest tests/integration/test_generator_by_type.py` | — |
+| T2.1.2 | AgentRequirements 加字段 | ✅ | 2026-06-27 11:50 | `pytest tests/unit/test_requirements.py` | 24/24 |
+| T2.1.3 | prompts.py 按 type 分流 | ✅ | 2026-06-27 11:55 | `pytest tests/unit/test_prompts.py` | 22/22 |
+| T2.1.4 | CodeGenerator 按 type 选模板 | ✅ | 2026-06-27 11:58 | `pytest tests/unit/test_templates.py` | 21/21 |
 | T2.1.5 | forge-agent list 显示 type | ⬜ | — | `forge-agent list` | — |
 
 ### 2.2 Dataset 模块

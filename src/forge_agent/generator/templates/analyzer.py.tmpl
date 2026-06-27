@@ -1,0 +1,91 @@
+"""数据分析类 Agent 模板 — 处理数据并生成洞察。"""
+
+from __future__ import annotations
+
+from typing import ClassVar
+
+from forge_agent.core.base import BaseAgent
+from forge_agent.core.contracts import AgentReport
+from forge_agent.core.context import AgentContext
+from forge_agent.core.enums import Verdict
+from forge_agent.llm import chat
+
+
+class AnalyzerAgent(BaseAgent):
+    """数据分析 Agent — 使用 LLM 对数据进行智能分析。"""
+
+    agent_id: ClassVar[str] = "domain.analyzer_name"
+    name: ClassVar[str] = "Analyzer Agent"
+    domain: ClassVar[str] = "generic"
+    version: ClassVar[str] = "0.1.0"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        """获取待分析的数据集。
+
+        典型实现：
+        - 从 ctx.payload 获取数据或查询条件
+        - 可能调用 self.searcher 获取补充数据
+        """
+        dataset = ctx.payload.get("data", [])
+        query = ctx.payload.get("query", "")
+
+        # 如果需要补充数据
+        extra_data = {}
+        if self.searcher and query:
+            extra_data = await self.searcher.search(query=query, max_results=3)
+
+        return {
+            "dataset": dataset,
+            "query": query,
+            "extra_data": extra_data,
+            "data_count": len(dataset),
+        }
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        """使用 LLM 进行智能分析 — 核心步骤。"""
+        dataset = observation.get("dataset", [])
+        query = observation.get("query", "")
+
+        # 构建分析提示词
+        analysis_prompt = f"""请分析以下数据并给出洞察：
+
+查询目标：{query}
+数据量：{len(dataset)} 条
+
+请给出：
+1. 关键趋势
+2. 异常点
+3. 建议行动
+4. 置信度评估（0-1）"""
+
+        messages = [
+            {"role": "system", "content": "你是一个数据分析专家。"},
+            {"role": "user", "content": analysis_prompt},
+        ]
+
+        response = await chat(messages, temperature=0.3)
+        analysis = response.content if hasattr(response, "content") else str(response)
+
+        return {
+            "analysis": analysis,
+            "confidence": 0.8,
+            "verdict": "SAFE",
+        }
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        """将分析结果封装为 AgentReport。"""
+        analysis = decision.get("analysis", "")
+        confidence = decision.get("confidence", 0.5)
+        verdict_str = decision.get("verdict", "NEUTRAL")
+
+        verdict_map = {"SAFE": Verdict.SAFE, "RISK": Verdict.RISK}
+        verdict = verdict_map.get(verdict_str, Verdict.NEUTRAL)
+
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            verdict=verdict,
+            confidence=confidence,
+            evidence=[analysis],
+            metrics={"analysis_length": len(analysis)},
+        )

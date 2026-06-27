@@ -81,10 +81,15 @@ class CodeGenerator:
         model: str | None = None
 
         for attempt in range(1, self.max_attempts + 1):
+            # Load type-specific template as few-shot reference
+            from forge_agent.generator.templates import get_template
+            template = get_template(ctx.requirements.agent_type)
+
             user_prompt = build_user_prompt(
                 ctx.requirements.to_prompt(),
                 mcp_tools=ctx.mcp_tools_available,
                 existing_agents=ctx.existing_agents,
+                template=template,
             )
             if last_error:
                 user_prompt += (

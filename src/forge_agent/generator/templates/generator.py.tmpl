@@ -1,0 +1,98 @@
+"""内容生成类 Agent 模板 — 生成文本/报告/代码等内容。"""
+
+from __future__ import annotations
+
+from typing import ClassVar
+
+from forge_agent.core.base import BaseAgent
+from forge_agent.core.contracts import AgentReport
+from forge_agent.core.context import AgentContext
+from forge_agent.core.enums import Verdict
+from forge_agent.llm import chat
+
+
+class GeneratorAgent(BaseAgent):
+    """内容生成 Agent — 使用 LLM 生成指定格式的内容。"""
+
+    agent_id: ClassVar[str] = "domain.generator_name"
+    name: ClassVar[str] = "Generator Agent"
+    domain: ClassVar[str] = "generic"
+    version: ClassVar[str] = "0.1.0"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        """获取生成需求和上下文。
+
+        典型实现：
+        - 从 ctx.payload 获取主题、风格、长度等要求
+        - 可能调用 self.searcher 获取参考资料
+        """
+        topic = ctx.payload.get("topic", "")
+        style = ctx.payload.get("style", "formal")
+        max_length = ctx.payload.get("max_length", 500)
+
+        # 获取参考资料
+        references = []
+        if self.searcher and topic:
+            results = await self.searcher.search(query=topic, max_results=3)
+            references = results if isinstance(results, list) else []
+
+        return {
+            "topic": topic,
+            "style": style,
+            "max_length": max_length,
+            "references": references,
+        }
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        """使用 LLM 生成内容 — 核心步骤。"""
+        topic = observation.get("topic", "")
+        style = observation.get("style", "formal")
+        max_length = observation.get("max_length", 500)
+        references = observation.get("references", [])
+
+        # 构建生成提示词
+        ref_text = "\n".join(str(r) for r in references[:3]) if references else "无"
+        gen_prompt = f"""请根据以下要求生成内容：
+
+主题：{topic}
+风格：{style}
+最大长度：{max_length} 字
+参考资料：
+{ref_text}
+
+请直接输出生成的内容。"""
+
+        messages = [
+            {"role": "system", "content": "你是一个专业的内容生成器。"},
+            {"role": "user", "content": gen_prompt},
+        ]
+
+        response = await chat(messages, temperature=0.7)
+        generated = response.content if hasattr(response, "content") else str(response)
+
+        # 简单质量评估
+        quality = min(1.0, len(generated) / max(max_length, 1))
+
+        return {
+            "generated_content": generated,
+            "quality_score": round(quality, 2),
+            "content_length": len(generated),
+        }
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        """将生成内容封装为 AgentReport。"""
+        content = decision.get("generated_content", "")
+        quality = decision.get("quality_score", 0.5)
+
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            verdict=Verdict.SAFE if quality > 0.5 else Verdict.NEUTRAL,
+            confidence=quality,
+            evidence=[f"生成内容长度: {len(content)} 字"],
+            raw=content,
+            metrics={
+                "quality_score": quality,
+                "content_length": len(content),
+            },
+        )

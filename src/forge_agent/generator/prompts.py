@@ -269,9 +269,19 @@ def get_system_prompt(agent_type: AgentType) -> str:
 
 
 def build_user_prompt(spec_prompt: str, *, mcp_tools: list[str] | None = None,
-                      existing_agents: list[str] | None = None) -> str:
-    """Compose the user message for CodeGenerator."""
+                      existing_agents: list[str] | None = None,
+                      template: str | None = None) -> str:
+    """Compose the user message for CodeGenerator.
+
+    Args:
+        spec_prompt: The formatted requirements spec.
+        mcp_tools: Available MCP tool names.
+        existing_agents: Already registered agent IDs.
+        template: Optional code skeleton to use as a reference example.
+    """
     parts = ["请根据以下需求规格生成 Agent 代码：\n", spec_prompt]
+    if template:
+        parts.append(f"\n参考以下代码骨架（根据需求修改，不要原样复制）：\n```python\n{template}\n```")
     if mcp_tools:
         parts.append(f"\n可用的 MCP 工具：{', '.join(mcp_tools)}")
     if existing_agents:
