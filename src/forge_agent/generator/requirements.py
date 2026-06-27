@@ -12,6 +12,8 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from forge_agent.core.agent_type import AgentType
+
 log = logging.getLogger(__name__)
 
 
@@ -41,6 +43,7 @@ class AgentRequirements:
     name: str
     domain: str
     description: str
+    agent_type: AgentType = AgentType.GENERAL
     inputs: list[FieldSpec] = field(default_factory=list)
     outputs: list[FieldSpec] = field(default_factory=list)
     capabilities_required: list[str] = field(default_factory=list)  # ["search","llm","prompt_manager"]
@@ -55,6 +58,7 @@ class AgentRequirements:
             "name": self.name,
             "domain": self.domain,
             "description": self.description,
+            "agent_type": self.agent_type.value,
             "inputs": [f.to_dict() for f in self.inputs],
             "outputs": [f.to_dict() for f in self.outputs],
             "capabilities_required": self.capabilities_required,
@@ -70,6 +74,7 @@ class AgentRequirements:
             f"Agent ID: {self.agent_id}",
             f"Name: {self.name}",
             f"Domain: {self.domain}",
+            f"Type: {self.agent_type.value} ({self.agent_type.description})",
             f"Description: {self.description}",
         ]
         if self.inputs:
@@ -148,11 +153,20 @@ class RequirementsParser:
             return self._parse_heuristic(requirement)
 
     def _from_dict(self, data: dict[str, Any], *, raw: str) -> AgentRequirements:
+        # Parse agent_type from string or default to GENERAL
+        agent_type_str = data.get("agent_type", "general")
+        try:
+            agent_type = AgentType.from_string(agent_type_str)
+        except ValueError:
+            log.warning(f"Unknown agent_type '{agent_type_str}', defaulting to GENERAL")
+            agent_type = AgentType.GENERAL
+        
         return AgentRequirements(
             agent_id=str(data.get("agent_id") or _slug_agent_id(data.get("name", "agent"))),
             name=str(data.get("name") or "Generated Agent"),
             domain=str(data.get("domain") or "generic"),
             description=str(data.get("description") or raw),
+            agent_type=agent_type,
             inputs=[FieldSpec(**f) if isinstance(f, dict) else f for f in data.get("inputs", [])],
             outputs=[FieldSpec(**f) if isinstance(f, dict) else f for f in data.get("outputs", [])],
             capabilities_required=list(data.get("capabilities_required", [])),
@@ -170,11 +184,13 @@ class RequirementsParser:
         domain = self._guess_domain(req)
         agent_id = _slug_agent_id(name)
         caps = self._guess_capabilities(req)
+        agent_type = self._guess_agent_type(req)
         return AgentRequirements(
             agent_id=agent_id,
             name=name,
             domain=domain,
             description=req,
+            agent_type=agent_type,
             capabilities_required=caps,
             inputs=[FieldSpec(name="payload", type="dict", description="Run payload", required=True)],
             outputs=[
@@ -226,6 +242,29 @@ class RequirementsParser:
                         caps.append(cap)
                     break
         return caps
+
+    def _guess_agent_type(self, req: str) -> AgentType:
+        """Guess the agent type from the requirement text."""
+        req_lower = req.lower()
+        
+        # SCRAPER: 抓取、爬取、scrape、crawl、fetch
+        if any(kw in req_lower for kw in ["抓取", "爬取", "scrape", "crawl", "fetch", "采集"]):
+            return AgentType.SCRAPER
+        
+        # ANALYZER: 分析、analyze、统计、insight
+        if any(kw in req_lower for kw in ["分析", "analyze", "统计", "insight", "洞察"]):
+            return AgentType.ANALYZER
+        
+        # MONITOR: 监控、monitor、告警、alert、watch
+        if any(kw in req_lower for kw in ["监控", "monitor", "告警", "alert", "watch", "检测"]):
+            return AgentType.MONITOR
+        
+        # GENERATOR: 生成、generate、create、写、compose
+        if any(kw in req_lower for kw in ["生成", "generate", "create", "写", "compose", "创作"]):
+            return AgentType.GENERATOR
+        
+        # Default to GENERAL
+        return AgentType.GENERAL
 
 
 def _slug_agent_id(name: str) -> str:

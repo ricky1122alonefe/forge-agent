@@ -16,8 +16,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from forge_agent.generator.prompts import (
-    CODE_GENERATOR_SYSTEM,
     build_user_prompt,
+    get_system_prompt,
 )
 from forge_agent.generator.requirements import AgentRequirements
 from forge_agent.generator.validator import ContractValidator, ValidationResult
@@ -92,8 +92,9 @@ class CodeGenerator:
                     f"请修复后重新输出完整代码。"
                 )
 
+            system_prompt = get_system_prompt(ctx.requirements.agent_type)
             messages = [
-                {"role": "system", "content": CODE_GENERATOR_SYSTEM},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ]
             try:
