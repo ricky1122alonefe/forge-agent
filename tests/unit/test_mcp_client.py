@@ -342,7 +342,7 @@ class TestMCPClientCallTool:
         client._session = mock_session
 
         with patch("forge_agent.mcp.client._HAS_MCP_SDK", True):
-            with pytest.raises(RuntimeError, match="MCP tool call failed"):
+            with pytest.raises(RuntimeError, match="MCP tool 'slow_tool' call failed"):
                 await client.call_tool("slow_tool", {})
 
     async def test_call_tool_no_sdk_raises_import_error(self):

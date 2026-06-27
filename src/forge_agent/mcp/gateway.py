@@ -46,16 +46,19 @@ class MCPGateway:
 
     def set_policy(self, name: str, policy: PermissionPolicy) -> None:
         if name not in self._tools:
-            raise KeyError(f"Tool {name!r} not registered")
+            from forge_agent.exceptions import ToolNotRegisteredError
+            raise ToolNotRegisteredError(name)
         self._policies[name] = policy
 
     async def call(self, name: str, args: dict[str, Any] | None = None) -> dict[str, Any]:
         if name not in self._tools:
-            raise KeyError(f"Tool {name!r} not registered")
+            from forge_agent.exceptions import ToolNotRegisteredError
+            raise ToolNotRegisteredError(name)
         policy = self._policies[name]
         allowed, reason = policy.check(name)
         if not allowed:
-            raise PermissionError(f"Tool {name!r} denied: {reason}")
+            from forge_agent.exceptions import ToolDeniedError
+            raise ToolDeniedError(name, reason)
         handler = self._tools[name]
         return await handler(args or {})
 

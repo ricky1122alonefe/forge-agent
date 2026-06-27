@@ -195,28 +195,30 @@ class FileCodeStore:
     # ------------------------------------------------------------------ Activation
 
     def activate(self, agent_id: str, version: str) -> None:
+        from forge_agent.exceptions import AgentNotFoundError, VersionNotFoundError
         entry = self._manifest.agents.get(agent_id)
         if not entry:
-            raise KeyError(f"Agent {agent_id!r} not in manifest")
+            raise AgentNotFoundError(agent_id)
         if not entry.get_version(version):
-            raise KeyError(f"Version {version!r} of {agent_id!r} not found")
+            raise VersionNotFoundError(agent_id, version)
         entry.active_version = version
         self.flush_manifest()
 
     def rollback(self, agent_id: str) -> str:
         """Roll back to the previous version. Returns the new active version."""
+        from forge_agent.exceptions import AgentNotFoundError, VersionError
         entry = self._manifest.agents.get(agent_id)
         if not entry:
-            raise KeyError(f"Agent {agent_id!r} not in manifest")
+            raise AgentNotFoundError(agent_id)
         versions = entry.versions
         if len(versions) < 2:
-            raise ValueError(f"Agent {agent_id!r} has no previous version to roll back to")
+            raise VersionError(f"Agent {agent_id!r} has no previous version to roll back to.")
         current_idx = next(
             (i for i, v in enumerate(versions) if v.version == entry.active_version),
             None,
         )
         if current_idx is None or current_idx == 0:
-            raise ValueError(f"Agent {agent_id!r} is at its earliest version")
+            raise VersionError(f"Agent {agent_id!r} is at its earliest version.")
         new_active = versions[current_idx - 1].version
         entry.active_version = new_active
         self.flush_manifest()
@@ -240,8 +242,10 @@ class FileCodeStore:
         if not entry:
             return
         if len(entry.versions) <= 1:
-            raise ValueError(
-                f"Cannot delete the only version of {agent_id!r}; archive the whole agent instead"
+            from forge_agent.exceptions import VersionError
+            raise VersionError(
+                f"Cannot delete the only version of {agent_id!r}.",
+                hint="Archive the whole agent instead: forge-agent archive {agent_id}",
             )
         entry.versions = [v for v in entry.versions if v.version != version]
         if entry.active_version == version:

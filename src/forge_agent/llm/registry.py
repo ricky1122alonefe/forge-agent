@@ -73,10 +73,8 @@ class LLMRegistry:
                 return self._clients[pid]
             provider_cfg = self.config.providers.get(pid)
             if provider_cfg is None:
-                raise KeyError(
-                    f"Provider {pid!r} not configured. "
-                    f"Available: {list(self.config.providers.keys())}"
-                )
+                from forge_agent.exceptions import ProviderNotConfiguredError
+                raise ProviderNotConfiguredError(pid, available=list(self.config.providers.keys()))
             if not provider_cfg.enabled:
                 log.warning("Provider %s is disabled in config", pid)
             client = self._build_client(provider_cfg)

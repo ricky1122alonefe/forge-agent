@@ -40,6 +40,23 @@ from forge_agent.core.enums import (
     AgentStatus,
     Verdict,
 )
+from forge_agent.exceptions import (
+    AgentNotFoundError,
+    DuplicateRegistrationError,
+    ForgeError,
+    InvalidAgentTypeError,
+    MCPNotConnectedError,
+    MCPToolCallError,
+    MissingDependencyError,
+    PipelineNodeNotFoundError,
+    PromptNotFoundError,
+    PromptVariableError,
+    ProviderNotConfiguredError,
+    ToolDeniedError,
+    ToolNotRegisteredError,
+    VersionError,
+    VersionNotFoundError,
+)
 from forge_agent.registry.decorators import register_agent
 from forge_agent.registry.registry import AgentRegistry, get_registry
 from forge_agent.scheduler.scheduler import Scheduler, ScheduleResult, ScheduleTask
@@ -69,4 +86,20 @@ __all__ = [
     "Pipeline",
     "PipelineNode",
     "PipelineEngine",
+    # Exceptions
+    "ForgeError",
+    "AgentNotFoundError",
+    "DuplicateRegistrationError",
+    "InvalidAgentTypeError",
+    "VersionError",
+    "VersionNotFoundError",
+    "ProviderNotConfiguredError",
+    "PromptNotFoundError",
+    "PromptVariableError",
+    "PipelineNodeNotFoundError",
+    "ToolNotRegisteredError",
+    "ToolDeniedError",
+    "MCPToolCallError",
+    "MCPNotConnectedError",
+    "MissingDependencyError",
 ]

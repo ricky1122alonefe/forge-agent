@@ -54,6 +54,7 @@ class AgentRegistry:
         tags: list[str] | None = None,
         override: bool = False,
     ) -> None:
+        from forge_agent.exceptions import DuplicateRegistrationError
         agent_id = getattr(agent_cls, "agent_id", None)
         if not agent_id:
             raise ValueError(
@@ -61,10 +62,7 @@ class AgentRegistry:
                 "Set it as a ClassVar."
             )
         if agent_id in self._classes and not override:
-            raise ValueError(
-                f"Agent {agent_id!r} already registered. "
-                "Pass override=True to replace (use cautiously)."
-            )
+            raise DuplicateRegistrationError(agent_id)
         self._classes[agent_id] = agent_cls
         self._metadata[agent_id] = {
             "domain": domain or getattr(agent_cls, "domain", "generic"),
@@ -104,10 +102,8 @@ class AgentRegistry:
             if not force_new and agent_id in self._instances:
                 return self._instances[agent_id]
             if agent_id not in self._classes:
-                raise KeyError(
-                    f"Agent {agent_id!r} not registered. "
-                    f"Available: {sorted(self._classes.keys())}"
-                )
+                from forge_agent.exceptions import AgentNotFoundError
+                raise AgentNotFoundError(agent_id, available=list(self._classes.keys()))
             instance = self._classes[agent_id](config=config)
             await instance.initialize()
             self._instances[agent_id] = instance

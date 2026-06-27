@@ -47,16 +47,19 @@ class Pipeline:
 
     def add_node(self, node: PipelineNode) -> None:
         if node.node_id in self.nodes:
-            raise ValueError(f"Duplicate node id: {node.node_id!r}")
+            from forge_agent.exceptions import DuplicateNodeError
+            raise DuplicateNodeError(node.node_id)
         self.nodes[node.node_id] = node
         if not self.entry:
             self.entry = node.node_id
 
     def add_edge(self, from_id: str, to_id: str) -> None:
         if from_id not in self.nodes:
-            raise KeyError(f"Node {from_id!r} not in pipeline")
+            from forge_agent.exceptions import PipelineNodeNotFoundError
+            raise PipelineNodeNotFoundError(from_id)
         if to_id not in self.nodes:
-            raise KeyError(f"Node {to_id!r} not in pipeline")
+            from forge_agent.exceptions import PipelineNodeNotFoundError
+            raise PipelineNodeNotFoundError(to_id)
         self.nodes[from_id].next_nodes.append(to_id)
 
     def visualize(self) -> str:

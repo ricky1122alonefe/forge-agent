@@ -108,7 +108,8 @@ class LLMConfig:
     def primary(self) -> ProviderConfig:
         p = self.providers.get(self.primary_id)
         if p is None:
-            raise KeyError(f"Primary provider {self.primary_id!r} not in config")
+            from forge_agent.exceptions import ProviderNotConfiguredError
+            raise ProviderNotConfiguredError(self.primary_id, available=list(self.providers.keys()))
         return p
 
 

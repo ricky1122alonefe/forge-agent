@@ -239,13 +239,12 @@ class MCPClient:
             RuntimeError: If the tool call fails.
         """
         if not _HAS_MCP_SDK:
-            raise ImportError(
-                "The 'mcp' package is required for MCP tool calls. "
-                "Install it with: pip install 'forge-agent[mcp]'"
-            )
+            from forge_agent.exceptions import MissingDependencyError
+            raise MissingDependencyError("mcp", "mcp")
 
         if not self._session:
-            raise ConnectionError("MCPClient is not connected. Call connect() first.")
+            from forge_agent.exceptions import MCPNotConnectedError
+            raise MCPNotConnectedError()
 
         try:
             result: CallToolResult = await self._session.call_tool(name, arguments=args or {})
@@ -265,7 +264,8 @@ class MCPClient:
             }
         except Exception as exc:
             log.exception("MCPClient: call_tool(%s) failed", name)
-            raise RuntimeError(f"MCP tool call failed: {exc}") from exc
+            from forge_agent.exceptions import MCPToolCallError
+            raise MCPToolCallError(name, str(exc)) from exc
 
     # ---- Convenience: list tools as dicts (backward compat) ----
 

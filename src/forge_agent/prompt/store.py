@@ -42,11 +42,13 @@ class FilePromptStore(PromptManagerProtocol):
         if not version:
             versions = self.list_versions(agent_id)
             if not versions:
-                raise KeyError(f"No prompts for agent {agent_id!r}")
+                from forge_agent.exceptions import PromptNotFoundError
+                raise PromptNotFoundError(agent_id)
             version = sorted(versions)[-1]
         path = self.root / agent_id / f"{version}.j2"
         if not path.is_file():
-            raise FileNotFoundError(f"Prompt file not found: {path}")
+            from forge_agent.exceptions import PromptFileNotFoundError
+            raise PromptFileNotFoundError(str(path))
         return path.read_text(encoding="utf-8")
 
     def render(
@@ -60,9 +62,8 @@ class FilePromptStore(PromptManagerProtocol):
         try:
             return template.format(**variables)
         except KeyError as exc:
-            raise KeyError(
-                f"Missing variable for prompt {agent_id!r}: {exc.args[0]!r}"
-            ) from exc
+            from forge_agent.exceptions import PromptVariableError
+            raise PromptVariableError(agent_id, str(exc.args[0])) from exc
 
     def list_versions(self, agent_id: str) -> list[str]:
         d = self.root / agent_id

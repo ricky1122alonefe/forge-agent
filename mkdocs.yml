@@ -10,6 +10,10 @@ edit_uri: edit/main/docs/
 docs_dir: docs
 site_dir: site
 
+exclude_docs: |
+  tasks/
+  architecture/dashboard.md
+
 theme:
   name: material
   language: en

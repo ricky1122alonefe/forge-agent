@@ -1,13 +1,24 @@
 """`forge-agent new` — create a new project from a template.
 
-For v0.2 this is a stub: it just creates a minimal pyproject.toml + agent file.
-Templates will be filled in v0.3.
+Each template generates a domain-specific scaffold with:
+    - Tailored example agent(s)
+    - Relevant dependencies
+    - Domain-specific README
+    - Pipeline example (where applicable)
+
+Templates:
+    basic    — minimal scaffold, generic agent
+    stock    — stock market monitoring (scraper + analyzer)
+    football — sports data tracking (scraper + monitor)
+    social   — social media analysis (scraper + generator)
+    office   — office automation (monitor + generator)
 """
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 
 def add(sub: argparse._SubParsersAction) -> None:
@@ -19,11 +30,430 @@ def add(sub: argparse._SubParsersAction) -> None:
     p.set_defaults(func=run)
 
 
+# ---------------------------------------------------------------------------
+# Template definitions
+# ---------------------------------------------------------------------------
+
+TEMPLATES: dict[str, dict[str, Any]] = {
+    "basic": {
+        "description": "Minimal scaffold with a generic agent",
+        "domain": "generic",
+        "extra_deps": [],
+        "agents": [
+            {
+                "filename": "example.py",
+                "class_name": "ExampleAgent",
+                "agent_id": "generic.example",
+                "name": "Example Agent",
+                "code": '''"""Example agent scaffold — a minimal echo agent."""
+
+from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
+
+
+@register_agent(domain="generic")
+class ExampleAgent(BaseAgent):
+    agent_id = "generic.example"
+    name = "Example Agent"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        return {"raw": ctx.payload}
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        return {"strategy": "echo"}
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            evidence=[f"observed: {observation}"],
+            run_id=ctx.run_id,
+        )
+''',
+            },
+        ],
+        "readme_extra": "A generic forge-agent project. Customize agents/ to build your own.",
+    },
+    "stock": {
+        "description": "Stock market monitoring with scraper + analyzer",
+        "domain": "finance",
+        "extra_deps": ["requests", "pandas"],
+        "agents": [
+            {
+                "filename": "stock_scraper.py",
+                "class_name": "StockScraperAgent",
+                "agent_id": "finance.stock_scraper",
+                "name": "Stock Price Scraper",
+                "code": '''"""Stock price scraper agent — fetches real-time stock data."""
+
+from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
+
+
+@register_agent(domain="finance")
+class StockScraperAgent(BaseAgent):
+    agent_id = "finance.stock_scraper"
+    name = "Stock Price Scraper"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        symbols = ctx.payload.get("symbols", ["AAPL", "GOOGL"])
+        # TODO: Replace with real API call (e.g. Yahoo Finance, Alpha Vantage)
+        prices = {s: {"price": 0.0, "change": 0.0} for s in symbols}
+        return {"symbols": symbols, "prices": prices}
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        return {"action": "report", "data": observation}
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        prices = decision.get("data", {}).get("prices", {})
+        evidence = [f"{s}: ${p['price']:.2f} ({p['change']:+.2f}%)" for s, p in prices.items()]
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            evidence=evidence,
+            run_id=ctx.run_id,
+        )
+''',
+            },
+            {
+                "filename": "stock_analyzer.py",
+                "class_name": "StockAnalyzerAgent",
+                "agent_id": "finance.stock_analyzer",
+                "name": "Stock Trend Analyzer",
+                "code": '''"""Stock trend analyzer — analyzes price movements and generates insights."""
+
+from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
+
+
+@register_agent(domain="finance")
+class StockAnalyzerAgent(BaseAgent):
+    agent_id = "finance.stock_analyzer"
+    name = "Stock Trend Analyzer"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        return {"price_history": ctx.payload.get("price_history", [])}
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        history = observation.get("price_history", [])
+        if len(history) < 2:
+            return {"trend": "insufficient_data", "signal": "hold"}
+        # Simple trend detection
+        recent = history[-5:] if len(history) >= 5 else history
+        avg = sum(p.get("price", 0) for p in recent) / len(recent)
+        last = recent[-1].get("price", 0)
+        if last > avg * 1.02:
+            signal = "buy"
+        elif last < avg * 0.98:
+            signal = "sell"
+        else:
+            signal = "hold"
+        return {"trend": "analyzed", "signal": signal, "avg_price": avg}
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            evidence=[f"Signal: {decision['signal']}", f"Avg: ${decision.get('avg_price', 0):.2f}"],
+            run_id=ctx.run_id,
+        )
+''',
+            },
+        ],
+        "readme_extra": (
+            "Stock market monitoring project.\n\n"
+            "Agents:\n"
+            "- **StockScraperAgent**: Fetches real-time stock prices\n"
+            "- **StockAnalyzerAgent**: Analyzes trends and generates signals\n"
+        ),
+    },
+    "football": {
+        "description": "Sports data tracking with scraper + monitor",
+        "domain": "sports",
+        "extra_deps": ["requests"],
+        "agents": [
+            {
+                "filename": "match_scraper.py",
+                "class_name": "MatchScraperAgent",
+                "agent_id": "sports.match_scraper",
+                "name": "Match Data Scraper",
+                "code": '''"""Match data scraper — fetches football match results and stats."""
+
+from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
+
+
+@register_agent(domain="sports")
+class MatchScraperAgent(BaseAgent):
+    agent_id = "sports.match_scraper"
+    name = "Match Data Scraper"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        league = ctx.payload.get("league", "premier_league")
+        # TODO: Replace with real API (e.g. football-data.org)
+        matches = [
+            {"home": "Team A", "away": "Team B", "score": "2-1", "status": "finished"},
+        ]
+        return {"league": league, "matches": matches}
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        finished = [m for m in observation.get("matches", []) if m.get("status") == "finished"]
+        return {"action": "report_results", "matches": finished}
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        evidence = [
+            f"{m['home']} vs {m['away']}: {m['score']}"
+            for m in decision.get("matches", [])
+        ]
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            evidence=evidence or ["No finished matches"],
+            run_id=ctx.run_id,
+        )
+''',
+            },
+            {
+                "filename": "match_monitor.py",
+                "class_name": "MatchMonitorAgent",
+                "agent_id": "sports.match_monitor",
+                "name": "Match Monitor",
+                "code": '''"""Match monitor — watches for live score changes and alerts."""
+
+from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
+
+
+@register_agent(domain="sports")
+class MatchMonitorAgent(BaseAgent):
+    agent_id = "sports.match_monitor"
+    name = "Match Monitor"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        return {"live_matches": ctx.payload.get("live_matches", [])}
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        live = observation.get("live_matches", [])
+        alerts = []
+        for match in live:
+            if match.get("event") == "goal":
+                alerts.append(f"GOAL! {match.get('team', '?')} scored!")
+        return {"alerts": alerts}
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        alerts = decision.get("alerts", [])
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            evidence=alerts or ["No live events"],
+            run_id=ctx.run_id,
+        )
+''',
+            },
+        ],
+        "readme_extra": (
+            "Sports data tracking project.\n\n"
+            "Agents:\n"
+            "- **MatchScraperAgent**: Fetches match results and statistics\n"
+            "- **MatchMonitorAgent**: Monitors live matches for score changes\n"
+        ),
+    },
+    "social": {
+        "description": "Social media analysis with scraper + generator",
+        "domain": "social",
+        "extra_deps": ["requests"],
+        "agents": [
+            {
+                "filename": "social_scraper.py",
+                "class_name": "SocialScraperAgent",
+                "agent_id": "social.scraper",
+                "name": "Social Media Scraper",
+                "code": '''"""Social media scraper — collects posts and engagement data."""
+
+from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
+
+
+@register_agent(domain="social")
+class SocialScraperAgent(BaseAgent):
+    agent_id = "social.scraper"
+    name = "Social Media Scraper"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        platform = ctx.payload.get("platform", "twitter")
+        query = ctx.payload.get("query", "forge-agent")
+        # TODO: Replace with real API (Twitter API, Reddit API, etc.)
+        posts = [
+            {"text": f"Sample post about {query}", "likes": 42, "shares": 7},
+        ]
+        return {"platform": platform, "query": query, "posts": posts}
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        posts = observation.get("posts", [])
+        total_engagement = sum(p.get("likes", 0) + p.get("shares", 0) for p in posts)
+        return {"action": "analyze", "total_engagement": total_engagement, "post_count": len(posts)}
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            evidence=[
+                f"Collected {decision['post_count']} posts",
+                f"Total engagement: {decision['total_engagement']}",
+            ],
+            run_id=ctx.run_id,
+        )
+''',
+            },
+            {
+                "filename": "content_generator.py",
+                "class_name": "ContentGeneratorAgent",
+                "agent_id": "social.generator",
+                "name": "Content Generator",
+                "code": '''"""Content generator — creates social media content based on trends."""
+
+from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
+
+
+@register_agent(domain="social")
+class ContentGeneratorAgent(BaseAgent):
+    agent_id = "social.generator"
+    name = "Content Generator"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        return {
+            "trending_topics": ctx.payload.get("trending_topics", []),
+            "tone": ctx.payload.get("tone", "professional"),
+        }
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        topics = observation.get("trending_topics", [])
+        tone = observation.get("tone", "professional")
+        # TODO: Integrate with LLM for real content generation
+        draft = f"Draft post about {', '.join(topics[:3])} in {tone} tone"
+        return {"draft": draft, "topics_used": topics[:3]}
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            evidence=[f"Generated: {decision['draft']}"],
+            run_id=ctx.run_id,
+        )
+''',
+            },
+        ],
+        "readme_extra": (
+            "Social media analysis project.\n\n"
+            "Agents:\n"
+            "- **SocialScraperAgent**: Collects posts and engagement data\n"
+            "- **ContentGeneratorAgent**: Generates content based on trending topics\n"
+        ),
+    },
+    "office": {
+        "description": "Office automation with monitor + generator",
+        "domain": "office",
+        "extra_deps": [],
+        "agents": [
+            {
+                "filename": "task_monitor.py",
+                "class_name": "TaskMonitorAgent",
+                "agent_id": "office.task_monitor",
+                "name": "Task Monitor",
+                "code": '''"""Task monitor — tracks project tasks and deadlines."""
+
+from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
+
+
+@register_agent(domain="office")
+class TaskMonitorAgent(BaseAgent):
+    agent_id = "office.task_monitor"
+    name = "Task Monitor"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        tasks = ctx.payload.get("tasks", [])
+        # Check for overdue tasks
+        overdue = [t for t in tasks if t.get("status") == "overdue"]
+        return {"total_tasks": len(tasks), "overdue": overdue}
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        overdue = observation.get("overdue", [])
+        if overdue:
+            return {"action": "alert", "overdue_count": len(overdue), "tasks": overdue}
+        return {"action": "all_clear", "overdue_count": 0}
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        if decision["action"] == "alert":
+            evidence = [f"⚠ {decision['overdue_count']} overdue task(s)"]
+            for t in decision.get("tasks", []):
+                evidence.append(f"  - {t.get('name', 'unnamed')}: due {t.get('due', 'unknown')}")
+        else:
+            evidence = ["All tasks on track"]
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            evidence=evidence,
+            run_id=ctx.run_id,
+        )
+''',
+            },
+            {
+                "filename": "report_generator.py",
+                "class_name": "ReportGeneratorAgent",
+                "agent_id": "office.report_generator",
+                "name": "Report Generator",
+                "code": '''"""Report generator — creates weekly summaries and status reports."""
+
+from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
+
+
+@register_agent(domain="office")
+class ReportGeneratorAgent(BaseAgent):
+    agent_id = "office.report_generator"
+    name = "Report Generator"
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        return {
+            "completed_tasks": ctx.payload.get("completed_tasks", []),
+            "period": ctx.payload.get("period", "this week"),
+        }
+
+    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+        completed = observation.get("completed_tasks", [])
+        period = observation.get("period", "this week")
+        summary = f"Weekly Report ({period}): {len(completed)} tasks completed"
+        return {"summary": summary, "task_count": len(completed)}
+
+    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+        return AgentReport(
+            agent_id=self.agent_id,
+            name=self.name,
+            evidence=[decision["summary"]],
+            run_id=ctx.run_id,
+        )
+''',
+            },
+        ],
+        "readme_extra": (
+            "Office automation project.\n\n"
+            "Agents:\n"
+            "- **TaskMonitorAgent**: Tracks tasks and alerts on overdue items\n"
+            "- **ReportGeneratorAgent**: Generates weekly status reports\n"
+        ),
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Run
+# ---------------------------------------------------------------------------
+
 def run(args: argparse.Namespace) -> int:
     target = args.project / args.name
     if target.exists():
         print(f"Error: {target} already exists.")
         return 1
+
+    template = TEMPLATES[args.template]
+    domain = template["domain"]
+    extra_deps = template["extra_deps"]
+    agents = template["agents"]
+
+    # Create directory structure
     target.mkdir(parents=True)
     (target / "agents").mkdir()
     (target / "pipelines").mkdir()
@@ -31,14 +461,19 @@ def run(args: argparse.Namespace) -> int:
     (target / "generated_agents").mkdir()
     (target / "generated_agents" / ".gitkeep").touch()
 
-    # Minimal pyproject.toml
+    # pyproject.toml
+    deps_lines = [f'    "forge-agent @ file://{Path(__file__).resolve().parents[3]}/..",']
+    for dep in extra_deps:
+        deps_lines.append(f'    "{dep}",')
+    deps_str = "\n".join(deps_lines)
+
     (target / "pyproject.toml").write_text(
         f"""[project]
 name = "{args.name}"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
-    "forge-agent @ file://{Path(__file__).resolve().parents[3]}/..",
+{deps_str}
 ]
 
 [build-system]
@@ -48,45 +483,42 @@ build-backend = "setuptools.build_meta"
         encoding="utf-8",
     )
 
-    # Example agent
+    # Agent files
     (target / "agents" / "__init__.py").touch()
-    (target / "agents" / "example.py").write_text(
-        f'''"""Example agent scaffold."""
-
-from forge_agent import BaseAgent, AgentContext, AgentReport, register_agent
-
-
-@register_agent(domain="{args.template}")
-class ExampleAgent(BaseAgent):
-    agent_id = "{args.template}.example"
-    name = "Example Agent"
-
-    async def observe(self, ctx: AgentContext) -> dict:
-        return {{"raw": ctx.payload}}
-
-    async def decide(self, ctx: AgentContext, observation: dict) -> dict:
-        return {{"strategy": "echo"}}
-
-    async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
-        return AgentReport(
-            agent_id=self.agent_id,
-            name=self.name,
-            evidence=[f"observed: {{observation}}"],
-            run_id=ctx.run_id,
+    for agent_def in agents:
+        (target / "agents" / agent_def["filename"]).write_text(
+            agent_def["code"],
+            encoding="utf-8",
         )
-''',
-        encoding="utf-8",
-    )
 
+    # README
+    readme_extra = template.get("readme_extra", "")
     (target / "README.md").write_text(
-        f"# {args.name}\n\nCreated with `forge-agent new {args.name} --template={args.template}`.\n",
+        f"# {args.name}\n\n"
+        f"Created with `forge-agent new {args.name} --template={args.template}`.\n\n"
+        f"**Template**: {args.template} — {template['description']}\n\n"
+        f"{readme_extra}\n\n"
+        f"## Getting Started\n\n"
+        f"```bash\n"
+        f"cd {args.name}\n"
+        f"pip install -e .\n"
+        f"forge-agent doctor        # check environment\n"
+        f"forge-agent llm list      # check LLM providers\n"
+        f"forge-agent generate \"...\"  # generate a new agent\n"
+        f"```\n",
         encoding="utf-8",
     )
 
+    # Print summary
+    agent_names = [a["class_name"] for a in agents]
     print(f"✓ Created {target}/")
+    print(f"  Template: {args.template} ({template['description']})")
+    print(f"  Agents:   {', '.join(agent_names)}")
+    if extra_deps:
+        print(f"  Deps:     {', '.join(extra_deps)}")
     print(f"\nNext steps:")
     print(f"  cd {target}")
     print(f"  pip install -e .")
-    print(f"  forge-agent llm list")
+    print(f"  forge-agent doctor")
     print(f"  forge-agent generate \"...\"")
     return 0

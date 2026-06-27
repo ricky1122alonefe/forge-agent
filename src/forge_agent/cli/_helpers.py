@@ -11,10 +11,8 @@ def get_store(project: Path) -> FileCodeStore:
     """Get the FileCodeStore for a project (auto-uses generated_agents/)."""
     root = project / "generated_agents"
     if not root.is_dir():
-        raise FileNotFoundError(
-            f"No generated_agents/ directory at {root}. "
-            "Run `forge-agent generate` first or create the directory."
-        )
+        from forge_agent.exceptions import GeneratedDirNotFoundError
+        raise GeneratedDirNotFoundError(str(root))
     return FileCodeStore(root)
 
 

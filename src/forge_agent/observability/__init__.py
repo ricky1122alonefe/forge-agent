@@ -15,6 +15,13 @@ from forge_agent.observability.logger import (
     unbind_context,
 )
 from forge_agent.observability.metrics import MetricsCollector
+from forge_agent.observability.otel_exporter import (
+    OTelExporter,
+    get_installed_exporter,
+    install_otel_exporter,
+    is_otel_available,
+    uninstall_otel_exporter,
+)
 from forge_agent.observability.trace import (
     Span,
     SpanStatus,
@@ -36,4 +43,7 @@ __all__ = [
     # Trace
     "Span", "SpanStatus", "SpanType", "Trace", "TraceManager",
     "get_trace_manager", "reset_trace_manager",
+    # OTel
+    "OTelExporter", "is_otel_available", "install_otel_exporter",
+    "uninstall_otel_exporter", "get_installed_exporter",
 ]

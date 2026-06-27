@@ -74,10 +74,8 @@ class AgentType(str, Enum):
         for member in cls:
             if member.value == normalized:
                 return member
-        raise ValueError(
-            f"Invalid agent type: {value!r}. "
-            f"Valid types: {[m.value for m in cls]}"
-        )
+        from forge_agent.exceptions import InvalidAgentTypeError
+        raise InvalidAgentTypeError(value, [m.value for m in cls])
 
     @classmethod
     def default(cls) -> AgentType:

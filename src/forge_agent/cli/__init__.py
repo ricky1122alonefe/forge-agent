@@ -15,6 +15,7 @@ Commands:
     llm         LLM management: list / test / config
     new         Create a new project from a template
     logs        Show recent structured log entries
+    dashboard   Start the local observability dashboard (web UI)
 """
 
 from __future__ import annotations
@@ -50,7 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     from forge_agent.cli import cmd_generate, cmd_list, cmd_history, cmd_use
     from forge_agent.cli import cmd_rollback, cmd_diff, cmd_manifest
     from forge_agent.cli import cmd_save, cmd_restore, cmd_archive, cmd_delete
-    from forge_agent.cli import cmd_llm, cmd_new, cmd_logs, cmd_datasets, cmd_mcp
+    from forge_agent.cli import cmd_llm, cmd_new, cmd_logs, cmd_datasets, cmd_mcp, cmd_doctor
+    from forge_agent.cli import cmd_dashboard
 
     cmd_generate.add(sub)
     cmd_list.add(sub)
@@ -68,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
     cmd_logs.add(sub)
     cmd_datasets.add(sub)
     cmd_mcp.add(sub)
+    cmd_doctor.add(sub)
+    cmd_dashboard.add(sub)
 
     args = parser.parse_args(argv)
 

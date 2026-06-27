@@ -174,7 +174,8 @@ class InMemoryPromptManager:
     def get(self, agent_id: str, *, version: str | None = None) -> str:
         versions = self._prompts.get(agent_id, {})
         if not versions:
-            raise KeyError(f"No prompts registered for agent {agent_id!r}")
+            from forge_agent.exceptions import PromptNotFoundError
+            raise PromptNotFoundError(agent_id)
         if version is None:
             return versions[max(versions.keys())]
         return versions[version]
@@ -190,9 +191,8 @@ class InMemoryPromptManager:
         try:
             return template.format(**variables)
         except KeyError as exc:
-            raise KeyError(
-                f"Missing variable for prompt {agent_id!r}: {exc.args[0]!r}"
-            ) from exc
+            from forge_agent.exceptions import PromptVariableError
+            raise PromptVariableError(agent_id, str(exc.args[0])) from exc
 
     def list_versions(self, agent_id: str) -> list[str]:
         return list(self._prompts.get(agent_id, {}).keys())

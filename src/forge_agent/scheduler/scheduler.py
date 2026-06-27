@@ -30,7 +30,8 @@ class Scheduler:
 
     def add_task(self, task: ScheduleTask) -> None:
         if task.task_id in self._tasks:
-            raise ValueError(f"Duplicate task_id: {task.task_id!r}")
+            from forge_agent.exceptions import DuplicateRegistrationError
+            raise DuplicateRegistrationError(task.task_id, hint="Use a unique task_id for each scheduled task.")
         self._tasks[task.task_id] = task
 
     def clear(self) -> None:
