@@ -40,7 +40,6 @@ import logging
 import os
 import sys
 import warnings
-from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Literal
 
@@ -48,50 +47,94 @@ from typing import Any, Literal
 # (pyproject requires it, but defensive code stays).
 try:
     import structlog
+    from structlog.contextvars import (
+        bind_contextvars as _bind_contextvars,
+        clear_contextvars as _clear_contextvars,
+        get_contextvars as _get_contextvars,
+        merge_contextvars,
+        unbind_contextvars as _unbind_contextvars,
+    )
 
     _HAS_STRUCTLOG = True
 except ImportError:  # pragma: no cover - pyproject enforces structlog
     _HAS_STRUCTLOG = False
     structlog = None  # type: ignore[assignment]
+    _bind_contextvars = None  # type: ignore[assignment]
+    _unbind_contextvars = None  # type: ignore[assignment]
+    _clear_contextvars = None  # type: ignore[assignment]
+    _get_contextvars = None  # type: ignore[assignment]
+    merge_contextvars = None  # type: ignore[assignment]
 
 
 # =====================================================================
 # Context — propagated through asyncio tasks automatically
 # =====================================================================
+#
+# We delegate to structlog's own contextvars implementation
+# (`structlog.contextvars`) because:
+#   1. The default `merge_contextvars` processor in our chain already
+#      knows how to pull from it.
+#   2. It's battle-tested for asyncio task isolation.
+#   3. It implements the exact same API we expose (bind / unbind /
+#      clear / get) but is also thread- and task-safe.
+#
+# If structlog isn't installed at runtime (unlikely; pyproject enforces
+# it), we fall back to a stdlib `ContextVar` of our own + a custom
+# processor.
 
-# Each call to `bind_context(**kv)` inside a coroutine creates a
-# per-task context; child coroutines see the same bindings.
-_context: ContextVar[dict[str, Any]] = ContextVar("forge_log_context", default={})
+import contextvars as _stdlib_contextvars
 
+if _HAS_STRUCTLOG:
+    def bind_context(**kv: Any) -> None:
+        """Bind key/value pairs to the current async-task log context.
 
-def bind_context(**kv: Any) -> None:
-    """Add key/value pairs to the current log context (e.g. agent_id='foo').
+        Values of `None` are skipped. Bindings propagate through `await`
+        boundaries; concurrent asyncio tasks have isolated contexts.
+        """
+        filtered = {k: v for k, v in kv.items() if v is not None}
+        if filtered:
+            _bind_contextvars(**filtered)
 
-    Bindings are stored in a `contextvars.ContextVar` so they propagate
-    through `await` boundaries and across concurrent asyncio tasks
-    *without leaking* between them.
-    """
-    current = dict(_context.get())
-    current.update({k: v for k, v in kv.items() if v is not None})
-    _context.set(current)
+    def unbind_context(*keys: str) -> None:
+        """Remove one or more keys from the current log context."""
+        if keys:
+            _unbind_contextvars(*keys)
 
+    def clear_context() -> None:
+        """Wipe the entire current log context (use at the end of a run)."""
+        _clear_contextvars()
 
-def unbind_context(*keys: str) -> None:
-    """Remove one or more keys from the current log context."""
-    current = dict(_context.get())
-    for k in keys:
-        current.pop(k, None)
-    _context.set(current)
+    def current_context() -> dict[str, Any]:
+        """Return a copy of the current context bindings (read-only view)."""
+        return dict(_get_contextvars())
+else:
+    _fallback_context: _stdlib_contextvars.ContextVar[dict[str, Any]] = (
+        _stdlib_contextvars.ContextVar("forge_log_context_fallback", default={})
+    )
 
+    def bind_context(**kv: Any) -> None:
+        current = dict(_fallback_context.get())
+        current.update({k: v for k, v in kv.items() if v is not None})
+        _fallback_context.set(current)
 
-def clear_context() -> None:
-    """Wipe the current log context. Use at the end of a run / request."""
-    _context.set({})
+    def unbind_context(*keys: str) -> None:
+        current = dict(_fallback_context.get())
+        for k in keys:
+            current.pop(k, None)
+        _fallback_context.set(current)
 
+    def clear_context() -> None:
+        _fallback_context.set({})
 
-def current_context() -> dict[str, Any]:
-    """Return a copy of the current context bindings (read-only view)."""
-    return dict(_context.get())
+    def current_context() -> dict[str, Any]:
+        return dict(_fallback_context.get())
+
+    def _merge_fallback_contextvars(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
+        """Custom processor that merges our fallback ContextVar."""
+        for k, v in _fallback_context.get().items():
+            if k not in event_dict:
+                event_dict[k] = v
+        return event_dict
 
 
 # =====================================================================
@@ -181,11 +224,11 @@ def configure_logging(
 
     # ----- structlog processor chain -----
     shared_processors: list[Any] = [
-        structlog.contextvars.merge_contextvars,            # inject contextvars
-        structlog.processors.add_log_level,                  # "level": "info"
+        merge_contextvars,                              # inject contextvars
+        structlog.processors.add_log_level,              # "level": "info"
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,               # exc_info → text
+        structlog.processors.format_exc_info,           # exc_info → text
         structlog.processors.CallsiteParameterAdder(
             parameters=[structlog.processors.CallsiteParameter.MODULE,
                         structlog.processors.CallsiteParameter.LINENO],
@@ -300,7 +343,7 @@ def current_config() -> dict[str, Any]:
 def reset_for_tests() -> None:
     """Reset module state. For tests only."""
     _configured.update(configured=False, format="console", level="INFO", file_path=None)
-    _context.set({})
+    clear_context()
 
 
 # =====================================================================

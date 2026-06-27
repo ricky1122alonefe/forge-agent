@@ -181,7 +181,8 @@ async def test_contextvars_isolated_across_concurrent_tasks(capsys):
 # --------------------------------------------------------------- StructLogger
 
 def test_struct_logger_satisfies_protocol():
-    from forge_agent.core.capabilities import LoggerProtocol, StructLogger
+    from forge_agent.core.capabilities import LoggerProtocol
+    from forge_agent.observability.logger import StructLogger
 
     log_mod.configure_logging(level="INFO", json=False, force=True)
     sl = StructLogger(name="test.protocol")

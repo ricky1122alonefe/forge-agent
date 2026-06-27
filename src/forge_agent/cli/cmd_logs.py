@@ -65,23 +65,23 @@ def _read_last_n_lines(path: Path, n: int) -> list[str]:
     with path.open("rb") as f:
         f.seek(0, 2)
         pos = f.tell()
-        buf = b""
-        while pos > 0 and len(lines) < n:
-            read_size = min(block_size, pos)
-            pos -= read_size
-            f.seek(pos)
-            buf = f.read(read_size) + buf
-            # Split, keep the leading partial in `buf` for next iter
-            parts = buf.split(b"\n")
-            buf = parts[0]
-            for piece in parts[1:]:
-                try:
-                    lines.append(piece.decode("utf-8", errors="replace"))
-                except Exception:
-                    continue
-        # Tail leftover
-        if buf and len(lines) < n:
-            lines.append(buf.decode("utf-8", errors="replace"))
+        # Read everything in one go if the file is small.
+        if pos <= block_size:
+            f.seek(0)
+            data = f.read(pos)
+        else:
+            # Bounded read: read enough trailing bytes to cover N lines.
+            # Worst case: 1 byte per line; read 256 bytes per line.
+            want = min(pos, max(block_size, n * 256))
+            f.seek(pos - want)
+            data = f.read(want)
+            # Drop the first (possibly partial) line — we don't have the
+            # rest of it, so we can't safely emit it.
+            nl = data.find(b"\n")
+            if nl >= 0:
+                data = data[nl + 1:]
+        for piece in data.splitlines():
+            lines.append(piece.decode("utf-8", errors="replace"))
     return list(lines)
 
 
