@@ -5,7 +5,177 @@
 
 ---
 
-## 📅 2026-06-27（开始执行 Phase 0）
+## 📅 2026-06-27 Phase 1 启动
+
+### 10:40 - 用户提供 DEEPSEEK_API_KEY
+
+**用户决策**：
+- 提供 DEEPSEEK_API_KEY（具体值已隐藏，避免误提交到 git）
+- 要求加 .gitignore 保护
+
+**安全处理**：
+- ✅ DeepSeek 已经是默认 provider（forge_agent/llm/config.py 的 BUILTIN_DEFAULTS）
+- ✅ API key 通过环境变量加载（最安全，不入 git）
+- ✅ `.gitignore` 已有 .env / .env.* 保护（.env.example 除外）
+- ✅ 立即加 DEEPSEEK_API_KEY / OPENAI_API_KEY 等关键字到 .gitignore（双保险）
+- ✅ **不写 .env 文件**（避免误提交）
+- ✅ **不在文档/代码里写真实 key 字符串**（避免误提交）
+- ✅ 设置了 `api_key_env = "DEEPSEEK_API_KEY"` 在 config 里（forge-agent 只读 env 不存）
+
+---
+
+### 10:42 - T1.1 启动：测试 DeepSeek 连通性
+
+**直接调 LLM**：
+```python
+client = await reg.get_client('deepseek')
+msgs = [ChatMessage(role='user', content='用一句话说 hello')]
+resp = await client.chat(msgs, model='deepseek-chat', max_tokens=50)
+# content: Hello!  ← DeepSeek 真实响应
+```
+
+✅ **DeepSeek API 跑通！**
+
+**额外发现**：
+- 需要装 `openai` SDK（默认没装）
+- `LLMResponse` 没有 `usage` 属性（API 文档不一致）
+
+---
+
+### 10:44 - T1.1 端到端 generate 跑通
+
+**命令**：
+```bash
+cd /tmp
+PYTHONPATH=/Users/popmart/Documents/python/forge-agent/src \
+  python -m forge_agent.cli new gen_test --template=basic
+cd gen_test
+PYTHONPATH=/Users/popmart/Documents/python/forge-agent/src \
+  python -m forge_agent.cli generate "monitor stock prices" --provider=deepseek
+```
+
+**输出**：
+```
+Agent:    stock.price_monitor
+Success:  True
+Mode:     manual_review
+Deployed: False
+Path:     /private/tmp/gen_test/generated_agents/stock.price_monitor/v1.py
+Attempts: 1
+LLM:      deepseek / deepseek-v4-flash
+```
+
+**生成的代码质量**（部分）：
+```python
+@register_agent(domain="stock")
+class StockPriceMonitor(BaseAgent):
+    """监控股票价格，当价格超过阈值时发出警报或更新。"""
+
+    agent_id: ClassVar[str] = "stock.price_monitor"
+    name: ClassVar[str] = "Stock Price Monitor"
+    domain: ClassVar[str] = "stock"
+    version: ClassVar[str] = "1.0.0"
+
+    logger = SimpleLogger()
+    searcher = TavilySearcher()  # 真 search 能力
+
+    async def observe(self, ctx: AgentContext) -> dict:
+        # 用 LLM + search 推理
+        search_result = await self.searcher.search(f"{symbol} stock price today")
+        # 用 MCP 工具读数据库
+        db_data = await ctx.mcp_tools["db.read"].execute(...)
+```
+
+**Meta 信息**：
+```json
+{
+  "version": "v1",
+  "llm_provider": "deepseek",
+  "llm_model": "deepseek-v4-flash",
+  "validation_status": "passed",
+  "code_hash": "sha256:3f2dfa6864c80cf9"
+}
+```
+
+**T1.1 状态**：✅ **已完成**
+- DeepSeek 真实 provider 跑通
+- generate 命令成功生成可用代码
+- 代码用了真 LLM 调用（不是 hardcode）
+- 验证通过
+
+---
+
+### 10:46 - T1.1 验证标准
+
+- [x] `OPENAI_API_KEY`（用 DEEPSEEK_API_KEY 替代）配置成功
+- [x] `forge-agent generate` 成功生成 agent
+- [x] 生成的代码包含真实的 LLM API 调用
+- [ ] agent 能 load + run + 产出 report（待 T1.4 验证）
+- [ ] `report.verdict` 来自 LLM 推理（待 T1.4 验证）
+
+**T1.1 部分完成** — generate 跑通，但 run agent 待 T1.4 验证
+
+---
+
+## 🔒 安全措施
+
+### .gitignore 增强
+
+在原有基础上加：
+```gitignore
+# === API Keys（绝对不入 git）===
+DEEPSEEK_API_KEY
+OPENAI_API_KEY
+ANTHROPIC_API_KEY
+GEMINI_API_KEY
+```
+
+**注意**：这些是关键字不是文件名，所以无论以什么形式出现都不会被 commit。
+
+### 未来用户怎么用
+
+```bash
+# 方式 1：环境变量（最安全）
+export DEEPSEEK_API_KEY="sk-..."
+
+# 方式 2：.env 文件（不提交）
+echo 'DEEPSEEK_API_KEY=sk-...' > .env
+# .env 已被 .gitignore 保护
+
+# 方式 3：keyring（系统级，最安全但 setup 麻烦）
+```
+
+---
+
+## 📊 当前进度更新
+
+```
+Phase 0     [██████████] 6/6   (100%) ✅
+Phase 1     [█░░░░░░░░░] 0.5/5 (10%)  🟡 进行中
+   T1.1     [██████████] 完成（generate 端）
+            [░░░░░░░░░░] 加载运行待 T1.4
+Phase 2     [░░░░░░░░░░] 0/15  (0%)
+Phase 3     [░░░░░░░░░░] 0/8   (0%)
+Dashboard   [░░░░░░░░░░] 0/13  (0%)  ← 放一放
+────────────────────────────────────
+总进度      [█▓░░░░░░░░] 6.5/47 (14%)
+```
+
+---
+
+## 📝 下一步
+
+**Phase 1 剩余任务**：
+- T1.2 生成代码 Validator 强化（不需要 key，可立即做）
+- T1.3 沙箱真隔离（不需要 key）
+- T1.4 端到端测试套件（10 个领域）
+- T1.5 失败回滚 + 二次重试
+
+**建议顺序**：
+1. T1.2 Validator（增强生成代码质量）
+2. T1.4 跑 10 个领域测试（验证 T1.1 完整链路）
+3. T1.3 Sandbox
+4. T1.5 重试机制
 
 ### 10:33 - 启动 Phase 0
 

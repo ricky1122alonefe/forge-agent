@@ -20,13 +20,13 @@ class MyAgent(BaseAgent):
     agent_id = "gen.my"
     name = "My Agent"
 
-    async def observe(self, ctx):
+    async def observe(self, ctx: AgentContext) -> dict:
         return {}
 
-    async def decide(self, ctx, obs):
+    async def decide(self, ctx: AgentContext, obs: dict) -> dict:
         return {}
 
-    async def act(self, ctx, dec):
+    async def act(self, ctx: AgentContext, dec: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name, verdict=Verdict.NEUTRAL)
 '''
 
@@ -40,13 +40,14 @@ class NotAnAgent:
 
 SOURCE_INCOMPLETE = '''
 from forge_agent.core.base import BaseAgent
+from forge_agent.core.context import AgentContext
 
 
 class HalfBaked(BaseAgent):
     agent_id = "gen.half"
     name = "Half"
 
-    async def observe(self, ctx):
+    async def observe(self, ctx: AgentContext) -> dict:
         return {}
     # missing decide / act
 '''

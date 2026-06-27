@@ -78,13 +78,14 @@ def test_validator_passes_minimal_agent():
     v = ContractValidator()
     src = '''
 from forge_agent.core.base import BaseAgent
+from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentReport
 class MyAgent(BaseAgent):
     agent_id = "test.my"
     name = "My"
-    async def observe(self, ctx): return {}
-    async def decide(self, ctx, o): return {}
-    async def act(self, ctx, d):
-        from forge_agent.core.contracts import AgentReport
+    async def observe(self, ctx: AgentContext) -> dict: return {}
+    async def decide(self, ctx: AgentContext, o: dict) -> dict: return {}
+    async def act(self, ctx: AgentContext, d: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
 '''
     r = v.validate_source(src)

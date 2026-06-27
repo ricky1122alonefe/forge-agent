@@ -76,6 +76,16 @@ secrets/
 *.pem
 *.key
 
+# === API Keys（绝对不入 git，无论以什么形式出现）===
+DEEPSEEK_API_KEY
+OPENAI_API_KEY
+ANTHROPIC_API_KEY
+GEMINI_API_KEY
+GROQ_API_KEY
+MISTRAL_API_KEY
+COHERE_API_KEY
+# End of API keys section
+
 # ===== OS / Misc =====
 *.bak
 *.tmp
