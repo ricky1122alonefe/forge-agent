@@ -1,50 +1,55 @@
-# syntax=docker/dockerfile:1.7
+# Multi-stage build for forge-agent dashboard
+FROM python:3.11-slim as builder
 
-# ---- Stage 1: builder ----
-FROM python:3.11-slim AS builder
-
-# uv is 10x faster than pip
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
-
+# Set working directory
 WORKDIR /app
 
-# Install build deps
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files first (better layer caching)
-COPY pyproject.toml ./
-COPY src ./src
-COPY README.md LICENSE CHANGELOG.md ./
+# Copy dependency files
+COPY pyproject.toml README.md ./
 
-# Build wheel
-RUN uv build --wheel --out-dir /wheels
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
 
-# ---- Stage 2: runtime ----
-FROM python:3.11-slim AS runtime
+# Production stage
+FROM python:3.11-slim
 
-# Create non-root user
-RUN groupadd --system --gid 1000 forge \
-    && useradd --system --uid 1000 --gid forge --home-dir /app --shell /bin/bash forge
-
+# Set working directory
 WORKDIR /app
 
-# Install runtime deps only
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+# Create non-root user
+RUN groupadd -r forge && useradd -r -g forge forge
 
-# Copy built wheel from builder
-COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir /wheels/*.whl \
-    && rm -rf /wheels
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy examples & docs (optional, for reference)
-COPY --chown=forge:forge examples /app/examples
-COPY --chown=forge:forge docs /app/docs
+# Copy application code
+COPY src/ ./src/
+COPY generated_agents/ ./generated_agents/
 
+# Create data directory
+RUN mkdir -p /data && chown -R forge:forge /data /app
+
+# Switch to non-root user
 USER forge
 
-# Default command: show CLI help
-CMD ["forge-agent", "--help"]
+# Set environment variables
+ENV PYTHONPATH=/app/src \
+    PYTHONUNBUFFERED=1 \
+    FORGE_AGENT_DATA_DIR=/data
+
+# Expose dashboard port
+EXPOSE 8765
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/api/health')"
+
+# Default command: run dashboard
+CMD ["python", "-m", "forge_agent", "dashboard", "--host", "0.0.0.0", "--port", "8765"]

@@ -65,40 +65,33 @@ class TestHealthEndpoint:
     """Tests for the /api/health endpoint."""
 
     def test_health_returns_ok(self, client):
-        """Health endpoint should return status ok."""
         response = client.get("/api/health")
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "ok"
+        assert response.json()["status"] == "ok"
 
 
 class TestRootEndpoint:
     """Tests for the root endpoint."""
 
     def test_root_returns_html(self, client):
-        """Root endpoint should return HTML."""
         response = client.get("/")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
         assert "forge-agent Dashboard" in response.text
 
     def test_root_contains_tailwind(self, client):
-        """Root page should include Tailwind CSS."""
         response = client.get("/")
         assert "tailwindcss.com" in response.text
 
     def test_root_contains_htmx(self, client):
-        """Root page should include HTMX."""
         response = client.get("/")
         assert "htmx.org" in response.text
 
     def test_root_shows_agent_list(self, client):
-        """Root page should show agents from MANIFEST."""
         response = client.get("/")
         assert "stock.monitor" in response.text
 
     def test_root_shows_stats(self, client):
-        """Root page should show stats."""
         response = client.get("/")
         assert "Total Agents" in response.text
 
@@ -107,7 +100,6 @@ class TestAgentsEndpoint:
     """Tests for the /api/agents endpoint."""
 
     def test_agents_returns_data(self, client):
-        """Agents endpoint should return agents from MANIFEST."""
         response = client.get("/api/agents")
         assert response.status_code == 200
         data = response.json()
@@ -115,7 +107,6 @@ class TestAgentsEndpoint:
         assert "stock.monitor" in data["agents"]
 
     def test_agents_empty_when_no_manifest(self, tmp_path: Path):
-        """Should return empty when no MANIFEST.json."""
         app = create_app(project_root=tmp_path)
         client = TestClient(app)
         response = client.get("/api/agents")
@@ -127,24 +118,17 @@ class TestAppCreation:
     """Tests for application creation."""
 
     def test_create_app_with_defaults(self, tmp_path: Path):
-        """Should create app with default settings."""
         app = create_app(project_root=tmp_path)
         assert app is not None
         assert app.title == "forge-agent Dashboard"
 
     def test_create_app_stores_project_root(self, tmp_path: Path):
-        """Should store project root in app state."""
         project_root = tmp_path / "custom"
         project_root.mkdir()
         app = create_app(project_root=project_root)
         assert app.state.project_root == project_root
 
     def test_create_app_stores_host_port(self, tmp_path: Path):
-        """Should store host and port in app state."""
-        app = create_app(
-            project_root=tmp_path,
-            host="0.0.0.0",
-            port=9000,
-        )
+        app = create_app(project_root=tmp_path, host="0.0.0.0", port=9000)
         assert app.state.host == "0.0.0.0"
         assert app.state.port == 9000

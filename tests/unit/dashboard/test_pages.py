@@ -1,4 +1,4 @@
-"""Tests for page routes (D1.2)."""
+"""Tests for page routes (D1.2 + D2.1-D2.3)."""
 
 from __future__ import annotations
 
@@ -78,7 +78,6 @@ class TestIndexPage:
         assert "deepseek-v4-flash" in r.text
 
     def test_index_empty_state(self, tmp_path: Path) -> None:
-        """When no MANIFEST.json, show empty state."""
         client = TestClient(create_app(project_root=tmp_path))
         r = client.get("/")
         assert r.status_code == 200
@@ -89,3 +88,101 @@ class TestIndexPage:
         assert r.status_code == 200
         assert "Total Agents" in r.text
         assert "Total Versions" in r.text
+
+
+class TestAgentDetailPage:
+    """Tests for the agent detail page (GET /agents/{id})."""
+
+    def test_detail_renders(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/agents/stock.monitor")
+        assert r.status_code == 200
+        assert "stock.monitor" in r.text
+
+    def test_detail_shows_versions(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/agents/stock.monitor")
+        assert r.status_code == 200
+        assert "v1" in r.text
+        assert "active" in r.text
+
+    def test_detail_shows_description(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/agents/stock.monitor")
+        assert r.status_code == 200
+        assert "Stock monitor" in r.text
+
+    def test_detail_shows_type(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/agents/stock.monitor")
+        assert r.status_code == 200
+        assert "monitor" in r.text
+
+    def test_detail_not_found(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/agents/nonexistent")
+        assert r.status_code == 404
+
+    def test_detail_has_breadcrumb(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/agents/stock.monitor")
+        assert r.status_code == 200
+        assert "Agents" in r.text
+
+
+class TestTracesPage:
+    """Tests for the traces page (GET /traces)."""
+
+    def test_traces_renders(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/traces")
+        assert r.status_code == 200
+        assert "Traces" in r.text
+
+    def test_traces_empty_state(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/traces")
+        assert r.status_code == 200
+        assert "No traces recorded yet" in r.text
+
+    def test_traces_has_ws_controls(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/traces")
+        assert r.status_code == 200
+        assert "Connect Logs" in r.text
+        assert "Live Log Stream" in r.text
+
+
+class TestTraceDetailPage:
+    """Tests for the trace detail page (GET /traces/{trace_id})."""
+
+    def test_trace_detail_not_found(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/traces/nonexistent")
+        assert r.status_code == 404
+
+
+class TestMetricsPage:
+    """Tests for the metrics page (GET /metrics)."""
+
+    def test_metrics_renders(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/metrics")
+        assert r.status_code == 200
+        assert "Metrics" in r.text
+
+    def test_metrics_has_sections(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/metrics")
+        assert r.status_code == 200
+        assert "Counters" in r.text
+        assert "Gauges" in r.text
+        assert "Histograms" in r.text
+
+
+class TestReportsPage:
+    """Tests for the reports page (GET /reports)."""
+
+    def test_reports_renders(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/reports")
+        assert r.status_code == 200
+        assert "Reports" in r.text
+
+    def test_reports_empty_state(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/reports")
+        assert r.status_code == 200
+        assert "No reports recorded yet" in r.text
+
+    def test_reports_has_summary(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/reports")
+        assert r.status_code == 200
+        assert "Total Reports" in r.text
+        assert "Avg Confidence" in r.text

@@ -14,6 +14,7 @@ from forge_agent.core.base import BaseAgent
 from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.context import AgentContext
 from forge_agent.core.enums import Action, AgentStatus, Verdict
+from forge_agent.core.report_store import SQLiteReportStore
 
 __all__ = [
     "BaseAgent",
@@ -23,4 +24,5 @@ __all__ = [
     "Action",
     "AgentStatus",
     "Verdict",
+    "SQLiteReportStore",
 ]

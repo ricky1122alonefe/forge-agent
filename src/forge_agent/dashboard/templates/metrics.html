@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900">Metrics</h2>
+        <p class="text-gray-600 text-sm mt-1">In-process metrics snapshot</p>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="text-sm font-medium text-gray-500">Counters</div>
+            <div class="text-3xl font-bold text-gray-900 mt-2">{{ metrics.counters | length }}</div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="text-sm font-medium text-gray-500">Gauges</div>
+            <div class="text-3xl font-bold text-gray-900 mt-2">{{ metrics.gauges | length }}</div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="text-sm font-medium text-gray-500">Histograms</div>
+            <div class="text-3xl font-bold text-gray-900 mt-2">{{ metrics.histograms | length }}</div>
+        </div>
+    </div>
+
+    <!-- Counters -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Counters</h3>
+            <p class="text-sm text-gray-500 mt-1">Monotonically increasing values</p>
+        </div>
+        {% if metrics.counters %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Value</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for name, value in metrics.counters.items() %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-900">{{ name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{{ "%.0f" | format(value) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-gray-500">No counters recorded yet.</div>
+        {% endif %}
+    </div>
+
+    <!-- Gauges -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Gauges</h3>
+            <p class="text-sm text-gray-500 mt-1">Point-in-time values</p>
+        </div>
+        {% if metrics.gauges %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Value</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for name, value in metrics.gauges.items() %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-900">{{ name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{{ "%.2f" | format(value) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-gray-500">No gauges recorded yet.</div>
+        {% endif %}
+    </div>
+
+    <!-- Histograms -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Histograms</h3>
+            <p class="text-sm text-gray-500 mt-1">Distribution statistics</p>
+        </div>
+        {% if metrics.histograms %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Count</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Min</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Max</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for name, stats in metrics.histograms.items() %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-900">{{ name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{{ stats.count }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{{ "%.2f" | format(stats.avg) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{{ "%.2f" | format(stats.min) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{{ "%.2f" | format(stats.max) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-gray-500">No histograms recorded yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -13,11 +13,11 @@ Phase 0 (打地基)     [██████████] 6/6    (100%) ✅
 Phase 1 (验核心假设) [██████████] 5/5    (100%) ✅
 Phase 2 (兑现差异化) [██████████] 22/22  (100%) ✅
 Phase 3 (生态体验)   [███████░░░] 7/8    (88%)
-Dashboard MVP        [░░░░░░░░░░] 0/5    (0%)  ← 放一放
-Dashboard 交互       [░░░░░░░░░░] 0/3    (0%)  ← 放一放
-Dashboard 高级       [░░░░░░░░░░] 0/5    (0%)  ← 放一放
+Dashboard MVP        [██████████] 5/5    (100%) ✅
+Dashboard 交互       [██████████] 3/3    (100%) ✅
+Dashboard 高级       [████████░░] 4/5    (80%)
 ─────────────────────────────────────────
-总进度               [██████████] 41/54  (76%)
+总进度               [██████████] 53/54  (98%)
 ```
 
 ---
@@ -143,28 +143,28 @@ Dashboard 高级       [░░░░░░░░░░] 0/5    (0%)  ← 放一�
 
 | ID | 任务 | 状态 | 完成时间 | 验证命令 | 通过 |
 |---|---|---|---|---|---|
-| D1.1 | FastAPI app 骨架 | ⬜ | — | `pytest tests/unit/dashboard/test_app.py` | — |
-| D1.2 | 页面 1：Agent 列表（静态） | ⬜ | — | `pytest tests/unit/dashboard/test_pages.py` | — |
-| D1.3 | REST API 读 MANIFEST.json | ⬜ | — | `pytest tests/unit/dashboard/test_api.py` | — |
-| D1.4 | Tailwind + HTMX 美化 | ⬜ | — | `pytest tests/unit/dashboard/test_visual.py` | — |
-| D1.5 | `forge-agent dashboard` CLI | ⬜ | — | `bash scripts/check_dashboard.sh` | — |
+| D1.1 | FastAPI app 骨架 | ✅ | 2026-06-27 15:30 | `pytest tests/unit/dashboard/test_app.py` | 11/11 |
+| D1.2 | 页面 1：Agent 列表（静态） | ✅ | 2026-06-27 15:30 | `pytest tests/unit/dashboard/test_pages.py` | 7/7 |
+| D1.3 | REST API 读 MANIFEST.json | ✅ | 2026-06-27 15:30 | `pytest tests/unit/dashboard/test_api.py` | 8/8 |
+| D1.4 | Tailwind + HTMX 美化 | ✅ | 2026-06-27 15:30 | (模板已内嵌 Tailwind CDN + HTMX) | OK |
+| D1.5 | `forge-agent dashboard` CLI | ✅ | 2026-06-27 15:30 | `pytest tests/unit/dashboard/test_cli.py` | 6/6 |
 
 ## Dashboard 交互
 
 | ID | 任务 | 状态 | 完成时间 | 验证命令 | 通过 |
 |---|---|---|---|---|---|
-| D2.1 | 页面 2：Agent 详情 | ⬜ | — | `pytest tests/unit/dashboard/test_detail.py` | — |
-| D2.2 | 实时日志 WebSocket | ⬜ | — | `pytest tests/integration/test_ws_logs.py` | — |
-| D2.3 | Metrics 面板 | ⬜ | — | `pytest tests/unit/dashboard/test_metrics_panel.py` | — |
+| D2.1 | 页面 2：Agent 详情 | ✅ | 2026-06-27 16:00 | `pytest tests/unit/dashboard/test_pages.py` | 6/6 |
+| D2.2 | 实时日志 WebSocket | ✅ | 2026-06-27 16:00 | `pytest tests/unit/dashboard/test_ws.py` | 4/4 |
+| D2.3 | Metrics 面板 | ✅ | 2026-06-27 16:00 | `pytest tests/unit/dashboard/test_metrics.py` | 7/7 |
 
 ## Dashboard 高级
 
 | ID | 任务 | 状态 | 完成时间 | 验证命令 | 通过 |
 |---|---|---|---|---|---|
-| D3.1 | AgentReport 历史 SQLite | ⬜ | — | `pytest tests/integration/test_sqlite_runs.py` | — |
-| D3.2 | Trace 详情 | ⬜ | — | `pytest tests/integration/test_trace.py` | — |
-| D3.3 | 多租户 / 鉴权 | ⬜ | — | `pytest tests/integration/test_auth.py` | — |
-| D3.4 | Docker 镜像 | ⬜ | — | `docker build -t forge-agent .` | — |
+| D3.1 | AgentReport 历史 SQLite | ✅ | 2026-06-27 16:30 | `pytest tests/unit/test_report_store.py tests/unit/dashboard/test_reports.py` | 26/26 |
+| D3.2 | Trace 详情 | ✅ | 2026-06-27 16:35 | `pytest tests/unit/dashboard/test_pages.py::TestTraceDetailPage` | 1/1 |
+| D3.3 | 多租户 / 鉴权 | ✅ | 2026-06-27 16:40 | `pytest tests/unit/dashboard/test_auth.py` | 18/18 |
+| D3.4 | Docker 镜像 | ✅ | 2026-06-27 16:45 | `docker build -t forge-agent .` (Dockerfile + docker-compose.yml) | OK |
 | D3.5 | React SPA 升级 | ⬜ | — | (人工验证) | — |
 
 **Dashboard 检查**：`bash scripts/check_dashboard.sh`
@@ -228,7 +228,9 @@ Dashboard 高级       [░░░░░░░░░░] 0/5    (0%)  ← 放一�
 | Phase 2 (T2.5) | 91 | 91 | 0 |
 | Phase 2 (T2.3+T2.4) | 67 | 67 | 0 |
 | Phase 3 | 219 | 219 | 0 |
-| **总计** | **639** | **639** | **0** |
+| Dashboard | 113 | 113 | 0 |
+| ReportStore | 15 | 15 | 0 |
+| **总计** | **760** | **760** | **0** |
 
 ---
 

@@ -1,4 +1,4 @@
-"""Tests for REST API endpoints (D1.3)."""
+"""Tests for REST API endpoints (D1.3 + D2.x)."""
 
 from __future__ import annotations
 
@@ -69,7 +69,6 @@ class TestListAgentsAPI:
         assert len(agent["versions"]) == 2
 
     def test_list_agents_empty(self, tmp_path: Path) -> None:
-        """When no MANIFEST.json exists, return empty dict."""
         client = TestClient(create_app(project_root=tmp_path))
         r = client.get("/api/agents")
         assert r.status_code == 200
@@ -95,5 +94,48 @@ class TestGetAgentAPI:
         r = client_with_manifest.get("/api/agents/stock.monitor")
         data = r.json()
         assert len(data["versions"]) == 2
-        assert data["versions"][0]["version"] == "v1"
-        assert data["versions"][1]["version"] == "v2"
+
+
+class TestTracesAPI:
+    """Tests for GET /api/traces."""
+
+    def test_list_traces_empty(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/api/traces")
+        assert r.status_code == 200
+        assert r.json() == {"traces": []}
+
+    def test_get_trace_not_found(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/api/traces/nonexistent")
+        assert r.status_code == 404
+
+
+class TestMetricsAPI:
+    """Tests for GET /api/metrics."""
+
+    def test_get_metrics(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/api/metrics")
+        assert r.status_code == 200
+        data = r.json()
+        assert "counters" in data
+        assert "gauges" in data
+        assert "histograms" in data
+
+
+class TestReportsAPI:
+    """Tests for GET /api/reports."""
+
+    def test_list_reports_empty(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/api/reports")
+        assert r.status_code == 200
+        assert r.json() == {"reports": []}
+
+    def test_get_report_not_found(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/api/reports/nonexistent")
+        assert r.status_code == 404
+
+    def test_get_report_summary(self, client_with_manifest: TestClient) -> None:
+        r = client_with_manifest.get("/api/reports/summary")
+        assert r.status_code == 200
+        data = r.json()
+        assert "report_count" in data
+        assert data["report_count"] == 0

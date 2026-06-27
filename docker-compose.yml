@@ -1,22 +1,38 @@
-# docker-compose.yml — local dev environment
-# Usage: docker compose up -d
+version: '3.8'
 
 services:
-  forge-agent:
+  dashboard:
     build: .
-    image: forge-agent:latest
-    container_name: forge-agent
-    # Mount your project for live reload
+    ports:
+      - "8765:8765"
     volumes:
-      - ./:/app/work:rw
-    working_dir: /app/work
-    # Pass through LLM API keys
+      - ./generated_agents:/app/generated_agents:ro
+      - forge-data:/data
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - FORGE_LOG_LEVEL=${FORGE_LOG_LEVEL:-INFO}
-      - FORGE_LOG_JSON=${FORGE_LOG_JSON:-0}
-    # Override default CMD
-    command: ["forge-agent", "llm", "list"]
-    stdin_open: true
-    tty: true
+      - FORGE_AGENT_AUTH_ENABLED=false
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Optional: with authentication
+  dashboard-auth:
+    build: .
+    ports:
+      - "8766:8765"
+    volumes:
+      - ./generated_agents:/app/generated_agents:ro
+      - forge-data:/data
+    environment:
+      - FORGE_AGENT_AUTH_ENABLED=true
+      - FORGE_AGENT_API_KEY=${FORGE_AGENT_API_KEY:-changeme}
+    restart: unless-stopped
+    profiles:
+      - auth
+
+volumes:
+  forge-data:
