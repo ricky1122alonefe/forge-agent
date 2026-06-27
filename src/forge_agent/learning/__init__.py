@@ -8,9 +8,10 @@ from forge_agent.learning.reflection import (
     ReflectionSignal,
 )
 from forge_agent.learning.memory import InMemoryLongTermStore, LongTermStoreProtocol
-from forge_agent.learning.optimizer import PromptOptimizer
+from forge_agent.learning.optimizer import EvolutionRecord, PromptOptimizer
 
 __all__ = [
+    "EvolutionRecord",
     "HeuristicReflector",
     "LLMReflector",
     "ReflectionSignal",

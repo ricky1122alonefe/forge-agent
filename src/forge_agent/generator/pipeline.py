@@ -109,18 +109,30 @@ class GenerationPipeline:
             from forge_agent.datasets.registry import get_registry
             registry = get_registry()
             ds = registry.load(dataset_name)
-            if ds:
+            if ds is not None:
                 dataset_examples = [
                     {"input": item.input, "output": item.output}
                     for item in ds.sample(n=5)
                 ]
                 notes.append(f"Loaded {len(dataset_examples)} examples from dataset '{dataset_name}'")
 
+        # 1.6 Get available MCP tools from gateway
+        mcp_tools_available: list[str] = []
+        try:
+            from forge_agent.mcp.gateway import get_gateway
+            gw = get_gateway()
+            mcp_tools_available = gw.list_tools()
+            if mcp_tools_available:
+                notes.append(f"MCP tools available: {len(mcp_tools_available)}")
+        except Exception:  # noqa: BLE001
+            pass  # MCP gateway not configured; proceed without tools
+
         # 2. Generate code
         gen_ctx = GenerationContext(
             requirements=spec,
             existing_agents=list(self.agent_registry.list()),
             dataset_examples=dataset_examples,
+            mcp_tools_available=mcp_tools_available,
         )
         generation = await self.code_generator.generate(gen_ctx)
         if not generation.success or not generation.source_code:

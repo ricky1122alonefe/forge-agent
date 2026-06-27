@@ -30,6 +30,7 @@ class MCPGateway:
     def __init__(self) -> None:
         self._tools: dict[str, ToolHandler] = {}
         self._policies: dict[str, PermissionPolicy] = {}
+        self._clients: list[Any] = []  # connected MCPClient instances
         self._lock = asyncio.Lock()
 
     def register_tool(
@@ -61,6 +62,81 @@ class MCPGateway:
     def list_tools(self) -> list[str]:
         return list(self._tools.keys())
 
+    # ------------------------------------------------------------------
+    # MCPClient integration — auto-discover & register tools
+    # ------------------------------------------------------------------
+
+    async def connect_client(
+        self,
+        client: Any,
+        *,
+        server_prefix: str | None = None,
+        policy: PermissionPolicy | None = None,
+    ) -> list[str]:
+        """Connect an MCPClient and register all its tools in this gateway.
+
+        Args:
+            client: An ``MCPClient`` instance (already connected or not).
+            server_prefix: Optional prefix for tool names (e.g. ``"fs"``).
+                If ``None``, tool names are used as-is from the server.
+            policy: Default permission policy for discovered tools.
+                If ``None``, all discovered tools are allowed.
+
+        Returns:
+            List of registered tool names.
+        """
+        from forge_agent.mcp.client import MCPClient
+
+        if not isinstance(client, MCPClient):
+            raise TypeError(f"Expected MCPClient, got {type(client).__name__}")
+
+        # Connect if not already connected
+        if not client.is_connected:
+            await client.connect()
+
+        # Discover tools
+        tool_infos = await client.list_tools()
+        registered: list[str] = []
+
+        for info in tool_infos:
+            # Build the gateway-level tool name
+            tool_name = f"{server_prefix}.{info.name}" if server_prefix else info.name
+
+            # Create a handler closure that delegates to the client
+            handler = self._make_client_handler(client, info.name)
+
+            # Default policy: allow all discovered tools
+            tool_policy = policy if policy is not None else PermissionPolicy().allow(tool_name)
+            self.register_tool(tool_name, handler, policy=tool_policy)
+            registered.append(tool_name)
+
+        self._clients.append(client)
+        log.info(
+            "MCPGateway: connected client, registered %d tools: %s",
+            len(registered),
+            registered,
+        )
+        return registered
+
+    @staticmethod
+    def _make_client_handler(client: Any, tool_name: str) -> ToolHandler:
+        """Create a handler closure that delegates to an MCPClient."""
+
+        async def handler(args: dict[str, Any]) -> dict[str, Any]:
+            return await client.call_tool(tool_name, args)
+
+        return handler
+
+    async def disconnect_all(self) -> None:
+        """Disconnect all connected MCP clients."""
+        for client in self._clients:
+            try:
+                await client.disconnect()
+            except Exception:  # noqa: BLE001
+                log.debug("Error disconnecting client", exc_info=True)
+        self._clients.clear()
+        log.info("MCPGateway: disconnected all clients")
+
 
 # Module-level default gateway (singleton)
 _default: MCPGateway | None = None
@@ -71,3 +147,9 @@ def get_gateway() -> MCPGateway:
     if _default is None:
         _default = MCPGateway()
     return _default
+
+
+def reset_gateway() -> None:
+    """Reset the default gateway (for testing)."""
+    global _default
+    _default = None

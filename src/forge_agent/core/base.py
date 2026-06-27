@@ -340,14 +340,74 @@ class BaseAgent(abc.ABC):
         )
 
     # ====================================================================
-    # Capability #4: self-iteration (v0.4+ — default stub)
+    # Capability #4: self-iteration (v0.4+ — real implementation)
     # ====================================================================
 
     async def evolve(self, ctx: AgentContext) -> dict[str, Any]:
-        """Self-iteration hook. Default: no-op. Override (or let the Code
-        Generator inject) to bump prompt versions or swap capabilities.
+        """Self-iteration hook.
+
+        Performs a full evolution cycle:
+            1. Run reflection on the last execution
+            2. Check if evolution is needed via PromptOptimizer
+            3. If needed, evolve the prompt and register new version
+            4. Return evolution result
+
+        Override in subclasses for custom evolution strategies.
         """
-        return {"evolved": False, "reason": "evolve() not implemented"}
+        from forge_agent.learning.optimizer import PromptOptimizer
+
+        # Build a reflection signal from the last run
+        # We need observation/decision/result from the last run cycle
+        # Since evolve() is called independently, we reconstruct from memory
+        try:
+            recent = await self.memory.query(agent_id=self.agent_id)
+        except Exception:
+            recent = []
+
+        if not recent:
+            return {"evolved": False, "reason": "no execution history to reflect on"}
+
+        # Get the most recent execution
+        last_run = recent[-1] if recent else {}
+        observation = last_run.get("observation", {})
+        decision = last_run.get("decision", {})
+        result = last_run.get("result", {})
+
+        # Run reflection
+        try:
+            signal = await self.reflector.reflect(
+                agent_id=self.agent_id,
+                context=ctx.to_dict(),
+                observation=observation,
+                decision=decision,
+                result=result,
+            )
+        except Exception as exc:
+            self.log("warning", f"evolve(): reflection failed: {exc}")
+            return {"evolved": False, "reason": f"reflection failed: {exc}"}
+
+        # Create optimizer and check if evolution is needed
+        optimizer = PromptOptimizer(prompt_manager=self.prompt_manager)
+        if not optimizer.should_evolve(signal):
+            return {
+                "evolved": False,
+                "reason": "reflection score above threshold",
+                "score": signal.get("score"),
+            }
+
+        # Perform evolution
+        try:
+            evolve_result = await optimizer.evolve(self.agent_id, signal)
+            if evolve_result.get("evolved"):
+                self.log(
+                    "info",
+                    f"evolve(): {self.agent_id} evolved "
+                    f"{evolve_result.get('old_version')} → {evolve_result.get('new_version')}",
+                )
+            return evolve_result
+        except Exception as exc:
+            self.log("error", f"evolve(): evolution failed: {exc}")
+            return {"evolved": False, "reason": f"evolution failed: {exc}"}
 
     # ====================================================================
     # Convenience methods
