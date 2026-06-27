@@ -1,0 +1,54 @@
+# .dockerignore — keep Docker build context small
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI / docs
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+.readthedocs.yml
+mkdocs.yml
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+*.egg
+.pyc
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Test / dev
+.tox/
+.cache/
+.hypothesis/
+
+# Project-specific
+tests/
+docs/_build/
+docs/site/
+*.log
+.forge/
+generated_agents/

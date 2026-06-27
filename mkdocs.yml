@@ -1,0 +1,152 @@
+site_name: forge-agent
+site_description: A universal, contract-driven Agent factory & orchestration engine
+site_url: https://forge-agent.readthedocs.io/
+site_author: ricky1122alonefe
+
+repo_name: ricky1122alonefe/forge-agent
+repo_url: https://github.com/ricky1122alonefe/forge-agent
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.tracking
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.caret
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_toc_entry: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            merge_init_into_class: false
+            docstring_section_style: table
+            heading_level: 2
+            show_if_no_docstring: false
+  - autorefs
+  - minify:
+      minify_html: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ricky1122alonefe/forge-agent
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/forge-agent/
+  generator: false
+
+copyright: Copyright &copy; 2026 ricky1122alonefe
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Your First Agent: getting-started/first-agent.md
+  - Concepts:
+      - BaseAgent: concepts/base-agent.md
+      - Pipeline: concepts/pipeline.md
+      - Generator: concepts/generator.md
+      - MCP: concepts/mcp.md
+      - Logging: concepts/logging.md
+  - Guides:
+      - Create an Agent: guides/create-agent.md
+      - Use LLM Providers: guides/llm-providers.md
+      - Version & Deploy: guides/version-deploy.md
+      - Write a Custom Capability: guides/custom-capability.md
+      - Production Checklist: guides/production.md
+  - API Reference:
+      - Core: api/core.md
+      - Generator: api/generator.md
+      - LLM: api/llm.md
+      - MCP: api/mcp.md
+      - Observability: api/observability.md
+      - CLI: api/cli.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Sandboxing: architecture/sandbox.md
+      - CodeStore: architecture/code-store.md
+  - About:
+      - Roadmap: about/roadmap.md
+      - Changelog: about/changelog.md
+      - Contributing: about/contributing.md
+      - License: about/license.md
+      - Security: about/security.md

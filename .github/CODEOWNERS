@@ -1,0 +1,28 @@
+# CODEOWNERS — auto-assigns reviewers for each path
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+*       @ricky1122alonefe
+
+# Core abstractions (require deeper review)
+/src/forge_agent/core/          @ricky1122alonefe
+/src/forge_agent/registry/      @ricky1122alonefe
+
+# Generator & LLM (security-sensitive)
+/src/forge_agent/generator/     @ricky1122alonefe
+/src/forge_agent/llm/           @ricky1122alonefe
+
+# MCP (security-sensitive)
+/src/forge_agent/mcp/           @ricky1122alonefe
+
+# Observability
+/src/forge_agent/observability/ @ricky1122alonefe
+
+# CLI
+/src/forge_agent/cli/           @ricky1122alonefe
+
+# Tests
+/tests/                          @ricky1122alonefe
+
+# Docs
+/docs/                           @ricky1122alonefe

@@ -1,9 +1,24 @@
+# MANIFEST.in — files to include in the source distribution (sdist)
+# Docs: https://packaging.python.org/guides/using-manifest-in/
+
+# Legal
 include LICENSE
 include README.md
 include CHANGELOG.md
-include pyproject.toml
-include requirements.txt
-include requirements-dev.txt
+
+# Package files
 recursive-include src *.py *.typed
+recursive-include src *.j2 *.json *.txt *.yaml *.yml
+
+# Examples (for reference; not installed)
+recursive-include examples *.py *.md *.yaml *.yml *.toml
+
+# Exclude junk
 recursive-exclude * __pycache__
 recursive-exclude * *.py[cod]
+recursive-exclude * *.so
+recursive-exclude * .DS_Store
+recursive-exclude * .pytest_cache
+recursive-exclude * .mypy_cache
+recursive-exclude * .ruff_cache
+recursive-exclude * *.egg-info

@@ -1,4 +1,4 @@
-# Python
+# ===== Python =====
 __pycache__/
 *.py[cod]
 *$py.class
@@ -21,39 +21,76 @@ wheels/
 *.egg
 MANIFEST
 
-# Virtual envs
+# ===== Virtual envs =====
 .venv/
 venv/
 env/
 ENV/
+.python-version
 
-# IDE
+# ===== IDE =====
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 .DS_Store
+Thumbs.db
 
-# Testing
+# ===== Testing =====
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
-.tox/
-.cache
 coverage.xml
 *.cover
+.tox/
+.cache
 .hypothesis/
+junit.xml
 
-# Docs
+# ===== Docs =====
 docs/_build/
 docs/site/
 site/
+.mike/
 
-# Type checking
+# ===== Type checking =====
 .mypy_cache/
 .ruff_cache/
 
-# Project
-prompts/
+# ===== Project-specific =====
+# Generated agents (per-server, not in git)
+generated_agents/
+MANIFEST.json
 *.local.json
 .forge/
+# Logs
+*.log
+logs/
+# Secrets (never commit!)
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# ===== OS / Misc =====
+*.bak
+*.tmp
+*.swp
+.AppleDouble
+.LSOverride
+Icon?
+.fuse_hidden*
+.Trash-*
+.nfs*
+
+# ===== Editors =====
+*_pycache_
+*.egg-info.bak
+__pycache__/
+.mypy_cache/
+.ruff_cache/
+*.code-workspace

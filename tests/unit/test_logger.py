@@ -67,6 +67,14 @@ def test_configure_log_file_path(tmp_path: Path):
     log_mod.configure_logging(log_file=log_path, force=True)
     assert log_path.parent.exists()
     assert log_mod.current_config()["file_path"] == log_path
+    # Close the file handler so pytest doesn't warn about unclosed files
+    # (filterwarnings = "error" would otherwise turn this into a failure).
+    import logging as _logging
+
+    for h in list(_logging.getLogger().handlers):
+        if isinstance(h, _logging.handlers.RotatingFileHandler):
+            h.close()
+            _logging.getLogger().removeHandler(h)
 
 
 # --------------------------------------------------------------- contextvars

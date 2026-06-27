@@ -1,0 +1,38 @@
+# .gitattributes — make GitHub render files correctly
+# Docs: https://git-scm.com/docs/gitattributes
+
+# Auto-detect text files
+* text=auto eol=lf
+
+# Source code
+*.py    text eol=lf
+*.pyx   text eol=lf
+*.pyi   text eol=lf
+*.toml  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+
+# Windows-friendly line endings for shell scripts (Docker)
+*.sh    text eol=lf
+Dockerfile text eol=lf
+
+# Binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.tar.gz binary
+*.whl   binary
+*.gz    binary
+
+# Export GitHub language stats correctly
+docs/linguist-vendored linguist-vendored
+docs/_build/ linguist-generated
+site/ linguist-generated
+tests/fixtures/* linguist-vendored

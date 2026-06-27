@@ -3,9 +3,17 @@
 > **A universal, contract-driven Agent factory & orchestration engine.**
 > Base never changes. Capabilities are pluggable. Business is generated on demand.
 
+[![PyPI version](https://img.shields.io/pypi/v/forge-agent.svg)](https://pypi.org/project/forge-agent/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Status: v0.1.0-alpha](https://img.shields.io/badge/status-v0.1.0--alpha-orange)]()
+[![CI status](https://github.com/ricky1122alonefe/forge-agent/actions/workflows/test.yml/badge.svg)](https://github.com/ricky1122alonefe/forge-agent/actions)
+[![codecov](https://codecov.io/gh/ricky1122alonefe/forge-agent/branch/main/graph/badge.svg)](https://codecov.io/gh/ricky1122alonefe/forge-agent)
+[![Downloads](https://static.pepy.tech/badge/forge-agent)](https://pepy.tech/project/forge-agent)
+[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](https://mypy-lang.org/)
+[![GitHub stars](https://img.shields.io/github/stars/ricky1122alonefe/forge-agent?style=social)](https://github.com/ricky1122alonefe/forge-agent/stargazers)
+
+[📚 Documentation](https://forge-agent.readthedocs.io/) · [🐛 Report a bug](https://github.com/ricky1122alonefe/forge-agent/issues) · [💡 Request a feature](https://github.com/ricky1122alonefe/forge-agent/issues) · [💬 Discussions](https://github.com/ricky1122alonefe/forge-agent/discussions)
 
 ---
 

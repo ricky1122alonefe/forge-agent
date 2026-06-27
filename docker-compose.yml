@@ -1,0 +1,22 @@
+# docker-compose.yml — local dev environment
+# Usage: docker compose up -d
+
+services:
+  forge-agent:
+    build: .
+    image: forge-agent:latest
+    container_name: forge-agent
+    # Mount your project for live reload
+    volumes:
+      - ./:/app/work:rw
+    working_dir: /app/work
+    # Pass through LLM API keys
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - FORGE_LOG_LEVEL=${FORGE_LOG_LEVEL:-INFO}
+      - FORGE_LOG_JSON=${FORGE_LOG_JSON:-0}
+    # Override default CMD
+    command: ["forge-agent", "llm", "list"]
+    stdin_open: true
+    tty: true
