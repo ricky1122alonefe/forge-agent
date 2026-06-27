@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # forge-agent 一键安装脚本
-# 用法: curl -fsSL https://raw.githubusercontent.com/ricky1122alonefe/forge-agent/main/scripts/install.sh | bash
-#   或: bash scripts/install.sh
+# 用法: bash scripts/install.sh
+#   或: curl -fsSL https://raw.githubusercontent.com/ricky1122alonefe/forge-agent/main/scripts/install.sh | bash
 
 set -euo pipefail
 
@@ -15,19 +15,18 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 info()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
-ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
+ok()    { echo -e "${GREEN}[ OK ]${NC}  $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-err()   { echo -e "${RED}[ERROR]${NC} $*"; }
+err()   { echo -e "${RED}[ ERR ]${NC} $*"; }
 
 MIN_PYTHON_MAJOR=3
 MIN_PYTHON_MINOR=10
-VENV_DIR=".venv"
 INSTALL_EXTRAS="${1:-all}"  # 默认安装 all extras
 
 echo ""
-echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}${CYAN}║     forge-agent 安装程序 v0.3.0         ║${NC}"
-echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════╝${NC}"
+echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════╗${NC}"
+echo -e "${BOLD}${CYAN}║      forge-agent 安装程序 v0.3.0            ║${NC}"
+echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
 # ── 1. 检测操作系统 ──────────────────────────────────
@@ -96,7 +95,6 @@ else
         exit 1
     fi
 
-    # 验证安装
     if [[ -n "$PYTHON_CMD" ]] && $PYTHON_CMD --version &>/dev/null; then
         ok "Python 安装成功: $($PYTHON_CMD --version)"
     else
@@ -105,7 +103,20 @@ else
     fi
 fi
 
-# ── 3. 创建虚拟环境 ──────────────────────────────────
+# ── 3. 确定项目目录 ──────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# 判断是从项目目录运行还是从远程下载
+IS_LOCAL=false
+if [[ -f "${PROJECT_DIR}/pyproject.toml" ]] && grep -q "forge-agent" "${PROJECT_DIR}/pyproject.toml" 2>/dev/null; then
+    IS_LOCAL=true
+    info "检测到本地源码: ${PROJECT_DIR}"
+fi
+
+# ── 4. 创建虚拟环境 ──────────────────────────────────
+VENV_DIR="${PROJECT_DIR}/.venv"
+
 if [[ -d "$VENV_DIR" ]]; then
     warn "虚拟环境已存在: ${VENV_DIR}/"
     info "跳过创建，直接安装依赖..."
@@ -117,19 +128,15 @@ fi
 
 # 激活虚拟环境
 source "${VENV_DIR}/bin/activate"
-info "已激活虚拟环境: $(which python)"
+ok "已激活虚拟环境: $(which python)"
 
-# ── 4. 升级 pip ──────────────────────────────────────
+# ── 5. 升级 pip ──────────────────────────────────────
 info "升级 pip ..."
 python -m pip install --upgrade pip setuptools wheel -q
 ok "pip 已升级"
 
-# ── 5. 安装 forge-agent ──────────────────────────────
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-
-# 判断是从项目目录运行还是从远程下载
-if [[ -f "${PROJECT_DIR}/pyproject.toml" ]] && grep -q "forge-agent" "${PROJECT_DIR}/pyproject.toml" 2>/dev/null; then
+# ── 6. 安装 forge-agent ──────────────────────────────
+if [[ "$IS_LOCAL" == true ]]; then
     info "从本地源码安装 forge-agent (开发模式) ..."
     cd "$PROJECT_DIR"
     pip install -e ".[${INSTALL_EXTRAS}]" -q
@@ -142,50 +149,85 @@ else
 fi
 ok "forge-agent 安装成功"
 
-# ── 6. 安装 pre-commit hooks (开发模式) ──────────────
-if [[ -f "${PROJECT_DIR}/.pre-commit-config.yaml" ]] 2>/dev/null; then
+# ── 7. 创建全局命令链接 ──────────────────────────────
+FORGE_BIN="${VENV_DIR}/bin/forge-agent"
+LINK_CREATED=false
+
+if [[ -f "$FORGE_BIN" ]]; then
+    # 尝试 /usr/local/bin (macOS/Linux 通用)
+    if [[ -d "/usr/local/bin" ]] && [[ -w "/usr/local/bin" || "$(id -u)" -eq 0 ]]; then
+        ln -sf "$FORGE_BIN" /usr/local/bin/forge-agent 2>/dev/null && LINK_CREATED=true
+    fi
+
+    # 尝试 Homebrew 路径 (macOS Apple Silicon)
+    if [[ "$LINK_CREATED" == false ]] && [[ -d "/opt/homebrew/bin" ]]; then
+        ln -sf "$FORGE_BIN" /opt/homebrew/bin/forge-agent 2>/dev/null && LINK_CREATED=true
+    fi
+
+    # 尝试 ~/.local/bin (Linux 用户级)
+    if [[ "$LINK_CREATED" == false ]]; then
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$FORGE_BIN" "$HOME/.local/bin/forge-agent" 2>/dev/null && LINK_CREATED=true
+        # 确保 ~/.local/bin 在 PATH 中
+        if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+            SHELL_RC=""
+            if [[ -f "$HOME/.zshrc" ]]; then
+                SHELL_RC="$HOME/.zshrc"
+            elif [[ -f "$HOME/.bashrc" ]]; then
+                SHELL_RC="$HOME/.bashrc"
+            fi
+            if [[ -n "$SHELL_RC" ]]; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
+                info "已添加 ~/.local/bin 到 PATH (${SHELL_RC})"
+            fi
+        fi
+    fi
+fi
+
+if [[ "$LINK_CREATED" == true ]]; then
+    ok "已创建全局命令链接: forge-agent"
+else
+    warn "无法创建全局链接，你需要先激活虚拟环境才能使用 forge-agent 命令"
+    warn "  source ${VENV_DIR}/bin/activate"
+fi
+
+# ── 8. 安装 pre-commit hooks (开发模式) ──────────────
+if [[ "$IS_LOCAL" == true ]] && [[ -f "${PROJECT_DIR}/.pre-commit-config.yaml" ]]; then
     info "安装 pre-commit hooks ..."
     pip install pre-commit -q
     pre-commit install 2>/dev/null || true
     ok "pre-commit hooks 已安装"
 fi
 
-# ── 7. 验证安装 ──────────────────────────────────────
+# ── 9. 验证安装 ──────────────────────────────────────
 echo ""
 info "验证安装 ..."
-echo ""
 
-if forge-agent --version &>/dev/null; then
-    ok "forge-agent $(forge-agent --version 2>/dev/null || echo 'v0.3.0')"
-else
-    warn "forge-agent 命令未找到，可能需要重新激活虚拟环境"
-fi
-
-if forge-agent doctor &>/dev/null; then
+if forge-agent doctor 2>/dev/null; then
     ok "环境检查通过"
 else
     warn "环境检查有警告，运行 'forge-agent doctor' 查看详情"
 fi
 
-# ── 8. 完成 ──────────────────────────────────────────
+# ── 10. 完成 ─────────────────────────────────────────
 echo ""
-echo -e "${BOLD}${GREEN}╔══════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}${GREEN}║          安装完成!                       ║${NC}"
-echo -e "${BOLD}${GREEN}╚══════════════════════════════════════════╝${NC}"
+echo -e "${BOLD}${GREEN}╔══════════════════════════════════════════════╗${NC}"
+echo -e "${BOLD}${GREEN}║            安装完成!                         ║${NC}"
+echo -e "${BOLD}${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  ${BOLD}激活虚拟环境:${NC}"
-echo -e "    source ${VENV_DIR}/bin/activate"
+echo -e "  ${BOLD}1. 创建项目:${NC}"
+echo -e "     forge-agent new my-project --template basic"
+echo -e "     cd my-project"
 echo ""
-echo -e "  ${BOLD}快速开始:${NC}"
-echo -e "    forge-agent new my-project --template basic"
-echo -e "    cd my-project"
-echo -e "    forge-agent generate \"你的需求描述\""
+echo -e "  ${BOLD}2. 安装项目依赖:${NC}"
+echo -e "     pip install -e ."
 echo ""
-echo -e "  ${BOLD}启动 Dashboard:${NC}"
-echo -e "    forge-agent dashboard"
+echo -e "  ${BOLD}3. 生成 Agent:${NC}"
+echo -e "     forge-agent generate \"你的需求描述\""
 echo ""
-echo -e "  ${BOLD}查看帮助:${NC}"
-echo -e "    forge-agent --help"
+echo -e "  ${BOLD}4. 启动 Dashboard:${NC}"
+echo -e "     forge-agent dashboard"
 echo ""
-echo -e "  ${BOLD}文档:${NC} https://forge-agent.readthedocs.io/"
+echo -e "  ${BOLD}查看帮助:${NC}  forge-agent --help"
+echo -e "  ${BOLD}文档:${NC}      https://forge-agent.readthedocs.io/"
 echo ""

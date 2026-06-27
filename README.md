@@ -32,20 +32,121 @@ is the **base** that lets you **generate** any vertical Agent on demand:
 
 ## Installation
 
+### 前置要求
+
+- **Python 3.10+**（脚本会自动检测并安装）
+- **macOS / Linux / Windows**
+
+### 一键安装
+
+**macOS / Linux:**
+
 ```bash
 git clone https://github.com/ricky1122alonefe/forge-agent.git
 cd forge-agent
-pip install -e ".[dev]"
+bash scripts/install.sh
 ```
 
-## Quick start
+**Windows:**
+
+```cmd
+git clone https://github.com/ricky1122alonefe/forge-agent.git
+cd forge-agent
+scripts\install.bat
+```
+
+安装脚本会自动：
+1. 检测系统是否安装了 Python 3.10+，没有则自动安装（macOS/Linux）
+2. 创建虚拟环境 `.venv/`
+3. 安装 forge-agent 及所有依赖
+4. 创建全局命令链接，让你在任何目录都能使用 `forge-agent` 命令
+
+### 验证安装
+
+```bash
+forge-agent doctor
+```
+
+### 手动安装
+
+如果你更喜欢手动控制：
+
+```bash
+git clone https://github.com/ricky1122alonefe/forge-agent.git
+cd forge-agent
+
+# 创建虚拟环境（需要 Python 3.10+）
+python3.12 -m venv .venv        # macOS/Linux
+python -m venv .venv            # Windows
+
+# 激活虚拟环境
+source .venv/bin/activate       # macOS/Linux
+.venv\Scripts\activate          # Windows
+
+# 安装
+pip install -e ".[all]"
+```
+
+### 可选依赖组
+
+| 组 | 安装命令 | 包含 |
+|---|---|---|
+| `all` | `pip install "forge-agent[all]"` | 全部 |
+| `llm` | `pip install "forge-agent[llm]"` | openai, anthropic |
+| `mcp` | `pip install "forge-agent[mcp]"` | MCP SDK |
+| `search` | `pip install "forge-agent[search]"` | httpx, tavily |
+| `otel` | `pip install "forge-agent[otel]"` | OpenTelemetry |
+| `dashboard` | `pip install "forge-agent[dashboard]"` | FastAPI, uvicorn, Jinja2 |
+| `dev` | `pip install -e ".[dev]"` | pytest, ruff, mypy, mkdocs |
+
+## Quick Start
+
+### 1. 创建项目
+
+```bash
+forge-agent new my-project --template basic
+cd my-project
+pip install -e .
+```
+
+可选模板：`basic`、`stock`、`football`、`social`、`office`
+
+### 2. 配置 LLM
+
+```bash
+forge-agent llm list          # 查看可用 provider
+forge-agent llm test deepseek # 测试连通性
+```
+
+### 3. 生成 Agent
+
+```bash
+forge-agent generate "帮我写一个爬取豆瓣电影Top250的爬虫"
+```
+
+### 4. 管理 Agent
+
+```bash
+forge-agent list                    # 查看所有 Agent
+forge-agent history <agent_id>      # 版本历史
+forge-agent use <agent_id> --latest # 切换版本
+forge-agent rollback <agent_id>     # 回滚
+```
+
+### 5. 启动 Dashboard
+
+```bash
+forge-agent dashboard  # http://localhost:8765
+```
+
+### Python API 示例
 
 ```python
 import asyncio
 from forge_agent import (
     BaseAgent, AgentContext, AgentReport,
     register_agent, get_registry, Pipeline, PipelineNode, NodeType,
-    PipelineEngine, AgentBoard, Verdict, Action,
+    PipelineEngine, AgentBoard, Verdict,
 )
 
 
@@ -203,9 +304,9 @@ other's bindings.
 
 ## Roadmap
 
-- [x] **v0.1** — Base abstractions + Registry + Scheduler + Pipeline (this release)
-- [ ] **v0.2** — LLM-driven code generator + sandbox + inject
-- [ ] **v0.3** — MCP native integration + visualization + observability dashboard
+- [x] **v0.1** — Base abstractions + Registry + Scheduler + Pipeline
+- [x] **v0.2** — LLM-driven code generator + sandbox + inject
+- [x] **v0.3** — MCP native integration + observability dashboard + Docker
 - [ ] **v0.4** — Self-iteration loop + hot reload + production governance
 
 ## Migration from `guess_you_like/match_agents/`

@@ -24,9 +24,13 @@ from typing import Any
 def add(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("new", help="Create a new project from a template")
     p.add_argument("name", help="Project name")
-    p.add_argument("--template", "-t", default="basic",
-                   choices=["basic", "stock", "football", "social", "office"],
-                   help="Template to use (default: basic)")
+    p.add_argument(
+        "--template",
+        "-t",
+        default="basic",
+        choices=["basic", "stock", "football", "social", "office"],
+        help="Template to use (default: basic)",
+    )
     p.set_defaults(func=run)
 
 
@@ -442,6 +446,7 @@ class ReportGeneratorAgent(BaseAgent):
 # Run
 # ---------------------------------------------------------------------------
 
+
 def run(args: argparse.Namespace) -> int:
     target = args.project / args.name
     if target.exists():
@@ -449,7 +454,6 @@ def run(args: argparse.Namespace) -> int:
         return 1
 
     template = TEMPLATES[args.template]
-    domain = template["domain"]
     extra_deps = template["extra_deps"]
     agents = template["agents"]
 
@@ -462,7 +466,7 @@ def run(args: argparse.Namespace) -> int:
     (target / "generated_agents" / ".gitkeep").touch()
 
     # pyproject.toml
-    deps_lines = [f'    "forge-agent @ file://{Path(__file__).resolve().parents[3]}/..",']
+    deps_lines = ['    "forge-agent",']
     for dep in extra_deps:
         deps_lines.append(f'    "{dep}",')
     deps_str = "\n".join(deps_lines)
@@ -479,6 +483,10 @@ dependencies = [
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["agents*"]
+exclude = ["tests*", "pipelines*", "generated_agents*"]
 """,
         encoding="utf-8",
     )
@@ -491,6 +499,10 @@ build-backend = "setuptools.build_meta"
             encoding="utf-8",
         )
 
+    # Install scripts
+    _write_install_sh(target, args.name)
+    _write_install_bat(target, args.name)
+
     # README
     readme_extra = template.get("readme_extra", "")
     (target / "README.md").write_text(
@@ -498,10 +510,19 @@ build-backend = "setuptools.build_meta"
         f"Created with `forge-agent new {args.name} --template={args.template}`.\n\n"
         f"**Template**: {args.template} — {template['description']}\n\n"
         f"{readme_extra}\n\n"
+        f"## Installation\n\n"
+        f"### macOS / Linux\n\n"
+        f"```bash\n"
+        f"bash install.sh\n"
+        f"```\n\n"
+        f"### Windows\n\n"
+        f"```cmd\n"
+        f"install.bat\n"
+        f"```\n\n"
         f"## Getting Started\n\n"
         f"```bash\n"
-        f"cd {args.name}\n"
-        f"pip install -e .\n"
+        f"source .venv/bin/activate        # macOS/Linux\n"
+        f"# .venv\\Scripts\\activate         # Windows\n"
         f"forge-agent doctor        # check environment\n"
         f"forge-agent llm list      # check LLM providers\n"
         f"forge-agent generate \"...\"  # generate a new agent\n"
@@ -516,9 +537,108 @@ build-backend = "setuptools.build_meta"
     print(f"  Agents:   {', '.join(agent_names)}")
     if extra_deps:
         print(f"  Deps:     {', '.join(extra_deps)}")
-    print(f"\nNext steps:")
+    print("\nNext steps:")
     print(f"  cd {target}")
-    print(f"  pip install -e .")
-    print(f"  forge-agent doctor")
-    print(f"  forge-agent generate \"...\"")
+    print("  bash install.sh          # macOS/Linux")
+    print("  install.bat              # Windows")
+    print("  forge-agent doctor")
+    print('  forge-agent generate "..."')
     return 0
+
+
+def _write_install_sh(target: Path, project_name: str) -> None:
+    """Write install.sh for macOS/Linux into the generated project."""
+    script = f"""#!/usr/bin/env bash
+set -euo pipefail
+
+echo "=== {project_name} installer ==="
+
+# --- Detect Python 3.10+ ---
+PYTHON=""
+for cmd in python3.12 python3.11 python3.10 python3; do
+    if command -v "$cmd" &>/dev/null; then
+        ver=$("$cmd" -c "import sys; print(f'{{sys.version_info.major}}.{{sys.version_info.minor}}')" 2>/dev/null || true)
+        major=$(echo "$ver" | cut -d. -f1)
+        minor=$(echo "$ver" | cut -d. -f2)
+        if [ "$major" -ge 3 ] 2>/dev/null && [ "$minor" -ge 10 ] 2>/dev/null; then
+            PYTHON="$cmd"
+            break
+        fi
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    echo "Python 3.10+ not found."
+    if command -v brew &>/dev/null; then
+        echo "Installing Python 3.12 via Homebrew..."
+        brew install python@3.12
+        PYTHON="python3.12"
+    elif command -v apt-get &>/dev/null; then
+        echo "Installing Python 3.12 via apt..."
+        sudo apt-get update && sudo apt-get install -y python3.12 python3.12-venv
+        PYTHON="python3.12"
+    else
+        echo "Please install Python 3.10+ first: https://www.python.org/downloads/"
+        exit 1
+    fi
+fi
+
+echo "Using Python: $PYTHON ($($PYTHON --version))"
+
+# --- Create venv & install ---
+if [ ! -d ".venv" ]; then
+    echo "Creating virtual environment..."
+    $PYTHON -m venv .venv
+fi
+
+source .venv/bin/activate
+echo "Installing dependencies..."
+pip install -e ".[all]" 2>/dev/null || pip install -e .
+
+echo ""
+echo "Done! Activate with:  source .venv/bin/activate"
+"""
+    (target / "install.sh").write_text(script, encoding="utf-8")
+    (target / "install.sh").chmod(0o755)
+
+
+def _write_install_bat(target: Path, project_name: str) -> None:
+    """Write install.bat for Windows into the generated project."""
+    script = f"""@echo off
+echo === {project_name} installer ===
+
+set PYTHON=
+
+for %%P in (python3.12 python3.11 python3.10 python) do (
+    where %%P >nul 2>&1
+    if not errorlevel 1 (
+        %%P -c "import sys; assert sys.version_info >= (3,10)" >nul 2>&1
+        if not errorlevel 1 (
+            set PYTHON=%%P
+            goto :found
+        )
+    )
+)
+
+echo Python 3.10+ not found.
+echo Please install from: https://www.python.org/downloads/
+echo Make sure to check "Add Python to PATH" during installation.
+exit /b 1
+
+:found
+echo Using Python: %PYTHON%
+%PYTHON% --version
+
+if not exist ".venv" (
+    echo Creating virtual environment...
+    %PYTHON% -m venv .venv
+)
+
+call .venv\\Scripts\\activate.bat
+echo Installing dependencies...
+pip install -e ".[all]" 2>nul || pip install -e .
+
+echo.
+echo Done! Activate with:  .venv\\Scripts\\activate.bat
+"""
+    (target / "install.bat").write_text(script, encoding="utf-8")
