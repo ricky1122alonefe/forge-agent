@@ -15,6 +15,15 @@ from forge_agent.observability.logger import (
     unbind_context,
 )
 from forge_agent.observability.metrics import MetricsCollector
+from forge_agent.observability.trace import (
+    Span,
+    SpanStatus,
+    SpanType,
+    Trace,
+    TraceManager,
+    get_trace_manager,
+    reset_trace_manager,
+)
 
 __all__ = [
     # Event bus & metrics
@@ -24,4 +33,7 @@ __all__ = [
     "is_configured", "current_config",
     # Context helpers
     "bind_context", "unbind_context", "clear_context", "current_context",
+    # Trace
+    "Span", "SpanStatus", "SpanType", "Trace", "TraceManager",
+    "get_trace_manager", "reset_trace_manager",
 ]

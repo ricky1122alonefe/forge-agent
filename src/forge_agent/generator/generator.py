@@ -15,12 +15,18 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from forge_agent.generator.prompt_provider import (
+    DefaultPromptProvider,
+    PromptProvider,
+    get_prompt_provider,
+)
 from forge_agent.generator.prompts import (
     build_user_prompt,
     get_system_prompt,
 )
 from forge_agent.generator.requirements import AgentRequirements
 from forge_agent.generator.validator import ContractValidator, ValidationResult
+from forge_agent.llm.protocol_types import LLMChatFn
 
 log = logging.getLogger(__name__)
 
@@ -55,21 +61,24 @@ class CodeGenerator:
     def __init__(
         self,
         *,
-        llm_chat: Any,
+        llm_chat: LLMChatFn,
         validator: ContractValidator | None = None,
         max_attempts: int = 3,
         default_model: str | None = None,
+        prompt_provider: PromptProvider | None = None,
     ) -> None:
         """Args:
-            llm_chat: Async callable matching `forge_agent.llm.chat`'s signature.
+            llm_chat: Async callable matching `LLMChatFn` signature.
             validator: ContractValidator instance.
             max_attempts: How many times to retry on validation failure.
             default_model: Default model name to pass to the LLM.
+            prompt_provider: Pluggable prompt source; defaults to DefaultPromptProvider.
         """
         self.llm_chat = llm_chat
         self.validator = validator or ContractValidator()
         self.max_attempts = max_attempts
         self.default_model = default_model
+        self.prompt_provider = prompt_provider or get_prompt_provider()
 
     async def generate(self, ctx: GenerationContext) -> GenerationResult:
         """Generate code; retry on validation failure."""
@@ -97,7 +106,7 @@ class CodeGenerator:
                     f"请修复后重新输出完整代码。"
                 )
 
-            system_prompt = get_system_prompt(ctx.requirements.agent_type)
+            system_prompt = self.prompt_provider.get_system_prompt(ctx.requirements.agent_type)
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},

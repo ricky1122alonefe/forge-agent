@@ -100,7 +100,7 @@ class TestBuildUserPrompt:
 
     def test_basic_prompt(self) -> None:
         result = build_user_prompt("我需要一个股票监控 Agent")
-        assert "请根据以下需求生成 Agent 代码" in result
+        assert "请根据以下需求规格生成 Agent 代码" in result
         assert "我需要一个股票监控 Agent" in result
         assert "请只输出 Python 代码" in result
 

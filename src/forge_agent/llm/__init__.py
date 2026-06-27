@@ -52,6 +52,7 @@ from forge_agent.llm.protocol import (
     multi_chat,
     stream,
 )
+from forge_agent.llm.protocol_types import LLMChatFn, LLMStreamFn
 from forge_agent.llm.registry import LLMRegistry, get_registry as get_llm_registry
 from forge_agent.llm.secrets import APIKeyManager, APIKeySource
 from forge_agent.llm.tracker import TokenTracker, estimate_cost, get_tracker
@@ -63,6 +64,9 @@ __all__ = [
     "LLMResponse",
     "StreamChunk",
     "LLMClient",
+    # Protocol types
+    "LLMChatFn",
+    "LLMStreamFn",
     # Config
     "LLMConfig",
     "ProviderConfig",

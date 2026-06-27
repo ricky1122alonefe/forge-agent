@@ -37,15 +37,38 @@ class PipelineEngine:
                 "reports": {node_id: AgentReport, ...},
                 "board":  AgentBoard | None,
                 "extra":  {...user function outputs...},
+                "trace_id": str | None,
             }
         """
+        from forge_agent.observability.trace import get_trace_manager, SpanType
+
         state: dict[str, Any] = {
             "ctx": ctx,
             "reports": {},
             "extra": {},
+            "trace_id": None,
         }
-        log.info("Pipeline[%s] starting from %s", pipeline.pipeline_id, pipeline.entry)
-        await self._walk(pipeline, pipeline.entry, ctx, state, set())
+
+        tm = get_trace_manager()
+        trace = tm.start_trace(pipeline_id=pipeline.pipeline_id)
+        state["trace_id"] = trace.trace_id
+        pipeline_span = tm.start_span(
+            name=f"pipeline.{pipeline.pipeline_id}",
+            span_type=SpanType.PIPELINE,
+            trace=trace,
+            attributes={"pipeline_id": pipeline.pipeline_id, "entry": pipeline.entry},
+        )
+
+        log.info("Pipeline[%s] starting from %s (trace=%s)", pipeline.pipeline_id, pipeline.entry, trace.trace_id)
+        try:
+            await self._walk(pipeline, pipeline.entry, ctx, state, set())
+            tm.end_span(pipeline_span, status="ok")
+            tm.end_trace(trace.trace_id)
+        except Exception as exc:
+            tm.end_span(pipeline_span, status="error", error_message=str(exc))
+            tm.end_trace(trace.trace_id)
+            raise
+
         log.info("Pipeline[%s] done. %d node(s) executed.", pipeline.pipeline_id, len(state["reports"]))
         return state
 

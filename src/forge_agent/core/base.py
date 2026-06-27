@@ -201,24 +201,42 @@ class BaseAgent(abc.ABC):
         # Bind run_id in addition to the agent fields so every nested
         # log line carries both "which agent" and "which run".
         from forge_agent.observability.logger import bind_context, unbind_context
+        from forge_agent.observability.trace import get_trace_manager, SpanType
 
         bind_context(agent_id=self.agent_id, domain=self.domain,
                      agent_version=self.version, run_id=ctx.run_id)
+
+        tm = get_trace_manager()
+        trace = tm.current_trace
+        agent_span = tm.start_span(
+            name=f"{self.agent_id}.run",
+            span_type=SpanType.AGENT,
+            trace=trace,
+            attributes={"agent_id": self.agent_id, "run_id": ctx.run_id},
+        )
         try:
-            observation = await self.observe(ctx)
-            decision = await self.decide(ctx, observation)
-            result = await self.act(ctx, decision)
+            observation = await self._run_step("observe", ctx, SpanType.OBSERVE, trace)
+            decision = await self._run_step("decide", ctx, SpanType.DECIDE, trace, observation=observation)
+            result = await self._run_step("act", ctx, SpanType.ACT, trace, decision=decision)
             # Post-execution hooks (best-effort — never break the run)
             try:
-                await self.reflect(ctx, observation, decision, result)
+                await self._run_step(
+                    "reflect", ctx, SpanType.REFLECT, trace,
+                    observation=observation, decision=decision, result=result,
+                )
             except Exception as exc:  # noqa: BLE001
                 self.log("warning", f"reflect() failed: {exc}")
             try:
-                await self.learn(ctx, observation, decision, result)
+                await self._run_step(
+                    "learn", ctx, SpanType.LEARN, trace,
+                    observation=observation, decision=decision, result=result,
+                )
             except Exception as exc:  # noqa: BLE001
                 self.log("warning", f"learn() failed: {exc}")
+            tm.end_span(agent_span, status="ok")
             return result
         except Exception as exc:
+            tm.end_span(agent_span, status="error", error_message=str(exc))
             self.log("error", f"Agent {self.agent_id} run failed: {exc}")
             return self._error_report(ctx, exc)
         finally:
@@ -226,6 +244,42 @@ class BaseAgent(abc.ABC):
             # Clear only the per-run key; keep agent_id / domain in case
             # the agent is reused within the same task.
             unbind_context("run_id")
+
+    async def _run_step(
+        self,
+        step_name: str,
+        ctx: AgentContext,
+        span_type: Any,
+        trace: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """Execute a single agent step with trace span recording."""
+        from forge_agent.observability.trace import get_trace_manager
+        tm = get_trace_manager()
+        span = tm.start_span(
+            name=f"{self.agent_id}.{step_name}",
+            span_type=span_type,
+            trace=trace,
+            attributes={"step": step_name},
+        )
+        try:
+            if step_name == "observe":
+                result = await self.observe(ctx)
+            elif step_name == "decide":
+                result = await self.decide(ctx, kwargs["observation"])
+            elif step_name == "act":
+                result = await self.act(ctx, kwargs["decision"])
+            elif step_name == "reflect":
+                result = await self.reflect(ctx, kwargs["observation"], kwargs["decision"], kwargs["result"])
+            elif step_name == "learn":
+                result = await self.learn(ctx, kwargs["observation"], kwargs["decision"], kwargs["result"])
+            else:
+                result = None
+            tm.end_span(span, status="ok")
+            return result
+        except Exception as exc:
+            tm.end_span(span, status="error", error_message=str(exc))
+            raise
 
     # ====================================================================
     # The 3 contract methods — MUST be implemented

@@ -110,14 +110,30 @@ class RequirementsParser:
         1. With LLM: pass `llm_chat=chat` and it will call out for parsing.
         2. Without LLM: extract obvious fields via regex + heuristics (less
            accurate, but works offline for demos and tests).
+
+    Keyword mappings are configurable — use register_domain(), register_capability(),
+    and register_agent_type_keywords() to extend at runtime.
     """
 
     DEFAULT_CAPABILITIES = ["log"]  # always
-    COMMON_CAPABILITIES = {
+    COMMON_CAPABILITIES: dict[str, list[str]] = {
         "search": ["搜索", "search", "查询", "look up", "find"],
         "llm": ["大模型", "llm", "ai", "智能", "推理"],
         "prompt_manager": ["prompt", "提示词", "提示"],
         "memory": ["记忆", "memory", "历史", "history"],
+    }
+    DOMAIN_KEYWORDS: dict[str, list[str]] = {
+        "stock": ["股票", "股价", "stock", "share", "nvda", "tsla"],
+        "football": ["球赛", "足球", "比赛", "match", "football", "world cup"],
+        "social": ["舆情", "微博", "twitter", "social", "评论", "评论"],
+        "office": ["办公", "邮件", "邮件", "email", "office", "日程"],
+        "ecommerce": ["商品", "订单", "电商", "product", "order"],
+    }
+    AGENT_TYPE_KEYWORDS: dict[str, list[str]] = {
+        "scraper": ["抓取", "爬取", "scrape", "crawl", "fetch", "采集"],
+        "analyzer": ["分析", "analyze", "统计", "insight", "洞察"],
+        "monitor": ["监控", "monitor", "告警", "alert", "watch", "检测"],
+        "generator": ["生成", "generate", "create", "写", "compose", "创作"],
     }
 
     def __init__(self, *, llm_chat: Any = None) -> None:
@@ -125,6 +141,50 @@ class RequirementsParser:
             llm_chat: Async callable matching `forge_agent.llm.chat`'s signature.
         """
         self.llm_chat = llm_chat
+
+    # ------------------------------------------------------------------ Registration API
+
+    @classmethod
+    def register_domain(cls, domain: str, keywords: list[str]) -> None:
+        """Register or extend a domain with keywords.
+
+        Example::
+
+            RequirementsParser.register_domain("healthcare", ["医疗", "医院", "health", "patient"])
+        """
+        existing = cls.DOMAIN_KEYWORDS.get(domain, [])
+        for kw in keywords:
+            if kw not in existing:
+                existing.append(kw)
+        cls.DOMAIN_KEYWORDS[domain] = existing
+
+    @classmethod
+    def register_capability(cls, capability: str, keywords: list[str]) -> None:
+        """Register or extend a capability with keywords.
+
+        Example::
+
+            RequirementsParser.register_capability("database", ["数据库", "database", "sql", "db"])
+        """
+        existing = cls.COMMON_CAPABILITIES.get(capability, [])
+        for kw in keywords:
+            if kw not in existing:
+                existing.append(kw)
+        cls.COMMON_CAPABILITIES[capability] = existing
+
+    @classmethod
+    def register_agent_type_keywords(cls, agent_type: str, keywords: list[str]) -> None:
+        """Register or extend keywords for an agent type.
+
+        Example::
+
+            RequirementsParser.register_agent_type_keywords("scraper", ["download", "下载"])
+        """
+        existing = cls.AGENT_TYPE_KEYWORDS.get(agent_type, [])
+        for kw in keywords:
+            if kw not in existing:
+                existing.append(kw)
+        cls.AGENT_TYPE_KEYWORDS[agent_type] = existing
 
     async def parse(self, requirement: str) -> AgentRequirements:
         """Parse a natural-language description into AgentRequirements."""
@@ -218,15 +278,8 @@ class RequirementsParser:
         return cleaned or "Generated Agent"
 
     def _guess_domain(self, req: str) -> str:
-        mapping = {
-            "stock": ["股票", "股价", "stock", "share", "nvda", "tsla"],
-            "football": ["球赛", "足球", "比赛", "match", "football", "world cup"],
-            "social": ["舆情", "微博", "twitter", "social", "评论", "评论"],
-            "office": ["办公", "邮件", "邮件", "email", "office", "日程"],
-            "ecommerce": ["商品", "订单", "电商", "product", "order"],
-        }
         req_lower = req.lower()
-        for domain, keywords in mapping.items():
+        for domain, keywords in self.DOMAIN_KEYWORDS.items():
             for kw in keywords:
                 if kw in req_lower:
                     return domain
@@ -246,24 +299,13 @@ class RequirementsParser:
     def _guess_agent_type(self, req: str) -> AgentType:
         """Guess the agent type from the requirement text."""
         req_lower = req.lower()
-        
-        # SCRAPER: 抓取、爬取、scrape、crawl、fetch
-        if any(kw in req_lower for kw in ["抓取", "爬取", "scrape", "crawl", "fetch", "采集"]):
-            return AgentType.SCRAPER
-        
-        # ANALYZER: 分析、analyze、统计、insight
-        if any(kw in req_lower for kw in ["分析", "analyze", "统计", "insight", "洞察"]):
-            return AgentType.ANALYZER
-        
-        # MONITOR: 监控、monitor、告警、alert、watch
-        if any(kw in req_lower for kw in ["监控", "monitor", "告警", "alert", "watch", "检测"]):
-            return AgentType.MONITOR
-        
-        # GENERATOR: 生成、generate、create、写、compose
-        if any(kw in req_lower for kw in ["生成", "generate", "create", "写", "compose", "创作"]):
-            return AgentType.GENERATOR
-        
-        # Default to GENERAL
+        for agent_type_str, keywords in self.AGENT_TYPE_KEYWORDS.items():
+            if any(kw in req_lower for kw in keywords):
+                try:
+                    return AgentType.from_string(agent_type_str)
+                except ValueError:
+                    log.warning(f"Unknown agent_type '{agent_type_str}' in AGENT_TYPE_KEYWORDS")
+                    continue
         return AgentType.GENERAL
 
 
