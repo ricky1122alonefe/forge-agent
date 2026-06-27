@@ -7,7 +7,15 @@ permission scaffolding only; wire the actual `mcp` SDK in v0.3.
 
 from __future__ import annotations
 
+from forge_agent.mcp.client import MCPClient, ToolInfo, has_mcp_sdk
 from forge_agent.mcp.gateway import MCPGateway
 from forge_agent.mcp.permissions import PermissionPolicy, PermissionRule
 
-__all__ = ["MCPGateway", "PermissionPolicy", "PermissionRule"]
+__all__ = [
+    "MCPClient",
+    "MCPGateway",
+    "PermissionPolicy",
+    "PermissionRule",
+    "ToolInfo",
+    "has_mcp_sdk",
+]

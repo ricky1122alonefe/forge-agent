@@ -94,6 +94,7 @@ class FileCodeStore:
         validation_errors: list[str] | None = None,
         smoke_test_status: str = "unknown",
         smoke_test_error: str | None = None,
+        agent_type: str = "",
     ) -> SavedCode:
         """Save a new version. If agent_id is new, creates v1; else v(N+1).
 
@@ -110,6 +111,7 @@ class FileCodeStore:
                 created_at=_now_iso(),
                 active_version="",  # not yet active
                 versions=[],
+                agent_type=agent_type,
             )
             self._manifest.agents[agent_id] = entry
 

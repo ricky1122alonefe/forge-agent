@@ -60,6 +60,7 @@ class AgentManifestEntry:
     active_version: str                 # e.g. "v3"
     versions: list[AgentVersionMeta] = field(default_factory=list)
     description: str = ""
+    agent_type: str = ""                # "scraper" | "analyzer" | "monitor" | "generator" | "general" | ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -68,6 +69,7 @@ class AgentManifestEntry:
             "active_version": self.active_version,
             "versions": [v.to_dict() for v in self.versions],
             "description": self.description,
+            "agent_type": self.agent_type,
         }
 
     @classmethod
@@ -79,6 +81,7 @@ class AgentManifestEntry:
             active_version=d.get("active_version", "v1"),
             versions=versions,
             description=d.get("description", ""),
+            agent_type=d.get("agent_type", ""),
         )
 
     def get_version(self, version: str) -> AgentVersionMeta | None:

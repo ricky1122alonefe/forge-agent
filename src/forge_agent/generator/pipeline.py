@@ -94,6 +94,7 @@ class GenerationPipeline:
         sample_context: Any = None,
         deploy_mode: DeployMode = DeployMode.MANUAL_REVIEW,
         project_root: str | None = None,
+        dataset_name: str | None = None,
     ) -> GenerationOutcome:
         """End-to-end: requirement → spec → code → validate → sandbox → save → (deploy)."""
         notes: list[str] = []
@@ -102,10 +103,24 @@ class GenerationPipeline:
         spec = await self.requirements_parser.parse(requirement)
         notes.append(f"Parsed spec: agent_id={spec.agent_id}, domain={spec.domain}")
 
+        # 1.5 Load dataset examples if specified
+        dataset_examples = None
+        if dataset_name:
+            from forge_agent.datasets.registry import get_registry
+            registry = get_registry()
+            ds = registry.load(dataset_name)
+            if ds:
+                dataset_examples = [
+                    {"input": item.input, "output": item.output}
+                    for item in ds.sample(n=5)
+                ]
+                notes.append(f"Loaded {len(dataset_examples)} examples from dataset '{dataset_name}'")
+
         # 2. Generate code
         gen_ctx = GenerationContext(
             requirements=spec,
             existing_agents=list(self.agent_registry.list()),
+            dataset_examples=dataset_examples,
         )
         generation = await self.code_generator.generate(gen_ctx)
         if not generation.success or not generation.source_code:
@@ -136,6 +151,7 @@ class GenerationPipeline:
                 llm_model=generation.llm_model,
                 validation_status="passed" if (generation.validation and generation.validation.ok) else "failed",
                 validation_errors=(generation.validation.errors if generation.validation else []),
+                agent_type=spec.agent_type.value,
             )
             notes.append(f"Saved to {saved.code_path}")
 

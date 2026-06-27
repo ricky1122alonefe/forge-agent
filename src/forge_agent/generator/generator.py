@@ -39,6 +39,7 @@ class GenerationContext:
     mcp_tools_available: list[str] = field(default_factory=list)
     existing_agents: list[str] = field(default_factory=list)
     base_class_import: str = "from forge_agent.core.base import BaseAgent"
+    dataset_examples: list[dict] | None = None
 
 
 @dataclass
@@ -99,6 +100,7 @@ class CodeGenerator:
                 mcp_tools=ctx.mcp_tools_available,
                 existing_agents=ctx.existing_agents,
                 template=template,
+                dataset_examples=ctx.dataset_examples,
             )
             if last_error:
                 user_prompt += (

@@ -270,7 +270,8 @@ def get_system_prompt(agent_type: AgentType) -> str:
 
 def build_user_prompt(spec_prompt: str, *, mcp_tools: list[str] | None = None,
                       existing_agents: list[str] | None = None,
-                      template: str | None = None) -> str:
+                      template: str | None = None,
+                      dataset_examples: list[dict] | None = None) -> str:
     """Compose the user message for CodeGenerator.
 
     Args:
@@ -278,10 +279,17 @@ def build_user_prompt(spec_prompt: str, *, mcp_tools: list[str] | None = None,
         mcp_tools: Available MCP tool names.
         existing_agents: Already registered agent IDs.
         template: Optional code skeleton to use as a reference example.
+        dataset_examples: Optional list of example dicts from dataset.
     """
     parts = ["请根据以下需求规格生成 Agent 代码：\n", spec_prompt]
     if template:
         parts.append(f"\n参考以下代码骨架（根据需求修改，不要原样复制）：\n```python\n{template}\n```")
+    if dataset_examples:
+        parts.append("\n参考以下数据示例（理解输入输出格式）：")
+        for i, ex in enumerate(dataset_examples[:5], 1):  # 最多5个示例
+            parts.append(f"\n示例 {i}:")
+            parts.append(f"输入: {ex.get('input', 'N/A')}")
+            parts.append(f"输出: {ex.get('output', 'N/A')}")
     if mcp_tools:
         parts.append(f"\n可用的 MCP 工具：{', '.join(mcp_tools)}")
     if existing_agents:
