@@ -9,15 +9,15 @@
 ## 总体进度
 
 ```
-Phase 0 (打地基)     [░░░░░░░░░░] 0/6    (0%)
+Phase 0 (打地基)     [██████████] 6/6    (100%) ✅
 Phase 1 (验核心假设) [░░░░░░░░░░] 0/5    (0%)
 Phase 2 (兑现差异化) [░░░░░░░░░░] 0/15   (0%)
 Phase 3 (生态体验)   [░░░░░░░░░░] 0/8    (0%)
-Dashboard MVP        [░░░░░░░░░░] 0/5    (0%)  ← 新增
-Dashboard 交互       [░░░░░░░░░░] 0/3    (0%)  ← 新增
-Dashboard 高级       [░░░░░░░░░░] 0/5    (0%)  ← 新增
+Dashboard MVP        [░░░░░░░░░░] 0/5    (0%)  ← 放一放
+Dashboard 交互       [░░░░░░░░░░] 0/3    (0%)  ← 放一放
+Dashboard 高级       [░░░░░░░░░░] 0/5    (0%)  ← 放一放
 ─────────────────────────────────────────
-总进度               [░░░░░░░░░░] 0/47   (0%)
+总进度               [█▓░░░░░░░░] 6/47   (13%)
 ```
 
 ---
@@ -26,12 +26,12 @@ Dashboard 高级       [░░░░░░░░░░] 0/5    (0%)  ← 新增
 
 | ID | 任务 | 状态 | 完成时间 | 验证命令 | 通过 |
 |---|---|---|---|---|---|
-| T0.1 | Python 3.10+ 真环境 | ⬜ | — | `python --version` ≥ 3.10 | — |
-| T0.2 | LICENSE 文件 | ⬜ | — | `test -f LICENSE && grep MIT LICENSE` | — |
-| T0.3 | CHANGELOG.md | ⬜ | — | `test -f CHANGELOG.md && grep "0.3.0"` | — |
-| T0.4 | GitHub Actions CI | ⬜ | — | `test -f .github/workflows/test.yml` | — |
-| T0.5 | pre-commit 配置 | ⬜ | — | `test -f .pre-commit-config.yaml` | — |
-| T0.6 | 端到端冒烟测试 | ⬜ | — | `bash scripts/smoke_test.sh` | — |
+| T0.1 | Python 3.10+ 真环境 | ✅ | 2026-06-27 10:35 | `python --version` ≥ 3.10 | 3.14.3 |
+| T0.2 | LICENSE 文件 | ✅ | 已有 | `test -f LICENSE && grep MIT LICENSE` | OK |
+| T0.3 | CHANGELOG.md | ✅ | 2026-06-27 10:40 | `test -f CHANGELOG.md && grep "0.3.0"` | OK |
+| T0.4 | GitHub Actions CI | ✅ | 2026-06-27 10:42 | `test -f .github/workflows/test.yml` | OK |
+| T0.5 | pre-commit 配置 | ✅ | 2026-06-27 10:42 | `test -f .pre-commit-config.yaml` | OK |
+| T0.6 | 端到端冒烟测试 | ✅ | 2026-06-27 10:45 | `bash scripts/smoke_test.sh` | PASS |
 
 **Phase 0 检查**：`bash scripts/check_phase0.sh`
 

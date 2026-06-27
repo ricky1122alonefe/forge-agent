@@ -2,11 +2,15 @@
 # check_phase0.sh - Phase 0 自动化检查脚本
 #
 # 用法: bash scripts/check_phase0.sh
+#       PYTHON_BIN=/path/to/python3.11 bash scripts/check_phase0.sh
 # 返回: 0 = 全部通过, 1 = 有失败
 
 set -e
 
 cd "$(dirname "$0")/.."
+
+# 支持自定义 Python（默认用 system python）
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
 PASS=0
 FAIL=0
@@ -28,12 +32,13 @@ check() {
 
 echo "=========================================="
 echo "  Phase 0 自动化检查"
+echo "  Python: $($PYTHON_BIN --version 2>&1)"
 echo "=========================================="
 echo ""
 
 # T0.1: Python 3.10+
 check "T0.1" "Python 3.10+ 真环境" \
-    "python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'"
+    "$PYTHON_BIN -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'"
 
 # T0.2: LICENSE
 check "T0.2" "LICENSE 文件" \
