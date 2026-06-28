@@ -195,13 +195,13 @@ async def main() -> None:
 
     mission = Mission(
         mission_id="match_briefing_configurable",
-        name="海港 vs 泰山 数据简报（配置化）",
+        name="阿森纳 vs 利物浦 数据简报（配置化）",
         description="通过 YAML/JSON 配置生成 agent 并执行数据简报任务。",
         team=team,
         payload={
-            "home": "上海海港",
-            "away": "山东泰山",
-            "city": "上海",
+            "home": "阿森纳",
+            "away": "利物浦",
+            "city": "伦敦",
             "date": "2026-07-01",
         },
     )

@@ -327,13 +327,13 @@ async def main() -> None:
 
     mission = Mission(
         mission_id="match_briefing_demo",
-        name="海港 vs 泰山 数据简报",
+        name="阿森纳 vs 利物浦 数据简报",
         description="生成一场比赛的合规数据简报，仅包含情报、天气、历史交锋信息。",
         team=team,
         payload={
-            "home": "上海海港",
-            "away": "山东泰山",
-            "city": "上海",
+            "home": "阿森纳",
+            "away": "利物浦",
+            "city": "伦敦",
             "date": "2026-07-01",
         },
     )

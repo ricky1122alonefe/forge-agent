@@ -1,0 +1,249 @@
+mission:
+  mission_id: sports.pipeline.demo
+  name: 海港 vs 泰山 综合分析
+  description: 整合多源赔率与情报，输出 Chief 决策
+
+match:
+  home: 阿森纳
+  away: 利物浦
+  city: 伦敦
+  date: "2026-07-01"
+
+sources:
+  - source_id: odds.site_a
+    name: 站点 A 赔率
+    source_type: mock
+    normalizer: odds
+    mock_payload:
+      match:
+        home_team: Arsenal
+        away_team: Liverpool
+      odds:
+        home_win: "2.10"
+        draw: "3.40"
+        away_win: "3.20"
+    field_map:
+      home: match.home_team
+      away: match.away_team
+      home_odds: odds.home_win
+      draw_odds: odds.draw
+      away_odds: odds.away_win
+    transforms:
+      home_odds: float
+      draw_odds: float
+      away_odds: float
+
+  - source_id: odds.site_b
+    name: 站点 B 赔率
+    source_type: mock
+    normalizer: odds
+    mock_payload:
+      主队: 阿森纳
+      客队: 利物浦
+      主胜: 2.08
+      平局: 3.42
+      客胜: 3.25
+    field_map:
+      home: 主队
+      away: 客队
+      home_odds: 主胜
+      draw_odds: 平局
+      away_odds: 客胜
+    transforms:
+      home_odds: float
+      draw_odds: float
+      away_odds: float
+
+agents:
+  - agent_id: sports.news
+    name: 赛事情报专家
+    domain: sports
+    template: prompt_agent
+    tags: [news, briefing]
+    config:
+      variables:
+        home: home
+        away: away
+      prompt: |
+        你是一位足球赛事情报分析专家。
+        主队：{home}，客队：{away}。
+        请分析两队近期情报，输出 JSON：
+        {
+          "verdict": "lean_positive|neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["关键情报1", "关键情报2"]
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+      mock_mode: true
+      mock_response: '{"verdict": "lean_positive", "confidence": 0.75, "risk": 0.2, "evidence": ["{home} 近期训练状态良好，主力阵容齐整。", "{away} 上一场比赛客场取胜，士气正佳。"]}'
+
+  - agent_id: sports.weather
+    name: 比赛天气专家
+    domain: sports
+    template: prompt_agent
+    tags: [weather, briefing]
+    config:
+      variables:
+        city: city
+      prompt: |
+        你是一位足球比赛天气分析专家。
+        比赛城市：{city}。
+        请分析天气对比赛的影响，输出 JSON：
+        {
+          "verdict": "lean_positive|neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["天气描述"]
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+      mock_mode: true
+      mock_response: '{"verdict": "lean_negative", "confidence": 0.8, "risk": 0.4, "evidence": ["{city} 天气阴，30℃，风力2级，对比赛影响中等。"]}'
+
+  - agent_id: sports.history
+    name: 历史交锋专家
+    domain: sports
+    template: prompt_agent
+    tags: [history, briefing]
+    config:
+      variables:
+        home: home
+        away: away
+      prompt: |
+        你是一位足球历史交锋分析专家。
+        主队：{home}，客队：{away}。
+        请分析历史交锋数据，输出 JSON：
+        {
+          "verdict": "lean_positive|neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["历史交锋描述"]
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+      mock_mode: true
+      mock_response: '{"verdict": "lean_negative", "confidence": 0.65, "risk": 0.25, "evidence": ["历史交锋 10 场，{home} 胜 4 场。", "{home} 近 3 次主场对 {away} 保持不败。"]}'
+
+  - agent_id: sports.odds
+    name: 赔率分析专家
+    domain: sports
+    template: prompt_agent
+    tags: [odds, briefing]
+    config:
+      variables:
+        home: home
+        away: away
+        home_odds: home_odds
+        draw_odds: draw_odds
+        away_odds: away_odds
+        sources: sources
+        odds_summary: odds_summary
+      prompt: |
+        你是一位足球赔率分析专家。
+        对阵：{home} vs {away}。
+        {odds_summary}
+        请分析赔率变化，输出 JSON：
+        {
+          "verdict": "lean_positive|neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["赔率描述"]
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+      mock_mode: true
+      mock_response: '{"verdict": "lean_negative", "confidence": 0.72, "risk": 0.35, "evidence": ["来源 {sources}，{odds_summary}", "赔率显示客队赔付有一定压力"]}'
+
+  - agent_id: sports.search
+    name: 情报搜索专家
+    domain: sports
+    template: search_agent
+    tags: [search, briefing]
+    config:
+      variables:
+        home: home
+        away: away
+      query_template: "{home} vs {away} latest news injury lineup"
+      search_backend: mock
+      mock_results:
+        - title: "阿森纳 vs 利物浦 赛前前瞻"
+          source: "espn"
+          url: "https://example.com/preview"
+          snippet: "阿森纳主力前锋伤愈复出，利物浦中场核心累计黄牌停赛。"
+          published_at: "2026-06-30T10:00:00Z"
+        - title: "两队近期状态对比"
+          source: "bbc"
+          url: "https://example.com/form"
+          snippet: "阿森纳近 5 场 4 胜 1 平；利物浦客场战绩一般。"
+          published_at: "2026-06-29T14:00:00Z"
+      prompt: |
+        你是一位足球情报分析专家。
+        对阵：{home} vs {away}。
+        搜索 query: {query}
+        搜索结果：{search_results}
+        请基于搜索结果输出 JSON：
+        {
+          "verdict": "lean_positive|neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["情报要点1", "情报要点2"]
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+      mock_mode: true
+      mock_response: '{"verdict": "lean_positive", "confidence": 0.78, "risk": 0.25, "evidence": ["{home} 主力前锋伤愈复出，进攻火力增强", "{away} 中场核心停赛，组织能力下降"]}'
+
+team:
+  team_id: sports_analysis
+  name: 赛事综合分析小组
+  domain: sports
+  agent_ids:
+    - sports.news
+    - sports.weather
+    - sports.history
+    - sports.odds
+    - sports.search
+  chief_id: generic.chief
+  mode: parallel

@@ -29,7 +29,7 @@ agents:
         risk: risk
         evidence: evidence
       mock_mode: true
-      mock_response: '{"verdict": "lean_positive", "confidence": 0.75, "risk": 0.2, "evidence": ["{home} 近期训练状态良好，主力阵容齐整。", "{away} 上一场比赛客场取胜，士气正佳。"]}'
+      mock_response: '{"verdict": "lean_positive", "confidence": 0.75, "risk": 0.2, "evidence": ["{home} 近期主场状态出色，主力阵容齐整。", "{away} 上一场比赛客场取胜，士气正佳。"]}'
 
   - agent_id: sports.weather
     name: 比赛天气专家

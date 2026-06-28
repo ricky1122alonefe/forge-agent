@@ -8,5 +8,6 @@ dict (usually from YAML) into a registered agent class.
 from __future__ import annotations
 
 from forge_agent.core.templates.prompt_agent import PromptAgent
+from forge_agent.core.templates.search_agent import SearchAgent
 
-__all__ = ["PromptAgent"]
+__all__ = ["PromptAgent", "SearchAgent"]
