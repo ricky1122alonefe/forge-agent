@@ -105,40 +105,111 @@
         <!-- Scraper Config -->
         <div id="section-scraper" class="form-section hidden bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">3. Scraper Configuration</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Target URLs</label>
-                    <div class="tag-input" id="urls-input" data-field="urls">
-                        <input type="text" placeholder="输入 URL 后按 Enter...">
+
+            <!-- Domain Preset Selector -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Domain Preset</label>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2" id="preset-selector">
+                    <!-- Populated by JS -->
+                </div>
+                <input type="hidden" id="scraper_preset" name="scraper_preset" value="">
+            </div>
+
+            <!-- Preset Info Banner -->
+            <div id="preset-info" class="hidden mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    <span id="preset-icon" class="text-xl"></span>
+                    <div>
+                        <div id="preset-label" class="text-sm font-semibold text-indigo-800"></div>
+                        <div id="preset-desc" class="text-xs text-indigo-600 mt-0.5"></div>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Max Depth</label>
-                        <input type="number" id="max_depth" name="max_depth" value="2" min="1" max="10"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Rate Limit (req/s)</label>
-                        <input type="number" id="rate_limit" name="rate_limit" value="1" min="0.1" max="100" step="0.1"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Output Format</label>
-                        <select id="output_format" name="output_format"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                            <option value="json">JSON</option>
-                            <option value="csv">CSV</option>
-                            <option value="markdown">Markdown</option>
+            </div>
+
+            <!-- Source Selection -->
+            <div id="source-section" class="hidden mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Data Source</label>
+                <select id="scraper_source" name="scraper_source"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </select>
+                <p class="text-xs text-gray-500 mt-1" id="source-url-preview"></p>
+            </div>
+
+            <!-- Custom URL (shown for custom preset or when user wants to override) -->
+            <div id="custom-url-section" class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Target URLs</label>
+                <div class="tag-input" id="urls-input" data-field="urls">
+                    <input type="text" placeholder="输入 URL 后按 Enter...">
+                </div>
+            </div>
+
+            <!-- Fields Preview -->
+            <div id="fields-section" class="hidden mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Extract Fields</label>
+                <div id="fields-preview" class="flex flex-wrap gap-2"></div>
+                <p class="text-xs text-gray-500 mt-1">Preset 预定义的提取字段，可在 Description 中进一步自定义</p>
+            </div>
+
+            <!-- Schedule -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Schedule (Cron)</label>
+                    <input type="text" id="scraper_schedule" name="scraper_schedule" placeholder="e.g. */30 * * * *"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono">
+                    <p class="text-xs text-gray-500 mt-1">标准 crontab 格式</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Or: Fixed Interval</label>
+                    <div class="flex gap-2">
+                        <input type="number" id="scraper_interval" name="scraper_interval" value="" min="1" placeholder="e.g. 30"
+                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <select id="interval_unit" name="interval_unit"
+                                class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <option value="minutes" selected>Minutes</option>
+                            <option value="seconds">Seconds</option>
+                            <option value="hours">Hours</option>
                         </select>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Data Fields to Extract</label>
-                    <textarea id="data_fields" name="data_fields" rows="2" placeholder="e.g. title, price, date"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></textarea>
-                </div>
             </div>
+
+            <!-- Advanced Options (collapsible) -->
+            <details class="border border-gray-200 rounded-lg">
+                <summary class="px-4 py-2 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50">Advanced Options</summary>
+                <div class="p-4 space-y-3 border-t border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Rate Limit (s)</label>
+                            <input type="number" id="rate_limit" name="rate_limit" value="1" min="0.1" max="100" step="0.1"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Timeout (s)</label>
+                            <input type="number" id="scraper_timeout" name="scraper_timeout" value="30" min="5" max="120"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Output Format</label>
+                            <select id="output_format" name="output_format"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <option value="json">JSON</option>
+                                <option value="csv">CSV</option>
+                                <option value="markdown">Markdown</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Auth Token (optional)</label>
+                        <input type="text" id="auth_token" name="auth_token" placeholder="API Key or Bearer Token"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Custom Fields (override preset)</label>
+                        <textarea id="data_fields" name="data_fields" rows="2" placeholder="e.g. title, price, date — 留空则使用 preset 默认字段"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></textarea>
+                    </div>
+                </div>
+            </details>
         </div>
 
         <!-- Monitor Config -->

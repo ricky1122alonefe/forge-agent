@@ -78,6 +78,7 @@ _FRAMEWORK_CONTRACT = """
 - `from forge_agent.core.enums import Verdict, Action`
 - `from forge_agent.llm import chat`   # 统一 LLM 调用
 - `from forge_agent.registry.decorators import register_agent`
+- `from forge_agent.storage import ForgeStore`  # 统一数据存储（所有 Agent 类型共用）
 
 # 输出要求
 
@@ -100,35 +101,217 @@ SCRAPER_SYSTEM = f"""你是一个 Python 代码生成器，专门为 forge-agent
 # 类型指导：SCRAPER
 
 ## 核心职责
-从网页、API 或其他数据源获取结构化数据。
+从网页、API 或 RSS 获取结构化数据，存储到时序数据库，支持定时调度。
 
-## 典型实现模式
+## 使用 forge_agent.scraper 模块
 
-### observe()
-- 从 ctx.payload 获取目标 URL、关键词或查询参数
-- 使用 httpx/aiohttp 发起 HTTP 请求，或使用 self.search() 调用搜索能力
-- 解析响应（JSON/HTML），提取结构化数据
-- 返回原始数据字典
+**重要**：不要自己写 HTTP 请求和解析逻辑，使用内置的 scraper 模块：
 
-### decide()
-- 评估数据质量（完整性、新鲜度）
-- 决定是否需要重试或补充抓取
-- 返回处理策略
+```python
+from forge_agent.scraper import (
+    ScraperConfig,
+    ScraperEngine,
+    SQLiteDataStore,
+    FieldDef,
+    SourceType,
+)
+```
 
-### act()
-- 将抓取结果封装为 AgentReport
-- evidence 包含关键数据点
-- verdict 基于数据质量判断
+### ScraperConfig 配置
+```python
+config = ScraperConfig(
+    agent_id=self.agent_id,
+    name=self.name,
+    source_type=SourceType.HTML,  # 或 JSON_API / RSS
+    urls=["https://example.com/data"],
+    fields=[
+        FieldDef(name="title", selector="h1.title", type="str"),
+        FieldDef(name="price", selector=".price", type="float", transform="float"),
+        FieldDef(name="date", selector=".date", type="str"),
+    ],
+    # 调度配置（二选一）
+    schedule="*/30 * * * *",  # Cron 表达式：每 30 分钟
+    # interval_seconds=1800,  # 或固定间隔：1800 秒
 
-## 常用能力
-- `searcher`: 用于搜索引擎辅助抓取
-- `memory`: 缓存已抓取数据，避免重复请求
+    # HTTP 配置
+    timeout=30.0,
+    max_retries=3,
+    rate_limit=1.0,  # 请求间隔（秒）
+
+    # 认证（可选）
+    # auth_type=AuthType.BEARER_TOKEN,
+    # auth_token="your-token",
+)
+```
+
+### observe() 实现
+```python
+async def observe(self, ctx: AgentContext) -> dict:
+    # 1. 构建配置（可从 ctx.payload 动态获取参数）
+    config = ScraperConfig(
+        agent_id=self.agent_id,
+        name=self.name,
+        source_type=SourceType.HTML,
+        urls=ctx.payload.get("urls", ["https://example.com"]),
+        fields=[
+            FieldDef(name="title", selector="h1", type="str"),
+            FieldDef(name="content", selector=".content", type="str"),
+        ],
+        interval_seconds=3600,
+    )
+
+    # 2. 创建引擎和存储
+    store = SQLiteDataStore()
+    engine = ScraperEngine(config, store)
+
+    # 3. 执行抓取（自动重试、反爬、存储）
+    records = await engine.run()
+
+    # 4. 获取历史数据用于决策
+    latest = store.get_latest(self.agent_id, limit=10)
+
+    return {{
+        "records_stored": len(records),
+        "total_records": len(latest),
+        "latest_data": [r.to_dict() for r in latest],
+        "fetched_at": ctx.now_iso(),
+    }}
+```
+
+### decide() 实现
+```python
+async def decide(self, ctx: AgentContext, observation: dict) -> dict:
+    records_stored = observation.get("records_stored", 0)
+    total_records = observation.get("total_records", 0)
+
+    if records_stored == 0 and total_records == 0:
+        return {{"action": "fail", "quality": "empty"}}
+
+    quality = "good" if records_stored > 0 else "partial"
+    return {{
+        "quality": quality,
+        "action": "proceed",
+        "records_stored": records_stored,
+        "total_records": total_records,
+    }}
+```
+
+### act() 实现
+```python
+async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
+    quality = decision.get("quality", "unknown")
+
+    verdict_map = {{
+        "good": Verdict.LEAN_POSITIVE,
+        "partial": Verdict.LEAN_NEUTRAL,
+        "empty": Verdict.LEAN_NEGATIVE,
+    }}
+
+    evidence = [
+        f"数据质量: {{quality}}",
+        f"本次存储: {{decision.get('records_stored', 0)}} 条",
+        f"历史记录: {{decision.get('total_records', 0)}} 条",
+    ]
+
+    return AgentReport(
+        agent_id=self.agent_id,
+        name=self.name,
+        verdict=verdict_map.get(quality, Verdict.LEAN_NEUTRAL),
+        confidence=0.9 if quality == "good" else 0.5,
+        evidence=evidence,
+        recommended_action=decision.get("action", "proceed"),
+    )
+```
+
+## FieldDef 字段定义
+
+```python
+FieldDef(
+    name="field_name",           # 字段名
+    selector="css_or_jsonpath",  # CSS 选择器（HTML）或 JSONPath（JSON）
+    type="str",                  # str / int / float / bool / datetime
+    required=False,              # 是否必填
+    default=None,                # 默认值
+    transform="strip,float",     # 转换：strip/lower/upper/float/int/bool
+)
+```
+
+### 常用选择器示例
+
+**HTML (CSS 选择器)**：
+- `"h1.title"` — 标题
+- `".price"` — 价格
+- `"div.product-card"` — 产品卡片
+- `"a[href]"` — 链接（提取 href 属性）
+- `"table tr"` — 表格行
+
+**JSON API (JSONPath)**：
+- `"data.items"` — 嵌套字段
+- `"results[0].name"` — 数组第一个元素
+- `"items[*].price"` — 所有价格
+
+**RSS**：
+- 自动提取：title, link, description, pubDate, guid
+
+## SourceType 数据源类型
+
+- `SourceType.HTML` — HTML 页面（使用 BeautifulSoup）
+- `SourceType.JSON_API` — JSON API（直接解析 JSON）
+- `SourceType.RSS` — RSS/Atom 订阅源
+
+## 调度配置
+
+**Cron 表达式**（需要 `pip install croniter`）：
+- `"*/30 * * * *"` — 每 30 分钟
+- `"0 */2 * * *"` — 每 2 小时
+- `"0 9 * * *"` — 每天 9 点
+- `"0 0 * * 1"` — 每周一
+
+**固定间隔**：
+- `interval_seconds=1800` — 每 30 分钟
+- `interval_seconds=3600` — 每小时
+- `interval_seconds=86400` — 每天
+
+## 数据存储
+
+**统一存储**：使用 `forge_agent.storage.ForgeStore` 存储所有数据：
+
+```python
+from forge_agent.storage import ForgeStore
+
+store = ForgeStore()
+store.insert(agent_id, data_dict, category="scraped", source=url, dedup=True)
+```
+
+ForgeStore 是所有 Agent 类型共用的时序存储，支持：
+- 插入：`store.insert(agent_id, data, category="scraped", source=url, dedup=True)`
+- 批量插入：`store.insert_batch(records, dedup=True)`
+- 时序查询：`store.query(agent_id=..., category=..., start_time=..., end_time=...)`
+- 最新数据：`store.get_latest(agent_id, limit=10)`
+- 时序分析：`store.get_time_series(agent_id, field_name)`
+- 统计摘要：`store.summary(agent_id)`
+- Agent 列表：`store.list_agents()`
+
+category 分类约定：
+- `"scraped"` — 爬虫抓取的数据
+- `"metric"` — 监控指标数据
+- `"analysis"` — 分析结果
+- `"generated"` — 生成的内容
 
 ## 最佳实践
-- 设置合理的超时和重试机制
-- 处理反爬策略（User-Agent、延迟）
-- 数据清洗和标准化
-- 错误时返回空数据而非抛异常
+
+1. **使用 scraper 模块**：不要自己写 HTTP/解析代码，用 ScraperEngine
+2. **定义清晰的 fields**：明确要提取的字段和选择器
+3. **配置调度**：根据数据更新频率设置 schedule 或 interval_seconds
+4. **错误处理**：ScraperEngine 自动重试，observe() 返回空数据而非抛异常
+5. **数据质量**：在 decide() 中检查 records_stored 和 total_records
+
+## 示例场景
+
+- **天气监控**：JSON API，每 30 分钟抓取温度和湿度
+- **新闻聚合**：RSS 订阅，每小时抓取最新新闻
+- **电商价格**：HTML 页面，每天抓取商品价格
+- **股票行情**：JSON API，每 5 分钟抓取股价
 """
 
 ANALYZER_SYSTEM = f"""你是一个 Python 代码生成器，专门为 forge-agent 框架生成**数据分析类** Agent。
@@ -258,20 +441,24 @@ _TYPE_PROMPTS: dict[AgentType, str] = {
 
 def get_system_prompt(agent_type: AgentType) -> str:
     """根据 AgentType 返回对应的系统提示词。
-    
+
     Args:
         agent_type: Agent 类型枚举值
-        
+
     Returns:
         该类型专用的系统提示词字符串
     """
     return _TYPE_PROMPTS.get(agent_type, GENERAL_SYSTEM)
 
 
-def build_user_prompt(spec_prompt: str, *, mcp_tools: list[str] | None = None,
-                      existing_agents: list[str] | None = None,
-                      template: str | None = None,
-                      dataset_examples: list[dict] | None = None) -> str:
+def build_user_prompt(
+    spec_prompt: str,
+    *,
+    mcp_tools: list[str] | None = None,
+    existing_agents: list[str] | None = None,
+    template: str | None = None,
+    dataset_examples: list[dict] | None = None,
+) -> str:
     """Compose the user message for CodeGenerator.
 
     Args:
@@ -283,7 +470,9 @@ def build_user_prompt(spec_prompt: str, *, mcp_tools: list[str] | None = None,
     """
     parts = ["请根据以下需求规格生成 Agent 代码：\n", spec_prompt]
     if template:
-        parts.append(f"\n参考以下代码骨架（根据需求修改，不要原样复制）：\n```python\n{template}\n```")
+        parts.append(
+            f"\n参考以下代码骨架（根据需求修改，不要原样复制）：\n```python\n{template}\n```"
+        )
     if dataset_examples:
         parts.append("\n参考以下数据示例（理解输入输出格式）：")
         for i, ex in enumerate(dataset_examples[:5], 1):  # 最多5个示例

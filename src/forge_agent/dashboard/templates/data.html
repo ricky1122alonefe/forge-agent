@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Data — forge-agent Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Scraped Data</h2>
+        <div class="text-sm text-gray-500">
+            Total: <span class="font-semibold text-gray-700">{{ summary.get('total_records', 0) }}</span> records
+            from <span class="font-semibold text-gray-700">{{ summary.get('unique_agents', 0) }}</span> agents
+        </div>
+    </div>
+
+    {% if agents_data %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for agent in agents_data %}
+        <a href="/data/{{ agent.agent_id }}"
+           class="block bg-white rounded-lg shadow-sm border border-gray-200 p-5 hover:shadow-md hover:border-indigo-300 transition-all">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-semibold text-gray-900 font-mono">{{ agent.agent_id }}</h3>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                    {{ agent.record_count }} records
+                </span>
+            </div>
+            <div class="text-xs text-gray-500">
+                Last record: <span class="font-mono">{{ agent.last_record or 'N/A' }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+        <div class="text-4xl mb-4">&#128202;</div>
+        <h3 class="text-lg font-semibold text-gray-700 mb-2">No Data Yet</h3>
+        <p class="text-sm text-gray-500 mb-4">Create a Scraper agent to start collecting data.</p>
+        <a href="/create" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+            + Create Scraper Agent
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

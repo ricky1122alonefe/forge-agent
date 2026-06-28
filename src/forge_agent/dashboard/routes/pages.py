@@ -137,6 +137,54 @@ async def create_agent_page(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/data", response_class=HTMLResponse)
+async def data_page(request: Request) -> HTMLResponse:
+    """Data browsing page: overview of all stored data."""
+    templates = _get_templates()
+    from forge_agent.storage import ForgeStore
+
+    store = ForgeStore()
+    summary = store.summary()
+    agents_data = store.list_agents()
+    return templates.TemplateResponse(
+        request=request,
+        name="data.html",
+        context={
+            "title": "Data — forge-agent Dashboard",
+            "summary": summary,
+            "agents_data": agents_data,
+        },
+    )
+
+
+@router.get("/data/{agent_id}", response_class=HTMLResponse)
+async def data_detail_page(agent_id: str, request: Request) -> HTMLResponse:
+    """Data detail page: records and time-series for a specific agent."""
+    templates = _get_templates()
+    from forge_agent.storage import ForgeStore
+
+    store = ForgeStore()
+    records = store.get_latest(agent_id, limit=50)
+    summary = store.summary(agent_id=agent_id)
+
+    # Discover available fields from the latest records
+    available_fields: set[str] = set()
+    for rec in records:
+        available_fields.update(rec.data.keys())
+
+    return templates.TemplateResponse(
+        request=request,
+        name="data_detail.html",
+        context={
+            "title": f"Data: {agent_id} — forge-agent Dashboard",
+            "agent_id": agent_id,
+            "records": [r.to_dict() for r in records],
+            "summary": summary,
+            "available_fields": sorted(available_fields),
+        },
+    )
+
+
 @router.get("/reports", response_class=HTMLResponse)
 async def reports_page(request: Request) -> HTMLResponse:
     """Reports history page."""

@@ -125,6 +125,120 @@ async def get_report(run_id: str) -> dict[str, Any]:
     return detail.to_dict()
 
 
+@router.get("/presets")
+async def list_presets() -> dict[str, Any]:
+    """List all available domain presets for scraper agents."""
+    from forge_agent.scraper.presets import list_presets as _list_presets
+
+    return {"presets": _list_presets()}
+
+
+@router.get("/presets/{domain}")
+async def get_preset(domain: str) -> dict[str, Any]:
+    """Get a single domain preset by name."""
+    from forge_agent.scraper.presets import get_preset as _get_preset
+
+    preset = _get_preset(domain)
+    if preset is None:
+        raise HTTPException(status_code=404, detail=f"Preset {domain!r} not found")
+    return preset.to_dict()
+
+
+@router.get("/data")
+async def list_data(
+    agent_id: str | None = None,
+    category: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """List stored data records (all agent types)."""
+    from forge_agent.storage import ForgeStore
+
+    store = ForgeStore()
+    records = store.query(agent_id=agent_id, category=category, limit=limit, offset=offset)
+    summary = store.summary(agent_id=agent_id)
+    return {
+        "records": [r.to_dict() for r in records],
+        "summary": summary,
+    }
+
+
+@router.get("/data/agents")
+async def list_data_agents() -> dict[str, Any]:
+    """List all agents that have stored data."""
+    from forge_agent.storage import ForgeStore
+
+    store = ForgeStore()
+    return {"agents": store.list_agents()}
+
+
+@router.get("/data/{agent_id}")
+async def get_agent_data(
+    agent_id: str,
+    category: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    start_time: str | None = None,
+    end_time: str | None = None,
+) -> dict[str, Any]:
+    """Get stored data for a specific agent."""
+    from forge_agent.storage import ForgeStore
+
+    store = ForgeStore()
+    records = store.query(
+        agent_id=agent_id,
+        category=category,
+        limit=limit,
+        offset=offset,
+        start_time=start_time,
+        end_time=end_time,
+    )
+    summary = store.summary(agent_id=agent_id)
+    return {
+        "agent_id": agent_id,
+        "records": [r.to_dict() for r in records],
+        "summary": summary,
+    }
+
+
+@router.get("/data/{agent_id}/timeseries")
+async def get_timeseries(
+    agent_id: str,
+    field_name: str,
+    category: str | None = None,
+    limit: int = 500,
+    start_time: str | None = None,
+    end_time: str | None = None,
+) -> dict[str, Any]:
+    """Get time-series data for a specific field of an agent."""
+    from forge_agent.storage import ForgeStore
+
+    store = ForgeStore()
+    series = store.get_time_series(
+        agent_id=agent_id,
+        field_name=field_name,
+        category=category,
+        limit=limit,
+        start_time=start_time,
+        end_time=end_time,
+    )
+    return {"agent_id": agent_id, "field": field_name, "series": series}
+
+
+@router.delete("/data/{agent_id}")
+async def delete_agent_data(
+    agent_id: str,
+    before: str | None = None,
+    category: str | None = None,
+) -> dict[str, Any]:
+    """Delete stored data for an agent."""
+    from forge_agent.storage import ForgeStore
+
+    store = ForgeStore()
+    deleted = store.delete(agent_id=agent_id, before=before, category=category)
+    return {"agent_id": agent_id, "deleted": deleted}
+
+
 @router.post("/generate")
 async def generate_agent(request: Request) -> dict[str, Any]:
     """Generate a new agent from the dashboard form."""

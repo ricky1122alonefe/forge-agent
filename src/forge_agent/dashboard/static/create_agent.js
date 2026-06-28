@@ -1,12 +1,16 @@
-// create_agent.js — Create Agent page logic
+// create_agent.js — Create Agent page logic with domain presets
 
 (function () {
     "use strict";
 
+    // --- State ---
+    var presets = [];
+    var currentPreset = null;
+
     // --- Type selector ---
-    const typeCards = document.querySelectorAll(".type-card");
-    const typeInput = document.getElementById("agent_type");
-    const sectionIds = ["scraper", "analyzer", "monitor", "generator", "general"];
+    var typeCards = document.querySelectorAll(".type-card");
+    var typeInput = document.getElementById("agent_type");
+    var sectionIds = ["scraper", "analyzer", "monitor", "generator", "general"];
 
     typeCards.forEach(function (card) {
         card.addEventListener("click", function () {
@@ -21,6 +25,10 @@
                     else { el.classList.add("hidden"); }
                 }
             });
+            // Auto-load presets when scraper is selected
+            if (type === "scraper" && !presets.length) {
+                loadPresets();
+            }
         });
     });
 
@@ -62,7 +70,144 @@
         }
 
         container._getValues = function () { return values.slice(); };
+        container._setValues = function (newValues) {
+            // Clear existing tags
+            var existingTags = container.querySelectorAll(".tag");
+            existingTags.forEach(function (t) { t.remove(); });
+            values = [];
+            // Add new values
+            newValues.forEach(function (v) { addTag(v); });
+        };
     });
+
+    // --- Load presets from API ---
+    function loadPresets() {
+        fetch("/api/presets")
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                presets = data.presets || [];
+                renderPresetCards();
+            })
+            .catch(function (err) {
+                console.error("Failed to load presets:", err);
+            });
+    }
+
+    function renderPresetCards() {
+        var container = document.getElementById("preset-selector");
+        if (!container) return;
+        container.innerHTML = "";
+
+        presets.forEach(function (preset) {
+            var card = document.createElement("div");
+            card.className = "preset-card border-2 border-gray-200 rounded-lg p-3 cursor-pointer hover:border-indigo-400 transition-all text-center";
+            card.dataset.domain = preset.domain;
+            card.innerHTML =
+                '<div class="text-xl mb-1">' + preset.icon + '</div>' +
+                '<div class="text-xs font-medium text-gray-700">' + preset.label + '</div>';
+
+            card.addEventListener("click", function () {
+                // Deselect all
+                container.querySelectorAll(".preset-card").forEach(function (c) {
+                    c.classList.remove("border-indigo-500", "bg-indigo-50");
+                    c.classList.add("border-gray-200");
+                });
+                // Select this one
+                card.classList.remove("border-gray-200");
+                card.classList.add("border-indigo-500", "bg-indigo-50");
+                document.getElementById("scraper_preset").value = preset.domain;
+                applyPreset(preset);
+            });
+
+            container.appendChild(card);
+        });
+    }
+
+    function applyPreset(preset) {
+        currentPreset = preset;
+
+        // Show preset info
+        var infoEl = document.getElementById("preset-info");
+        infoEl.classList.remove("hidden");
+        document.getElementById("preset-icon").textContent = preset.icon;
+        document.getElementById("preset-label").textContent = preset.label;
+        document.getElementById("preset-desc").textContent = preset.description;
+
+        // Source selector
+        var sourceSection = document.getElementById("source-section");
+        var sourceSelect = document.getElementById("scraper_source");
+        var urlPreview = document.getElementById("source-url-preview");
+
+        if (preset.sources && preset.sources.length > 0) {
+            sourceSection.classList.remove("hidden");
+            sourceSelect.innerHTML = "";
+            preset.sources.forEach(function (src, idx) {
+                var opt = document.createElement("option");
+                opt.value = idx;
+                opt.textContent = src.name + (src.description ? " — " + src.description : "");
+                sourceSelect.appendChild(opt);
+            });
+
+            function updateSourcePreview() {
+                var idx = parseInt(sourceSelect.value) || 0;
+                var src = preset.sources[idx];
+                if (src && src.url) {
+                    urlPreview.textContent = "URL: " + src.url;
+                    // Auto-fill URL if not custom
+                    if (preset.domain !== "custom" && src.url) {
+                        var urlsInput = document.getElementById("urls-input");
+                        if (urlsInput._setValues) {
+                            urlsInput._setValues([src.url]);
+                        }
+                    }
+                } else {
+                    urlPreview.textContent = "";
+                }
+            }
+
+            sourceSelect.onchange = updateSourcePreview;
+            updateSourcePreview();
+        } else {
+            sourceSection.classList.add("hidden");
+        }
+
+        // Show custom URL section for custom preset always, otherwise hide (auto-filled)
+        var customUrlSection = document.getElementById("custom-url-section");
+        if (preset.domain === "custom") {
+            customUrlSection.classList.remove("hidden");
+        } else {
+            customUrlSection.classList.remove("hidden"); // Keep visible but pre-filled
+        }
+
+        // Fields preview
+        var fieldsSection = document.getElementById("fields-section");
+        var fieldsPreview = document.getElementById("fields-preview");
+        if (preset.fields && preset.fields.length > 0) {
+            fieldsSection.classList.remove("hidden");
+            fieldsPreview.innerHTML = "";
+            preset.fields.forEach(function (f) {
+                var badge = document.createElement("span");
+                badge.className = "inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800";
+                badge.textContent = f.name;
+                badge.title = "selector: " + f.selector + " (type: " + f.type + ")";
+                fieldsPreview.appendChild(badge);
+            });
+        } else {
+            fieldsSection.classList.add("hidden");
+        }
+
+        // Schedule
+        var scheduleInput = document.getElementById("scraper_schedule");
+        if (preset.default_schedule) {
+            scheduleInput.value = preset.default_schedule;
+        }
+
+        // Auto-fill domain field
+        var domainInput = document.getElementById("domain");
+        if (domainInput && preset.domain !== "custom") {
+            domainInput.value = preset.domain;
+        }
+    }
 
     // --- Form submit ---
     var form = document.getElementById("create-form");
@@ -94,13 +239,41 @@
         var extras = [];
 
         if (type === "scraper") {
+            // Preset info
+            if (currentPreset && currentPreset.domain !== "custom") {
+                extras.push("domain preset: " + currentPreset.domain + " (" + currentPreset.label + ")");
+                extras.push("source type: " + currentPreset.source_type);
+                if (currentPreset.fields && currentPreset.fields.length) {
+                    var fieldNames = currentPreset.fields.map(function (f) {
+                        return f.name + " (selector: " + f.selector + ")";
+                    });
+                    extras.push("extract fields: " + fieldNames.join(", "));
+                }
+            }
+
+            // URLs
             var urlsEl = document.getElementById("urls-input");
             var urls = urlsEl._getValues ? urlsEl._getValues() : [];
             if (urls.length) { extras.push("target URLs: " + urls.join(", ")); }
-            if (fd.get("max_depth")) { extras.push("max crawl depth: " + fd.get("max_depth")); }
-            if (fd.get("rate_limit")) { extras.push("rate limit: " + fd.get("rate_limit") + " req/s"); }
-            if (fd.get("data_fields")) { extras.push("extract fields: " + fd.get("data_fields")); }
+
+            // Schedule
+            if (fd.get("scraper_schedule")) {
+                extras.push("cron schedule: " + fd.get("scraper_schedule"));
+            }
+            if (fd.get("scraper_interval")) {
+                extras.push("fixed interval: " + fd.get("scraper_interval") + " " + (fd.get("interval_unit") || "minutes"));
+            }
+
+            // Advanced
+            if (fd.get("rate_limit")) { extras.push("rate limit: " + fd.get("rate_limit") + "s between requests"); }
+            if (fd.get("scraper_timeout")) { extras.push("timeout: " + fd.get("scraper_timeout") + "s"); }
             if (fd.get("output_format")) { extras.push("output format: " + fd.get("output_format")); }
+            if (fd.get("auth_token")) { extras.push("auth token: provided"); }
+            if (fd.get("data_fields")) { extras.push("custom fields override: " + fd.get("data_fields")); }
+
+            // Use forge_agent.scraper module
+            extras.push("IMPORTANT: Use forge_agent.scraper module (ScraperConfig, ScraperEngine, SQLiteDataStore)");
+
         } else if (type === "monitor") {
             if (fd.get("check_interval")) {
                 extras.push("check every " + fd.get("check_interval") + " " + (fd.get("interval_unit") || "minutes"));
