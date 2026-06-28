@@ -1,0 +1,95 @@
+agents:
+  - agent_id: sports.news
+    name: 赛事情报专家
+    domain: sports
+    template: prompt_agent
+    tags: [news, briefing]
+    config:
+      variables:
+        home: home
+        away: away
+      prompt: |
+        你是一位足球赛事情报分析专家。
+        主队：{home}，客队：{away}。
+        请分析两队近期情报，输出 JSON：
+        {
+          "verdict": "lean_positive|neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["关键情报1", "关键情报2"]
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+      mock_mode: true
+      mock_response: '{"verdict": "lean_positive", "confidence": 0.75, "risk": 0.2, "evidence": ["{home} 近期训练状态良好，主力阵容齐整。", "{away} 上一场比赛客场取胜，士气正佳。"]}'
+
+  - agent_id: sports.weather
+    name: 比赛天气专家
+    domain: sports
+    template: prompt_agent
+    tags: [weather, briefing]
+    config:
+      variables:
+        city: city
+      prompt: |
+        你是一位足球比赛天气分析专家。
+        比赛城市：{city}。
+        请分析天气对比赛的影响，输出 JSON：
+        {
+          "verdict": "lean_positive|neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["天气描述"]
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+      mock_mode: true
+      mock_response: '{"verdict": "lean_negative", "confidence": 0.8, "risk": 0.4, "evidence": ["{city} 天气阴，30℃，风力2级，对比赛影响中等。"]}'
+
+  - agent_id: sports.history
+    name: 历史交锋专家
+    domain: sports
+    template: prompt_agent
+    tags: [history, briefing]
+    config:
+      variables:
+        home: home
+        away: away
+      prompt: |
+        你是一位足球历史交锋分析专家。
+        主队：{home}，客队：{away}。
+        请分析历史交锋数据，输出 JSON：
+        {
+          "verdict": "lean_positive|neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["历史交锋描述"]
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+      mock_mode: true
+      mock_response: '{"verdict": "lean_negative", "confidence": 0.65, "risk": 0.25, "evidence": ["历史交锋 10 场，{home} 胜 4 场。", "{home} 近 3 次主场对 {away} 保持不败。"]}'

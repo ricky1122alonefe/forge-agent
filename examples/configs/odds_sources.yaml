@@ -1,0 +1,44 @@
+sources:
+  - source_id: odds.site_a
+    name: 站点 A 赔率
+    source_type: mock
+    normalizer: odds
+    mock_payload:
+      match:
+        home_team: Shanghai Port
+        away_team: Shandong Taishan
+      odds:
+        home_win: "1.85"
+        draw: "3.50"
+        away_win: "3.40"
+    field_map:
+      home: match.home_team
+      away: match.away_team
+      home_odds: odds.home_win
+      draw_odds: odds.draw
+      away_odds: odds.away_win
+    transforms:
+      home_odds: float
+      draw_odds: float
+      away_odds: float
+
+  - source_id: odds.site_b
+    name: 站点 B 赔率
+    source_type: mock
+    normalizer: odds
+    mock_payload:
+      主队: 上海海港
+      客队: 山东泰山
+      主胜: 1.88
+      平局: 3.45
+      客胜: 3.55
+    field_map:
+      home: 主队
+      away: 客队
+      home_odds: 主胜
+      draw_odds: 平局
+      away_odds: 客胜
+    transforms:
+      home_odds: float
+      draw_odds: float
+      away_odds: float

@@ -11,10 +11,12 @@ so the contract is minimal, stable, and extensible.**
 from __future__ import annotations
 
 from forge_agent.core.base import BaseAgent
-from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.enums import Action, AgentStatus, Verdict
+from forge_agent.core.mission import Mission
 from forge_agent.core.report_store import SQLiteReportStore
+from forge_agent.core.team import Team
 
 __all__ = [
     "BaseAgent",
@@ -25,4 +27,6 @@ __all__ = [
     "AgentStatus",
     "Verdict",
     "SQLiteReportStore",
+    "Team",
+    "Mission",
 ]
