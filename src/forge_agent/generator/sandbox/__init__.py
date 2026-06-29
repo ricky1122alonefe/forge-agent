@@ -5,6 +5,7 @@ Public API (backward compatible with v0.2):
     - Sandbox
     - SmokeTestResult
 """
+
 from __future__ import annotations
 
 from forge_agent.generator.sandbox.core import (

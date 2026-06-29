@@ -46,7 +46,7 @@ def add(sub: argparse._SubParsersAction) -> None:
 def _get_store(args: argparse.Namespace):
     """Get the dataset store from project root."""
     from forge_agent.datasets.store import LocalDatasetStore
-    
+
     project_root = Path(args.project) if hasattr(args, "project") else Path.cwd()
     datasets_dir = project_root / "datasets"
     datasets_dir.mkdir(exist_ok=True)
@@ -55,25 +55,24 @@ def _get_store(args: argparse.Namespace):
 
 def _list(args: argparse.Namespace) -> int:
     """List all datasets."""
-    from forge_agent.datasets.registry import get_registry
-    
+
     store = _get_store(args)
     names = store.list()
-    
+
     if not names:
         print("No datasets found.")
         return 0
-    
+
     print(f"{'NAME':<30} {'ITEMS':<10} {'TAGS':<40}")
     print("-" * 80)
-    
+
     for name in sorted(names):
         ds = store.load(name)
         if ds is not None:
             items_count = len(ds.items)
             tags_str = ", ".join(ds.tags) if ds.tags else "-"
             print(f"{name:<30} {items_count:<10} {tags_str:<40}")
-    
+
     return 0
 
 
@@ -81,18 +80,18 @@ def _show(args: argparse.Namespace) -> int:
     """Show dataset details."""
     store = _get_store(args)
     ds = store.load(args.name)
-    
+
     if not ds:
         print(f"Dataset '{args.name}' not found.")
         return 1
-    
+
     print(f"Name:        {ds.name}")
     print(f"Description: {ds.description or '-'}")
     print(f"Tags:        {', '.join(ds.tags) if ds.tags else '-'}")
     print(f"Items:       {len(ds.items)}")
     print(f"Created:     {ds.created_at}")
     print(f"Updated:     {ds.updated_at}")
-    
+
     if args.items and ds.items:
         print("\nItems:")
         for i, item in enumerate(ds.items, 1):
@@ -101,20 +100,20 @@ def _show(args: argparse.Namespace) -> int:
             print(f"      Output: {json.dumps(item.output, ensure_ascii=False)[:100]}")
             if item.metadata:
                 print(f"      Meta:   {json.dumps(item.metadata, ensure_ascii=False)[:100]}")
-    
+
     return 0
 
 
 def _create(args: argparse.Namespace) -> int:
     """Create a new dataset."""
     from forge_agent.datasets import Dataset
-    
+
     store = _get_store(args)
-    
+
     if store.exists(args.name):
         print(f"Dataset '{args.name}' already exists.")
         return 1
-    
+
     ds = Dataset(
         name=args.name,
         description=args.description,
@@ -128,17 +127,17 @@ def _create(args: argparse.Namespace) -> int:
 def _delete(args: argparse.Namespace) -> int:
     """Delete a dataset."""
     store = _get_store(args)
-    
+
     if not store.exists(args.name):
         print(f"Dataset '{args.name}' not found.")
         return 1
-    
+
     if not args.yes:
         response = input(f"Delete dataset '{args.name}'? [y/N] ")
         if response.lower() != "y":
             print("Cancelled.")
             return 0
-    
+
     store.delete(args.name)
     print(f"✓ Deleted dataset '{args.name}'")
     return 0
@@ -147,14 +146,14 @@ def _delete(args: argparse.Namespace) -> int:
 def _add_item(args: argparse.Namespace) -> int:
     """Add an item to a dataset."""
     from forge_agent.datasets import DatasetItem
-    
+
     store = _get_store(args)
     ds = store.load(args.name)
-    
+
     if ds is None:
         print(f"Dataset '{args.name}' not found.")
         return 1
-    
+
     try:
         input_data = json.loads(args.input)
         output_data = json.loads(args.output)
@@ -162,7 +161,7 @@ def _add_item(args: argparse.Namespace) -> int:
     except json.JSONDecodeError as e:
         print(f"Invalid JSON: {e}")
         return 1
-    
+
     item = DatasetItem(
         input=input_data,
         output=output_data,
@@ -170,6 +169,6 @@ def _add_item(args: argparse.Namespace) -> int:
     )
     ds.add_item(item)
     store.save(ds)
-    
+
     print(f"✓ Added item to dataset '{args.name}' (ID: {item.id})")
     return 0

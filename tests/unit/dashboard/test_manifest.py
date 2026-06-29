@@ -134,15 +134,47 @@ class TestAgentInfo:
             created_at="",
             active_version="v1",
             versions=[
-                VersionInfo(version="v1", created_at="", created_by="", requirement="", validation_status="", code_hash="", code_path=""),
-                VersionInfo(version="v2", created_at="", created_by="", requirement="", validation_status="", code_hash="", code_path=""),
+                VersionInfo(
+                    version="v1",
+                    created_at="",
+                    created_by="",
+                    requirement="",
+                    validation_status="",
+                    code_hash="",
+                    code_path="",
+                ),
+                VersionInfo(
+                    version="v2",
+                    created_at="",
+                    created_by="",
+                    requirement="",
+                    validation_status="",
+                    code_hash="",
+                    code_path="",
+                ),
             ],
         )
         assert info.version_count == 2
 
     def test_active_version_info(self) -> None:
-        v1 = VersionInfo(version="v1", created_at="", created_by="", requirement="", validation_status="passed", code_hash="", code_path="")
-        v2 = VersionInfo(version="v2", created_at="", created_by="", requirement="", validation_status="failed", code_hash="", code_path="")
+        v1 = VersionInfo(
+            version="v1",
+            created_at="",
+            created_by="",
+            requirement="",
+            validation_status="passed",
+            code_hash="",
+            code_path="",
+        )
+        v2 = VersionInfo(
+            version="v2",
+            created_at="",
+            created_by="",
+            requirement="",
+            validation_status="failed",
+            code_hash="",
+            code_path="",
+        )
         info = AgentInfo(agent_id="test", created_at="", active_version="v2", versions=[v1, v2])
         active = info.active_version_info
         assert active is not None

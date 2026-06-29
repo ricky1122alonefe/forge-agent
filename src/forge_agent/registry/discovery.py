@@ -20,7 +20,6 @@ import importlib
 import importlib.util
 import logging
 from pathlib import Path
-from typing import Iterable
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +38,7 @@ def discover_entry_points() -> list[str]:
 
     try:
         eps = entry_points(group=ENTRY_POINT_GROUP)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("Failed to enumerate entry-points")
         return []
 
@@ -49,7 +48,7 @@ def discover_entry_points() -> list[str]:
             obj = ep.load()
             log.info("Loaded entry-point %s -> %s", ep.name, obj)
             registered.append(getattr(obj, "agent_id", ep.name))
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("Failed to load entry-point %s", ep.name)
     return registered
 
@@ -77,6 +76,6 @@ def discover_filesystem(root: str | Path, *, package_prefix: str = "") -> int:
             spec.loader.exec_module(module)  # type: ignore[union-attr]
             count += 1
             log.info("Imported agent module: %s", path)
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("Failed to import %s", path)
     return count

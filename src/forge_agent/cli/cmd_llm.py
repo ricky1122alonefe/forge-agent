@@ -17,7 +17,12 @@ def add(sub: argparse._SubParsersAction) -> None:
     # test
     p_test = sub_p.add_parser("test", help="Test a provider with a sample prompt")
     p_test.add_argument("provider", help="Provider ID (e.g. deepseek)")
-    p_test.add_argument("--message", "-m", default="Hello, please reply with one short sentence.", help="Test message")
+    p_test.add_argument(
+        "--message",
+        "-m",
+        default="Hello, please reply with one short sentence.",
+        help="Test message",
+    )
     p_test.set_defaults(func=_test)
 
     # config
@@ -27,6 +32,7 @@ def add(sub: argparse._SubParsersAction) -> None:
 
 def _list(args: argparse.Namespace) -> int:
     import os
+
     from forge_agent.llm.config import load_config
 
     cfg = load_config()
@@ -45,11 +51,8 @@ def _list(args: argparse.Namespace) -> int:
                 key_status = f"{env} ✓"
                 break
         else:
-            if p.type == "ollama":
-                key_status = "(no key needed)"
-            else:
-                key_status = "no key set"
-        print(f"{pid:<16} {p.type:<12} {p.model:<32} {str(p.enabled):<8} {key_status}")
+            key_status = "(no key needed)" if p.type == "ollama" else "no key set"
+        print(f"{pid:<16} {p.type:<12} {p.model:<32} {p.enabled!s:<8} {key_status}")
     return 0
 
 
@@ -62,7 +65,7 @@ async def _test_async(args: argparse.Namespace) -> int:
 
     try:
         r = await chat(args.message, provider=args.provider)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"❌ {args.provider}: {exc}")
         return 1
     print(f"✓ {args.provider} ({r.model})")
@@ -74,6 +77,7 @@ async def _test_async(args: argparse.Namespace) -> int:
 
 def _config(args: argparse.Namespace) -> int:
     import json as _json
+
     from forge_agent.llm.config import load_config
 
     cfg = load_config()

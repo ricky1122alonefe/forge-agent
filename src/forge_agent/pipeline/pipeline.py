@@ -8,8 +8,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from forge_agent.core.context import AgentContext
-
 log = logging.getLogger(__name__)
 
 
@@ -48,6 +46,7 @@ class Pipeline:
     def add_node(self, node: PipelineNode) -> None:
         if node.node_id in self.nodes:
             from forge_agent.exceptions import DuplicateNodeError
+
             raise DuplicateNodeError(node.node_id)
         self.nodes[node.node_id] = node
         if not self.entry:
@@ -56,9 +55,11 @@ class Pipeline:
     def add_edge(self, from_id: str, to_id: str) -> None:
         if from_id not in self.nodes:
             from forge_agent.exceptions import PipelineNodeNotFoundError
+
             raise PipelineNodeNotFoundError(from_id)
         if to_id not in self.nodes:
             from forge_agent.exceptions import PipelineNodeNotFoundError
+
             raise PipelineNodeNotFoundError(to_id)
         self.nodes[from_id].next_nodes.append(to_id)
 

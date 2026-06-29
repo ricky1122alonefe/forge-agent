@@ -23,20 +23,44 @@ def populated_source(tmp_path: Path) -> ReportDataSource:
     """Create a ReportDataSource with sample data."""
     source = ReportDataSource(db_path=tmp_path / "test_reports.db")
     store = SQLiteReportStore(db_path=tmp_path / "test_reports.db")
-    store.insert(AgentReport(
-        agent_id="stock.monitor", name="Stock Monitor", domain="stock",
-        verdict=Verdict.LEAN_POSITIVE, confidence=0.85, risk=0.15, weight=1.0,
-        evidence=["Price up"], warnings=[], recommended_action=Action.EXECUTE,
-        metrics={"change": 2.5}, raw={}, run_id="run_001",
-        timestamp="2026-06-27T10:00:00+00:00", version="v1",
-    ))
-    store.insert(AgentReport(
-        agent_id="football.predictor", name="Football", domain="football",
-        verdict=Verdict.LEAN_NEUTRAL, confidence=0.6, risk=0.3, weight=1.0,
-        evidence=[], warnings=[], recommended_action=Action.WATCH,
-        metrics={}, raw={}, run_id="run_002",
-        timestamp="2026-06-27T11:00:00+00:00", version="v1",
-    ))
+    store.insert(
+        AgentReport(
+            agent_id="stock.monitor",
+            name="Stock Monitor",
+            domain="stock",
+            verdict=Verdict.LEAN_POSITIVE,
+            confidence=0.85,
+            risk=0.15,
+            weight=1.0,
+            evidence=["Price up"],
+            warnings=[],
+            recommended_action=Action.EXECUTE,
+            metrics={"change": 2.5},
+            raw={},
+            run_id="run_001",
+            timestamp="2026-06-27T10:00:00+00:00",
+            version="v1",
+        )
+    )
+    store.insert(
+        AgentReport(
+            agent_id="football.predictor",
+            name="Football",
+            domain="football",
+            verdict=Verdict.LEAN_NEUTRAL,
+            confidence=0.6,
+            risk=0.3,
+            weight=1.0,
+            evidence=[],
+            warnings=[],
+            recommended_action=Action.WATCH,
+            metrics={},
+            raw={},
+            run_id="run_002",
+            timestamp="2026-06-27T11:00:00+00:00",
+            version="v1",
+        )
+    )
     store.close()
     return source
 

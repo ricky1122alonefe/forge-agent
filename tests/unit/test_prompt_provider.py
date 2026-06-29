@@ -5,8 +5,6 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from forge_agent.core.agent_type import AgentType
 from forge_agent.generator.prompt_provider import (
     ChainPromptProvider,
@@ -17,7 +15,6 @@ from forge_agent.generator.prompt_provider import (
     reset_prompt_provider,
     set_prompt_provider,
 )
-
 
 # ------------------------------------------------------------------ DefaultPromptProvider
 
@@ -99,20 +96,24 @@ class TestChainPromptProvider:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "scraper.system.txt"
             path.write_text("File prompt", encoding="utf-8")
-            chain = ChainPromptProvider([
-                FilePromptProvider(tmpdir),
-                DefaultPromptProvider(),
-            ])
+            chain = ChainPromptProvider(
+                [
+                    FilePromptProvider(tmpdir),
+                    DefaultPromptProvider(),
+                ]
+            )
             prompt = chain.get_system_prompt(AgentType.SCRAPER)
             assert prompt == "File prompt"
 
     def test_falls_through_chain(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             # No files in tmpdir, so FilePromptProvider falls back to default
-            chain = ChainPromptProvider([
-                FilePromptProvider(tmpdir),
-                DefaultPromptProvider(),
-            ])
+            chain = ChainPromptProvider(
+                [
+                    FilePromptProvider(tmpdir),
+                    DefaultPromptProvider(),
+                ]
+            )
             prompt = chain.get_system_prompt(AgentType.GENERAL)
             assert isinstance(prompt, str)
             assert len(prompt) > 0
@@ -121,10 +122,12 @@ class TestChainPromptProvider:
         with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
             path = Path(tmpdir2) / "scraper.user.txt"
             path.write_text("Template from dir2", encoding="utf-8")
-            chain = ChainPromptProvider([
-                FilePromptProvider(tmpdir1),
-                FilePromptProvider(tmpdir2),
-            ])
+            chain = ChainPromptProvider(
+                [
+                    FilePromptProvider(tmpdir1),
+                    FilePromptProvider(tmpdir2),
+                ]
+            )
             result = chain.get_user_prompt_template(AgentType.SCRAPER)
             assert result == "Template from dir2"
 

@@ -12,12 +12,10 @@ For now we only support the in-process path; cross-process injection
 
 from __future__ import annotations
 
-import importlib.util
 import logging
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Type
 
 from forge_agent.core.base import BaseAgent
 from forge_agent.generator.validator import ContractValidator, ValidationResult
@@ -45,7 +43,7 @@ class AgentInjector:
         *,
         module_name: str | None = None,
         override: bool = True,
-    ) -> tuple[Type[BaseAgent], ValidationResult]:
+    ) -> tuple[type[BaseAgent], ValidationResult]:
         """Validate → exec module → register class → return (class, validation)."""
         v = self.validator.validate_source(source)
         if not v.ok:
@@ -56,20 +54,23 @@ class AgentInjector:
         module = type(sys)(module_name)
         # Inject the base class namespace so generated code can `from forge_agent...`
         from forge_agent import core as _core
-        module.__dict__.update({
-            "BaseAgent": BaseAgent,
-            "AgentContext": _core.AgentContext,
-            "AgentReport": _core.AgentReport,
-        })
+
+        module.__dict__.update(
+            {
+                "BaseAgent": BaseAgent,
+                "AgentContext": _core.AgentContext,
+                "AgentReport": _core.AgentReport,
+            }
+        )
         try:
             exec(compile(source, f"<generated:{module_name}>", "exec"), module.__dict__)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             v.ok = False
             v.errors.append(f"Execution error: {exc}")
             return type, v  # type: ignore[return-value]
 
         # Find the BaseAgent subclass
-        cls: Type[BaseAgent] | None = None
+        cls: type[BaseAgent] | None = None
         for obj in module.__dict__.values():
             if isinstance(obj, type) and issubclass(obj, BaseAgent) and obj is not BaseAgent:
                 cls = obj
@@ -87,12 +88,12 @@ class AgentInjector:
         path: str | Path,
         *,
         module_name: str | None = None,
-    ) -> tuple[Type[BaseAgent], ValidationResult]:
+    ) -> tuple[type[BaseAgent], ValidationResult]:
         p = Path(path)
         source = p.read_text(encoding="utf-8")
         return self.inject_source(source, module_name=module_name or p.stem)
 
-    def inject_class(self, cls: Type[BaseAgent]) -> ValidationResult:
+    def inject_class(self, cls: type[BaseAgent]) -> ValidationResult:
         v = self.validator.validate_class(cls)
         if v.ok:
             self.registry.register(cls, override=True)

@@ -150,46 +150,56 @@ class Judge:
 
         # Dimension 1: Confidence calibration
         conf_score, conf_issues = self._check_confidence(report)
-        dimensions.append(DimensionScore(
-            name="confidence_calibration",
-            score=conf_score,
-            weight=1.5,
-            details=f"confidence={report.confidence:.2f}",
-        ))
+        dimensions.append(
+            DimensionScore(
+                name="confidence_calibration",
+                score=conf_score,
+                weight=1.5,
+                details=f"confidence={report.confidence:.2f}",
+            )
+        )
         issues.extend(conf_issues)
 
         # Dimension 2: Evidence quality
         ev_score, ev_issues = self._check_evidence(report)
-        dimensions.append(DimensionScore(
-            name="evidence_quality",
-            score=ev_score,
-            weight=2.0,
-            details=f"evidence_count={len(report.evidence)}",
-        ))
+        dimensions.append(
+            DimensionScore(
+                name="evidence_quality",
+                score=ev_score,
+                weight=2.0,
+                details=f"evidence_count={len(report.evidence)}",
+            )
+        )
         issues.extend(ev_issues)
 
         # Dimension 3: Completeness
         comp_score, comp_issues = self._check_completeness(report)
-        dimensions.append(DimensionScore(
-            name="completeness",
-            score=comp_score,
-            weight=1.0,
-        ))
+        dimensions.append(
+            DimensionScore(
+                name="completeness",
+                score=comp_score,
+                weight=1.0,
+            )
+        )
         issues.extend(comp_issues)
 
         # Dimension 4: Risk consistency
         risk_score, risk_issues = self._check_risk_consistency(report)
-        dimensions.append(DimensionScore(
-            name="risk_consistency",
-            score=risk_score,
-            weight=1.5,
-            details=f"risk={report.risk:.2f}, verdict={report.verdict.value}",
-        ))
+        dimensions.append(
+            DimensionScore(
+                name="risk_consistency",
+                score=risk_score,
+                weight=1.5,
+                details=f"risk={report.risk:.2f}, verdict={report.verdict.value}",
+            )
+        )
         issues.extend(risk_issues)
 
         # Calculate overall score
         total_weight = sum(d.weight for d in dimensions)
-        overall = sum(d.score * d.weight for d in dimensions) / total_weight if total_weight else 0.0
+        overall = (
+            sum(d.score * d.weight for d in dimensions) / total_weight if total_weight else 0.0
+        )
 
         # Generate recommendations
         recommendations = self._generate_recommendations(dimensions, issues)
@@ -224,54 +234,68 @@ class Judge:
 
         # Dimension 1: Consistency across agents
         cons_score, cons_issues = self._check_board_consistency(board)
-        dimensions.append(DimensionScore(
-            name="cross_agent_consistency",
-            score=cons_score,
-            weight=2.0,
-            details=f"{len(board.agents)} agents",
-        ))
+        dimensions.append(
+            DimensionScore(
+                name="cross_agent_consistency",
+                score=cons_score,
+                weight=2.0,
+                details=f"{len(board.agents)} agents",
+            )
+        )
         issues.extend(cons_issues)
 
         # Dimension 2: Coverage (enough agents contributed)
         cov_score = min(1.0, len(board.agents) / 2.0) if board.agents else 0.0
-        dimensions.append(DimensionScore(
-            name="agent_coverage",
-            score=cov_score,
-            weight=1.0,
-            details=f"{len(board.agents)} agents reported",
-        ))
+        dimensions.append(
+            DimensionScore(
+                name="agent_coverage",
+                score=cov_score,
+                weight=1.0,
+                details=f"{len(board.agents)} agents reported",
+            )
+        )
 
         # Dimension 3: Hard guards
         guard_score = 0.0 if board.hard_guards else 1.0
-        dimensions.append(DimensionScore(
-            name="hard_guards",
-            score=guard_score,
-            weight=3.0,
-            details=f"{len(board.hard_guards)} violations" if board.hard_guards else "no violations",
-        ))
+        dimensions.append(
+            DimensionScore(
+                name="hard_guards",
+                score=guard_score,
+                weight=3.0,
+                details=f"{len(board.hard_guards)} violations"
+                if board.hard_guards
+                else "no violations",
+            )
+        )
         if board.hard_guards:
             for hg in board.hard_guards:
-                issues.append(JudgeIssue(
-                    code="HARD_GUARD",
-                    message=hg,
-                    severity=IssueSeverity.CRITICAL,
-                ))
+                issues.append(
+                    JudgeIssue(
+                        code="HARD_GUARD",
+                        message=hg,
+                        severity=IssueSeverity.CRITICAL,
+                    )
+                )
 
         # Dimension 4: Average individual quality
         if report_judges:
             avg_individual = sum(r.score for r in report_judges) / len(report_judges)
         else:
             avg_individual = 0.0
-        dimensions.append(DimensionScore(
-            name="individual_quality",
-            score=avg_individual,
-            weight=1.5,
-            details=f"avg_score={avg_individual:.2f}",
-        ))
+        dimensions.append(
+            DimensionScore(
+                name="individual_quality",
+                score=avg_individual,
+                weight=1.5,
+                details=f"avg_score={avg_individual:.2f}",
+            )
+        )
 
         # Overall
         total_weight = sum(d.weight for d in dimensions)
-        overall = sum(d.score * d.weight for d in dimensions) / total_weight if total_weight else 0.0
+        overall = (
+            sum(d.score * d.weight for d in dimensions) / total_weight if total_weight else 0.0
+        )
 
         recommendations = self._generate_recommendations(dimensions, issues)
 
@@ -298,21 +322,25 @@ class Judge:
         conf = report.confidence
 
         if conf < self.confidence_low:
-            issues.append(JudgeIssue(
-                code="LOW_CONFIDENCE",
-                message=f"Confidence {conf:.2f} is below threshold {self.confidence_low}",
-                severity=IssueSeverity.WARNING,
-                agent_id=report.agent_id,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="LOW_CONFIDENCE",
+                    message=f"Confidence {conf:.2f} is below threshold {self.confidence_low}",
+                    severity=IssueSeverity.WARNING,
+                    agent_id=report.agent_id,
+                )
+            )
             return 0.3, issues
 
         if conf > self.confidence_high and not report.evidence:
-            issues.append(JudgeIssue(
-                code="OVERCONFIDENT",
-                message=f"High confidence {conf:.2f} but no evidence provided",
-                severity=IssueSeverity.WARNING,
-                agent_id=report.agent_id,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="OVERCONFIDENT",
+                    message=f"High confidence {conf:.2f} but no evidence provided",
+                    severity=IssueSeverity.WARNING,
+                    agent_id=report.agent_id,
+                )
+            )
             return 0.4, issues
 
         return 1.0, issues
@@ -322,23 +350,27 @@ class Judge:
         ev_count = len(report.evidence)
 
         if ev_count < self.min_evidence_count:
-            issues.append(JudgeIssue(
-                code="INSUFFICIENT_EVIDENCE",
-                message=f"Only {ev_count} evidence items (minimum: {self.min_evidence_count})",
-                severity=IssueSeverity.WARNING,
-                agent_id=report.agent_id,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="INSUFFICIENT_EVIDENCE",
+                    message=f"Only {ev_count} evidence items (minimum: {self.min_evidence_count})",
+                    severity=IssueSeverity.WARNING,
+                    agent_id=report.agent_id,
+                )
+            )
             return 0.2, issues
 
         # Check for empty/meaningless evidence
         empty_count = sum(1 for e in report.evidence if not e or not e.strip())
         if empty_count > 0:
-            issues.append(JudgeIssue(
-                code="EMPTY_EVIDENCE",
-                message=f"{empty_count} empty evidence entries",
-                severity=IssueSeverity.INFO,
-                agent_id=report.agent_id,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="EMPTY_EVIDENCE",
+                    message=f"{empty_count} empty evidence entries",
+                    severity=IssueSeverity.INFO,
+                    agent_id=report.agent_id,
+                )
+            )
             return max(0.5, 1.0 - empty_count * 0.1), issues
 
         return min(1.0, ev_count / 3.0), issues
@@ -348,28 +380,34 @@ class Judge:
         score = 1.0
 
         if not report.agent_id:
-            issues.append(JudgeIssue(
-                code="MISSING_AGENT_ID",
-                message="Report has no agent_id",
-                severity=IssueSeverity.CRITICAL,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="MISSING_AGENT_ID",
+                    message="Report has no agent_id",
+                    severity=IssueSeverity.CRITICAL,
+                )
+            )
             score -= 0.5
 
         if not report.name:
-            issues.append(JudgeIssue(
-                code="MISSING_NAME",
-                message="Report has no name",
-                severity=IssueSeverity.INFO,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="MISSING_NAME",
+                    message="Report has no name",
+                    severity=IssueSeverity.INFO,
+                )
+            )
             score -= 0.1
 
         if report.confidence == 0.0 and report.verdict != Verdict.NEUTRAL:
-            issues.append(JudgeIssue(
-                code="ZERO_CONFIDENCE_NON_NEUTRAL",
-                message="Zero confidence with non-neutral verdict",
-                severity=IssueSeverity.WARNING,
-                agent_id=report.agent_id,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="ZERO_CONFIDENCE_NON_NEUTRAL",
+                    message="Zero confidence with non-neutral verdict",
+                    severity=IssueSeverity.WARNING,
+                    agent_id=report.agent_id,
+                )
+            )
             score -= 0.3
 
         return max(0.0, score), issues
@@ -379,57 +417,64 @@ class Judge:
 
         # High risk should correlate with RISK verdict or low confidence
         if report.risk > 0.7 and report.verdict not in (Verdict.RISK, Verdict.LEAN_NEGATIVE):
-            issues.append(JudgeIssue(
-                code="RISK_VERDICT_MISMATCH",
-                message=f"High risk ({report.risk:.2f}) but verdict is {report.verdict.value}",
-                severity=IssueSeverity.WARNING,
-                agent_id=report.agent_id,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="RISK_VERDICT_MISMATCH",
+                    message=f"High risk ({report.risk:.2f}) but verdict is {report.verdict.value}",
+                    severity=IssueSeverity.WARNING,
+                    agent_id=report.agent_id,
+                )
+            )
             return 0.5, issues
 
         # Low risk with RISK verdict is suspicious
         if report.risk < 0.2 and report.verdict == Verdict.RISK:
-            issues.append(JudgeIssue(
-                code="LOW_RISK_RISK_VERDICT",
-                message=f"Low risk ({report.risk:.2f}) but verdict is RISK",
-                severity=IssueSeverity.INFO,
-                agent_id=report.agent_id,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="LOW_RISK_RISK_VERDICT",
+                    message=f"Low risk ({report.risk:.2f}) but verdict is RISK",
+                    severity=IssueSeverity.INFO,
+                    agent_id=report.agent_id,
+                )
+            )
             return 0.7, issues
 
         return 1.0, issues
 
-    def _check_board_consistency(
-        self, board: AgentBoard
-    ) -> tuple[float, list[JudgeIssue]]:
+    def _check_board_consistency(self, board: AgentBoard) -> tuple[float, list[JudgeIssue]]:
         issues: list[JudgeIssue] = []
         if len(board.agents) < 2:
             return 1.0, issues
 
         # Check verdict distribution
         verdicts = [a.verdict for a in board.agents]
-        unique_verdicts = set(v.value for v in verdicts)
+        unique_verdicts = {v.value for v in verdicts}
 
         # If all agents disagree (all different verdicts), that's a concern
         if len(unique_verdicts) == len(verdicts) and len(verdicts) > 2:
-            issues.append(JudgeIssue(
-                code="TOTAL_DISAGREEMENT",
-                message=f"All {len(verdicts)} agents have different verdicts",
-                severity=IssueSeverity.WARNING,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="TOTAL_DISAGREEMENT",
+                    message=f"All {len(verdicts)} agents have different verdicts",
+                    severity=IssueSeverity.WARNING,
+                )
+            )
             return 0.3, issues
 
         # Check if majority agrees
         from collections import Counter
+
         verdict_counts = Counter(v.value for v in verdicts)
         majority_ratio = verdict_counts.most_common(1)[0][1] / len(verdicts)
 
         if majority_ratio < self.consistency_threshold:
-            issues.append(JudgeIssue(
-                code="LOW_CONSENSUS",
-                message=f"Majority agreement is {majority_ratio:.0%} (threshold: {self.consistency_threshold:.0%})",
-                severity=IssueSeverity.WARNING,
-            ))
+            issues.append(
+                JudgeIssue(
+                    code="LOW_CONSENSUS",
+                    message=f"Majority agreement is {majority_ratio:.0%} (threshold: {self.consistency_threshold:.0%})",
+                    severity=IssueSeverity.WARNING,
+                )
+            )
             return majority_ratio, issues
 
         return min(1.0, majority_ratio + 0.2), issues

@@ -10,7 +10,6 @@ import pytest
 
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.contracts import AgentReport
-from forge_agent.core.context import AgentContext
 from forge_agent.registry.decorators import register_agent
 from forge_agent.registry.registry import get_registry
 
@@ -26,6 +25,7 @@ def _make_cls(agent_id: str, name: str, domain: str = "t", tags=None):
 
         async def act(self, ctx, d, _aid=agent_id, _nm=name):
             return AgentReport(agent_id=_aid, name=_nm)
+
     _T.agent_id = agent_id
     _T.name = name
     _T.domain = domain
@@ -38,10 +38,10 @@ def test_singleton():
 
 
 def test_register_list():
-    A = _make_cls("t.a", "A")
-    B = _make_cls("t.b", "B")
-    register_agent(domain="t", tags=["b"])(A)
-    register_agent(domain="t", tags=["a"])(B)
+    a = _make_cls("t.a", "A")
+    b = _make_cls("t.b", "B")
+    register_agent(domain="t", tags=["b"])(a)
+    register_agent(domain="t", tags=["a"])(b)
     r = get_registry()
     assert "t.a" in r
     assert "t.b" in r
@@ -51,8 +51,8 @@ def test_register_list():
 
 @pytest.mark.asyncio
 async def test_get_initializes_once():
-    A = _make_cls("t.a", "A")
-    register_agent()(A)
+    a = _make_cls("t.a", "A")
+    register_agent()(a)
     r = get_registry()
     a1 = await r.get("t.a")
     a2 = await r.get("t.a")
@@ -61,20 +61,20 @@ async def test_get_initializes_once():
 
 @pytest.mark.asyncio
 async def test_unregister_clears():
-    A = _make_cls("t.a", "A")
-    register_agent()(A)
+    a = _make_cls("t.a", "A")
+    register_agent()(a)
     r = get_registry()
-    a = await r.get("t.a")
+    await r.get("t.a")
     r.unregister("t.a")
     assert "t.a" not in r
 
 
 def test_duplicate_register_raises():
-    A = _make_cls("t.a", "A")
-    Dup = _make_cls("t.a", "Dup")
-    register_agent()(A)
+    a = _make_cls("t.a", "A")
+    dup = _make_cls("t.a", "Dup")
+    register_agent()(a)
     r = get_registry()
     with pytest.raises(ValueError):
-        r.register(Dup)
-    r.register(Dup, override=True)
+        r.register(dup)
+    r.register(dup, override=True)
     assert r.get_metadata("t.a")["class_name"] == "Dup"

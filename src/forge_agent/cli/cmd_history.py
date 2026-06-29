@@ -25,7 +25,7 @@ def run(args: argparse.Namespace) -> int:
         print(f"Agent {args.agent_id!r} not found.")
         return 1
 
-    print(f"VERSION  CREATED              REPLACES  VALID  SMOKE   STATUS")
+    print("VERSION  CREATED              REPLACES  VALID  SMOKE   STATUS")
     print("-" * 70)
     for v in entry.versions:
         status = "active" if v.version == entry.active_version else "available"

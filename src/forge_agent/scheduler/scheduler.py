@@ -7,9 +7,7 @@ the PipelineEngine uses a Scheduler under the hood.
 from __future__ import annotations
 
 import logging
-from typing import Awaitable, Callable
 
-from forge_agent.core.contracts import AgentReport
 from forge_agent.registry.registry import get_registry
 from forge_agent.scheduler.strategies import ExecutionStrategy, SequentialStrategy
 from forge_agent.scheduler.tasks import ScheduleResult, ScheduleTask
@@ -31,7 +29,10 @@ class Scheduler:
     def add_task(self, task: ScheduleTask) -> None:
         if task.task_id in self._tasks:
             from forge_agent.exceptions import DuplicateRegistrationError
-            raise DuplicateRegistrationError(task.task_id, hint="Use a unique task_id for each scheduled task.")
+
+            raise DuplicateRegistrationError(
+                task.task_id, hint="Use a unique task_id for each scheduled task."
+            )
         self._tasks[task.task_id] = task
 
     def clear(self) -> None:
@@ -66,7 +67,7 @@ class Scheduler:
                 started_at=started,
                 finished_at=_utcnow(),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.exception("Task %s failed", task.task_id)
             result = ScheduleResult(
                 task_id=task.task_id,
@@ -79,11 +80,12 @@ class Scheduler:
         if task.callback and result.report is not None:
             try:
                 await task.callback(result.report)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception("Callback for task %s failed", task.task_id)
         return result
 
 
 def _utcnow():
     from datetime import datetime, timezone
+
     return datetime.now(timezone.utc)

@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from forge_agent.core.base import BaseAgent
-from forge_agent.core.contracts import AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentReport
 from forge_agent.core.enums import Verdict
 
 
@@ -30,6 +30,7 @@ def _make_demo():
                 evidence=[f"y={dec['y']}"],
                 run_id=ctx.run_id,
             )
+
     _Demo.__name__ = "_Demo"
     return _Demo
 
@@ -47,14 +48,15 @@ def _make_boom():
 
         async def act(self, ctx, dec):
             return AgentReport(agent_id=self.agent_id, name=self.name)
+
     _Boom.__name__ = "_Boom"
     return _Boom
 
 
 @pytest.mark.asyncio
 async def test_run_cycle():
-    Demo = _make_demo()
-    agent = Demo()
+    demo = _make_demo()
+    agent = demo()
     ctx = AgentContext(scope_id="t1", scope_name="t")
     report = await agent.run(ctx)
     assert report.evidence == ["y=2"]
@@ -63,8 +65,8 @@ async def test_run_cycle():
 
 @pytest.mark.asyncio
 async def test_lifecycle():
-    Demo = _make_demo()
-    agent = Demo()
+    demo = _make_demo()
+    agent = demo()
     assert agent.status.value == "uninitialized"
     await agent.initialize()
     assert agent.status.value == "ready"
@@ -74,8 +76,8 @@ async def test_lifecycle():
 
 @pytest.mark.asyncio
 async def test_error_path_does_not_crash():
-    Boom = _make_boom()
-    a = Boom()
+    boom = _make_boom()
+    a = boom()
     ctx = AgentContext(scope_id="t", scope_name="t")
     r = await a.run(ctx)
     assert r.verdict.value == "risk"

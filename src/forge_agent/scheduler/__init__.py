@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from forge_agent.scheduler.scheduler import Scheduler
 from forge_agent.scheduler.strategies import (
+    DAGStrategy,
     ExecutionStrategy,
     ParallelStrategy,
     PriorityStrategy,
@@ -12,11 +13,12 @@ from forge_agent.scheduler.strategies import (
 from forge_agent.scheduler.tasks import ScheduleResult, ScheduleTask
 
 __all__ = [
-    "Scheduler",
-    "ScheduleResult",
-    "ScheduleTask",
+    "DAGStrategy",
     "ExecutionStrategy",
-    "SequentialStrategy",
     "ParallelStrategy",
     "PriorityStrategy",
+    "ScheduleResult",
+    "ScheduleTask",
+    "Scheduler",
+    "SequentialStrategy",
 ]

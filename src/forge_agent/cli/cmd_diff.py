@@ -32,7 +32,8 @@ def run(args: argparse.Namespace) -> int:
     from_lines = from_src.splitlines(keepends=True)
     to_lines = to_src.splitlines(keepends=True)
     diff = difflib.unified_diff(
-        from_lines, to_lines,
+        from_lines,
+        to_lines,
         fromfile=f"{args.agent_id}@{args.from_version}",
         tofile=f"{args.agent_id}@{args.to_version}",
     )

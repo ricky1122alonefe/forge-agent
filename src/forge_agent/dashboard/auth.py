@@ -11,9 +11,8 @@ from __future__ import annotations
 import os
 import secrets
 from dataclasses import dataclass
-from typing import Optional
 
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
@@ -25,18 +24,18 @@ class AuthConfig:
     """Authentication configuration for the dashboard."""
 
     enabled: bool = False
-    api_key: Optional[str] = None
+    api_key: str | None = None
     header_name: str = "X-API-Key"
 
     @classmethod
-    def from_env(cls) -> "AuthConfig":
+    def from_env(cls) -> AuthConfig:
         """Load config from environment variables."""
         enabled = os.environ.get("FORGE_AGENT_AUTH_ENABLED", "").lower() in ("1", "true", "yes")
         api_key = os.environ.get("FORGE_AGENT_API_KEY")
         header_name = os.environ.get("FORGE_AGENT_AUTH_HEADER", "X-API-Key")
         return cls(enabled=enabled, api_key=api_key, header_name=header_name)
 
-    def validate_key(self, provided_key: Optional[str]) -> bool:
+    def validate_key(self, provided_key: str | None) -> bool:
         """Validate the provided API key."""
         if not self.enabled:
             return True
@@ -48,7 +47,7 @@ class AuthConfig:
 
 
 # Global auth config instance
-_auth_config: Optional[AuthConfig] = None
+_auth_config: AuthConfig | None = None
 
 
 def get_auth_config() -> AuthConfig:
@@ -76,7 +75,7 @@ _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 async def require_auth(
-    api_key: Optional[str] = Security(_api_key_header),
+    api_key: str | None = Security(_api_key_header),
 ) -> None:
     """Dependency that validates the API key.
 
@@ -102,13 +101,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
     - WebSocket connections (handled separately)
     """
 
-    def __init__(self, app, auth_config: Optional[AuthConfig] = None):
+    def __init__(self, app, auth_config: AuthConfig | None = None):
         super().__init__(app)
         self.auth_config = auth_config
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         config = self.auth_config or get_auth_config()
 
         # Skip auth if disabled

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from forge_agent.core.agent_type import AgentType
 from forge_agent.generator.requirements import RequirementsParser
 
@@ -64,7 +62,9 @@ class TestConfigurableKeywords:
     # ------------------------------------------------------------------ Agent Type
 
     def test_register_new_agent_type(self):
-        RequirementsParser.register_agent_type_keywords("translator", ["翻译", "translate", "翻译器"])
+        RequirementsParser.register_agent_type_keywords(
+            "translator", ["翻译", "translate", "翻译器"]
+        )
         assert "translator" in RequirementsParser.AGENT_TYPE_KEYWORDS
 
     def test_register_extends_existing_agent_type(self):

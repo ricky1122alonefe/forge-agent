@@ -24,10 +24,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
-
 # ---------------------------------------------------------------------------
 # AgentReport validation model
 # ---------------------------------------------------------------------------
+
 
 class AgentReportModel(BaseModel):
     """Pydantic model for validating AgentReport data."""
@@ -52,6 +52,7 @@ class AgentReportModel(BaseModel):
     @classmethod
     def validate_verdict(cls, v: str) -> str:
         from forge_agent.core.enums import Verdict
+
         valid = {m.value for m in Verdict}
         if v not in valid:
             raise ValueError(f"Invalid verdict {v!r}. Must be one of: {sorted(valid)}")
@@ -61,6 +62,7 @@ class AgentReportModel(BaseModel):
     @classmethod
     def validate_action(cls, v: str) -> str:
         from forge_agent.core.enums import Action
+
         valid = {m.value for m in Action}
         if v not in valid:
             raise ValueError(f"Invalid action {v!r}. Must be one of: {sorted(valid)}")
@@ -72,6 +74,7 @@ class AgentReportModel(BaseModel):
 # ---------------------------------------------------------------------------
 # AgentBoard validation model
 # ---------------------------------------------------------------------------
+
 
 class AgentBoardModel(BaseModel):
     """Pydantic model for validating AgentBoard data."""
@@ -93,6 +96,7 @@ class AgentBoardModel(BaseModel):
 # AgentContext validation model
 # ---------------------------------------------------------------------------
 
+
 class AgentContextModel(BaseModel):
     """Pydantic model for validating AgentContext data."""
 
@@ -112,6 +116,7 @@ class AgentContextModel(BaseModel):
 # ---------------------------------------------------------------------------
 # ChatMessage validation model
 # ---------------------------------------------------------------------------
+
 
 class ChatMessageModel(BaseModel):
     """Pydantic model for validating LLM chat messages."""
@@ -135,6 +140,7 @@ class ChatMessageModel(BaseModel):
 # LLMResponse validation model
 # ---------------------------------------------------------------------------
 
+
 class LLMResponseModel(BaseModel):
     """Pydantic model for validating LLM responses."""
 
@@ -152,6 +158,7 @@ class LLMResponseModel(BaseModel):
 # Validate functions — accept dataclass instances or dicts
 # ---------------------------------------------------------------------------
 
+
 def _to_dict(obj: Any) -> dict[str, Any]:
     """Convert a dataclass or dict to a plain dict for Pydantic validation."""
     if isinstance(obj, dict):
@@ -160,6 +167,7 @@ def _to_dict(obj: Any) -> dict[str, Any]:
         return obj.to_dict()
     # dataclass asdict fallback
     from dataclasses import asdict
+
     return asdict(obj)
 
 
@@ -191,6 +199,7 @@ def validate_llm_response(obj: Any) -> LLMResponseModel:
 # ---------------------------------------------------------------------------
 # JSON Schema export
 # ---------------------------------------------------------------------------
+
 
 def schema_report() -> dict[str, Any]:
     """Return JSON Schema for AgentReport."""

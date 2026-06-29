@@ -9,12 +9,11 @@ git-ignored; the manifest tells you what should be there.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
 import tempfile
-import time
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,10 +26,10 @@ log = logging.getLogger(__name__)
 class AgentVersionMeta:
     """Metadata for a single version of a generated agent."""
 
-    version: str                        # "v1", "v2", ...
-    created_at: str                     # ISO8601
-    created_by: str                     # user / system
-    requirement: str                    # original natural language
+    version: str  # "v1", "v2", ...
+    created_at: str  # ISO8601
+    created_by: str  # user / system
+    requirement: str  # original natural language
     llm_provider: str | None = None
     llm_model: str | None = None
     validation_status: str = "unknown"  # "passed" | "failed" | "unknown"
@@ -38,8 +37,8 @@ class AgentVersionMeta:
     smoke_test_status: str = "unknown"
     smoke_test_error: str | None = None
     code_hash: str | None = None
-    code_path: str | None = None        # relative to project root
-    supersedes: str | None = None       # previous version replaced
+    code_path: str | None = None  # relative to project root
+    supersedes: str | None = None  # previous version replaced
     deprecated: bool = False
     deprecated_reason: str | None = None
 
@@ -47,7 +46,7 @@ class AgentVersionMeta:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "AgentVersionMeta":
+    def from_dict(cls, d: dict[str, Any]) -> AgentVersionMeta:
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
@@ -57,10 +56,10 @@ class AgentManifestEntry:
 
     agent_id: str
     created_at: str
-    active_version: str                 # e.g. "v3"
+    active_version: str  # e.g. "v3"
     versions: list[AgentVersionMeta] = field(default_factory=list)
     description: str = ""
-    agent_type: str = ""                # "scraper" | "analyzer" | "monitor" | "generator" | "general" | ""
+    agent_type: str = ""  # "scraper" | "analyzer" | "monitor" | "generator" | "general" | ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -73,7 +72,7 @@ class AgentManifestEntry:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "AgentManifestEntry":
+    def from_dict(cls, d: dict[str, Any]) -> AgentManifestEntry:
         versions = [AgentVersionMeta.from_dict(v) for v in d.get("versions", [])]
         return cls(
             agent_id=d["agent_id"],
@@ -114,12 +113,14 @@ class Manifest:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Manifest":
+    def from_dict(cls, d: dict[str, Any]) -> Manifest:
         return cls(
             version=int(d.get("version", 2)),
             project=str(d.get("project", "")),
             updated_at=str(d.get("updated_at", _now())),
-            agents={aid: AgentManifestEntry.from_dict(e) for aid, e in (d.get("agents") or {}).items()},
+            agents={
+                aid: AgentManifestEntry.from_dict(e) for aid, e in (d.get("agents") or {}).items()
+            },
             archive=list(d.get("archive", [])),
         )
 
@@ -132,22 +133,18 @@ class Manifest:
         self.updated_at = _now()
         data = json.dumps(self.to_dict(), indent=2, ensure_ascii=False)
         # Atomic write: temp file in same dir, then rename
-        fd, tmp = tempfile.mkstemp(
-            prefix=".MANIFEST.", suffix=".tmp", dir=str(path.parent)
-        )
+        fd, tmp = tempfile.mkstemp(prefix=".MANIFEST.", suffix=".tmp", dir=str(path.parent))
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(data)
             os.replace(tmp, path)
         except Exception:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp)
-            except OSError:
-                pass
             raise
 
     @classmethod
-    def load(cls, path: Path | str) -> "Manifest":
+    def load(cls, path: Path | str) -> Manifest:
         path = Path(path)
         if not path.is_file():
             return cls()

@@ -74,31 +74,31 @@ from forge_agent.generator.store import FileCodeStore, SavedCode
 from forge_agent.generator.validator import ContractValidator, ValidationResult
 
 __all__ = [
-    # Requirements
-    "AgentRequirements",
-    "FieldSpec",
-    "RequirementsParser",
-    # Generation
-    "CodeGenerator",
-    "GenerationContext",
-    "GenerationResult",
-    # Validation
-    "ContractValidator",
-    "ValidationResult",
-    # Sandbox
-    "Sandbox",
-    "SmokeTestResult",
-    "ResourceLimits",
-    # Storage
-    "FileCodeStore",
-    "SavedCode",
-    "Manifest",
-    "AgentManifestEntry",
-    "AgentVersionMeta",
     # Injector
     "AgentInjector",
+    "AgentManifestEntry",
+    # Requirements
+    "AgentRequirements",
+    "AgentVersionMeta",
+    # Generation
+    "CodeGenerator",
+    # Validation
+    "ContractValidator",
+    "DeployMode",
+    "FieldSpec",
+    # Storage
+    "FileCodeStore",
+    "GenerationContext",
+    "GenerationOutcome",
     # Pipeline
     "GenerationPipeline",
-    "GenerationOutcome",
-    "DeployMode",
+    "GenerationResult",
+    "Manifest",
+    "RequirementsParser",
+    "ResourceLimits",
+    # Sandbox
+    "Sandbox",
+    "SavedCode",
+    "SmokeTestResult",
+    "ValidationResult",
 ]

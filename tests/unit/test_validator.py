@@ -7,18 +7,19 @@ Validates all 5 layers:
 4. Cyclomatic complexity
 5. Type annotation
 """
+
 from __future__ import annotations
 
 import pytest
 
 from forge_agent.generator.validator import (
-    ContractValidator,
     DANGEROUS_NAMES,
+    ContractValidator,
     ValidatorLimits,
 )
 
-
 # ----------------------------------------------------------------- Fixtures
+
 
 @pytest.fixture
 def v() -> ContractValidator:
@@ -32,8 +33,9 @@ def v_strict() -> ContractValidator:
 
 # ----------------------------------------------------------------- Layer 1
 
+
 def test_valid_agent_passes(v: ContractValidator) -> None:
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -50,7 +52,7 @@ class GoodAgent(BaseAgent):
 
     async def act(self, ctx: AgentContext, dec: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     assert r.ok, f"expected ok, got errors: {r.errors}"
     assert r.info["checks_run"] == 5
@@ -58,12 +60,12 @@ class GoodAgent(BaseAgent):
 
 
 def test_missing_methods_fails(v: ContractValidator) -> None:
-    src = '''
+    src = """
 class HalfBaked:
     agent_id = "test.half"
     name = "Half"
     async def observe(self, ctx): return {}
-'''
+"""
     r = v.validate_source(src)
     assert not r.ok
     assert any("Missing required method" in e for e in r.errors)
@@ -71,8 +73,9 @@ class HalfBaked:
 
 # ----------------------------------------------------------------- Layer 2
 
+
 def test_blocks_subprocess_import(v: ContractValidator) -> None:
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -85,14 +88,14 @@ class BadAgent(BaseAgent):
     async def decide(self, ctx: AgentContext, o: dict) -> dict: return {}
     async def act(self, ctx: AgentContext, d: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     assert not r.ok
     assert any("subprocess" in e for e in r.errors)
 
 
 def test_blocks_from_os_import_system(v: ContractValidator) -> None:
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -105,14 +108,14 @@ class BadAgent(BaseAgent):
     async def decide(self, ctx: AgentContext, o: dict) -> dict: return {}
     async def act(self, ctx: AgentContext, d: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     assert not r.ok
     assert any("system" in e for e in r.errors)
 
 
 def test_blocks_socket(v: ContractValidator) -> None:
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -125,7 +128,7 @@ class BadAgent(BaseAgent):
     async def decide(self, ctx: AgentContext, o: dict) -> dict: return {}
     async def act(self, ctx: AgentContext, d: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     assert not r.ok
     assert any("socket" in e for e in r.errors)
@@ -133,8 +136,9 @@ class BadAgent(BaseAgent):
 
 # ----------------------------------------------------------------- Layer 3
 
+
 def test_blocks_open_write(v: ContractValidator) -> None:
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -148,14 +152,14 @@ class BadAgent(BaseAgent):
         with open("/etc/passwd", "w") as f:
             f.write("hacked")
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     assert not r.ok
     assert any("file write" in e for e in r.errors)
 
 
 def test_blocks_eval(v: ContractValidator) -> None:
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -168,14 +172,14 @@ class BadAgent(BaseAgent):
     async def act(self, ctx: AgentContext, d: dict) -> AgentReport:
         result = eval("1+1")
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     assert not r.ok
     assert any("eval" in e for e in r.errors)
 
 
 def test_blocks_rmtree(v: ContractValidator) -> None:
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -189,7 +193,7 @@ class BadAgent(BaseAgent):
     async def act(self, ctx: AgentContext, d: dict) -> AgentReport:
         shutil.rmtree("/")
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     assert not r.ok
     assert any("rmtree" in e for e in r.errors)
@@ -197,9 +201,10 @@ class BadAgent(BaseAgent):
 
 # ----------------------------------------------------------------- Layer 4
 
+
 def test_blocks_high_complexity(v_strict: ContractValidator) -> None:
     """Function with >5 if branches exceeds strict cap."""
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -218,7 +223,7 @@ class ComplexAgent(BaseAgent):
                             if f:
                                 pass
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v_strict.validate_source(src)
     assert not r.ok
     assert any("too complex" in e for e in r.errors)
@@ -226,7 +231,7 @@ class ComplexAgent(BaseAgent):
 
 def test_default_complexity_allows_10(v: ContractValidator) -> None:
     """Default cap is 10 — 7-branch function should pass."""
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -245,7 +250,7 @@ class OkAgent(BaseAgent):
         if g: pass
         if h: pass
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     complexity_errors = [e for e in r.errors if "too complex" in e]
     assert not complexity_errors, f"unexpected: {complexity_errors}"
@@ -253,8 +258,9 @@ class OkAgent(BaseAgent):
 
 # ----------------------------------------------------------------- Layer 5
 
+
 def test_blocks_missing_return_type(v: ContractValidator) -> None:
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -268,13 +274,14 @@ class UntypedAgent(BaseAgent):
         return {}
     async def act(self, ctx, d):
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     assert not r.ok
     assert any("missing return type" in e for e in r.errors)
 
 
 # ----------------------------------------------------------------- Misc
+
 
 def test_syntax_error_short_circuits(v: ContractValidator) -> None:
     r = v.validate_source("def broken(:")
@@ -285,25 +292,29 @@ def test_syntax_error_short_circuits(v: ContractValidator) -> None:
 def test_dangerous_names_completeness() -> None:
     """Sanity: blacklists cover the critical attack surface."""
     from forge_agent.generator.validator import DANGEROUS_MODULES
+
     all_blocked = DANGEROUS_NAMES | DANGEROUS_MODULES
     must_have = {"os.system", "shutil.rmtree", "subprocess", "eval", "exec", "__import__"}
-    assert must_have.issubset(all_blocked), (
-        f"missing: {must_have - all_blocked}"
-    )
+    assert must_have.issubset(all_blocked), f"missing: {must_have - all_blocked}"
 
 
 def test_validate_class_method(v: ContractValidator) -> None:
     """validate_class (already-imported) is the fast path."""
     from forge_agent.core.base import BaseAgent
-    from forge_agent.core.contracts import AgentReport
     from forge_agent.core.context import AgentContext
+    from forge_agent.core.contracts import AgentReport
     from forge_agent.core.enums import Verdict
 
     class Demo(BaseAgent):
         agent_id = "test.demo"
         name = "Demo"
-        async def observe(self, ctx: AgentContext) -> dict: return {}
-        async def decide(self, ctx: AgentContext, o: dict) -> dict: return {}
+
+        async def observe(self, ctx: AgentContext) -> dict:
+            return {}
+
+        async def decide(self, ctx: AgentContext, o: dict) -> dict:
+            return {}
+
         async def act(self, ctx: AgentContext, d: dict) -> AgentReport:
             return AgentReport(agent_id=self.agent_id, name=self.name, verdict=Verdict.NEUTRAL)
 

@@ -14,6 +14,7 @@ do something dangerous.
 
 Validation is **AST-only** (no exec). The Sandbox handles runtime checks.
 """
+
 from __future__ import annotations
 
 import ast
@@ -26,6 +27,7 @@ log = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------ Limits
+
 
 @dataclass
 class ValidatorLimits:
@@ -54,10 +56,21 @@ DANGEROUS_MODULES: set[str] = {
 
 # Specific names that MUST NOT appear (full dotted path or bare name).
 DANGEROUS_NAMES: set[str] = {
-    "os.system", "os.exec", "os.execl", "os.execle", "os.execlp",
-    "os.execv", "os.execve", "os.execvp", "os.execvpe",
-    "shutil.rmtree", "shutil.move",
-    "eval", "exec", "__import__", "compile",
+    "os.system",
+    "os.exec",
+    "os.execl",
+    "os.execle",
+    "os.execlp",
+    "os.execv",
+    "os.execve",
+    "os.execvp",
+    "os.execvpe",
+    "shutil.rmtree",
+    "shutil.move",
+    "eval",
+    "exec",
+    "__import__",
+    "compile",
 }
 
 # Regex for dangerous runtime patterns (matched against source text).
@@ -74,6 +87,7 @@ DANGEROUS_PATTERNS: list[tuple[str, str]] = [
 
 # ------------------------------------------------------------------ Result
 
+
 @dataclass
 class ValidationResult:
     ok: bool
@@ -83,6 +97,7 @@ class ValidationResult:
 
 
 # ------------------------------------------------------------------ Validator
+
 
 class ContractValidator:
     """Static checks for BaseAgent conformance + safety."""
@@ -105,10 +120,7 @@ class ContractValidator:
             return result
 
         # ----- Layer 1: structural (class / methods / classvars) -----
-        subclasses = [
-            node for node in ast.walk(tree)
-            if isinstance(node, ast.ClassDef)
-        ]
+        subclasses = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
         if not subclasses:
             result.ok = False
             result.errors.append("No class found in source")
@@ -116,17 +128,14 @@ class ContractValidator:
 
         target = subclasses[-1]
 
-        base_names = {
-            ast.unparse(b) for b in target.bases
-        } if hasattr(ast, "unparse") else set()
+        base_names = {ast.unparse(b) for b in target.bases} if hasattr(ast, "unparse") else set()
         if not any("BaseAgent" in n for n in base_names):
             result.warnings.append(
                 f"Class {target.name!r} does not appear to subclass BaseAgent: {base_names}"
             )
 
         method_names = {
-            n.name for n in target.body
-            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            n.name for n in target.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
         }
         for m in self.required_class_methods:
             if m not in method_names:
@@ -136,10 +145,7 @@ class ContractValidator:
         for cv in self.required_classvars:
             if not any(
                 isinstance(n, ast.Assign)
-                and any(
-                    isinstance(t, ast.Name) and t.id == cv
-                    for t in n.targets
-                )
+                and any(isinstance(t, ast.Name) and t.id == cv for t in n.targets)
                 for n in target.body
             ):
                 result.warnings.append(f"Missing ClassVar: {cv}")
@@ -207,8 +213,15 @@ class ContractValidator:
                     errors.append(f"forbidden import: {full}")
                 # Also check imported names (e.g. from os import system)
                 bare_dangerous = {
-                    "system", "exec", "execl", "Popen", "rmtree",
-                    "move", "eval", "exec", "__import__", "compile",
+                    "system",
+                    "exec",
+                    "execl",
+                    "Popen",
+                    "rmtree",
+                    "move",
+                    "eval",
+                    "__import__",
+                    "compile",
                 }
                 names = node.names  # local ref for Python 3.14 compat
                 for alias in names:
@@ -250,13 +263,10 @@ class ContractValidator:
         """Calculate cyclomatic complexity (base 1 + decision points)."""
         complexity = 1
         for node in ast.walk(func_node):
-            if isinstance(node, (ast.If, ast.IfExp)):
-                complexity += 1
-            elif isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
-                complexity += 1
-            elif isinstance(node, ast.ExceptHandler):
-                complexity += 1
-            elif isinstance(node, ast.With):
+            if isinstance(
+                node,
+                (ast.If, ast.IfExp, ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler, ast.With),
+            ):
                 complexity += 1
             elif isinstance(node, ast.BoolOp):
                 # 'and' / 'or' add 1 per additional operand
@@ -267,7 +277,8 @@ class ContractValidator:
         """Layer 5: all 3 contract methods must have return type annotation."""
         errors: list[str] = []
         methods = {
-            n.name: n for n in cls_node.body
+            n.name: n
+            for n in cls_node.body
             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
         }
         for m in self.required_class_methods:
@@ -275,7 +286,5 @@ class ContractValidator:
             if node is None:
                 continue  # already reported in Layer 1
             if node.returns is None:
-                errors.append(
-                    f"method {m!r} missing return type annotation"
-                )
+                errors.append(f"method {m!r} missing return type annotation")
         return errors

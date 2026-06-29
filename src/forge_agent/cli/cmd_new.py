@@ -525,7 +525,7 @@ exclude = ["tests*", "pipelines*", "generated_agents*"]
         f"# .venv\\Scripts\\activate         # Windows\n"
         f"forge-agent doctor        # check environment\n"
         f"forge-agent llm list      # check LLM providers\n"
-        f"forge-agent generate \"...\"  # generate a new agent\n"
+        f'forge-agent generate "..."  # generate a new agent\n'
         f"```\n",
         encoding="utf-8",
     )

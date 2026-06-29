@@ -52,8 +52,8 @@ from forge_agent.core.capabilities import (
     SearcherProtocol,
     StdLogger,
 )
-from forge_agent.core.contracts import AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentReport
 from forge_agent.core.enums import Action, AgentStatus, Verdict
 
 
@@ -67,15 +67,16 @@ def has_capability(name: str) -> Any:
         @register_agent(domain="stock")
         @has_capability("search")
         @has_capability("prompt_manager")
-        class StockAgent(BaseAgent):
-            ...
+        class StockAgent(BaseAgent): ...
     """
+
     def decorator(cls: type) -> type:
         caps: list[str] = list(getattr(cls, "__forge_capabilities__", []))
         if name not in caps:
             caps.append(name)
         cls.__forge_capabilities__ = caps  # type: ignore[attr-defined]
         return cls
+
     return decorator
 
 
@@ -89,8 +90,12 @@ class BaseAgent(abc.ABC):
             agent_id = "hello.basic"
             name = "Hello Agent"
 
-            async def observe(self, ctx): return {"greeting": f"hi, {ctx.scope_name}"}
-            async def decide(self, ctx, obs): return {"say": obs["greeting"]}
+            async def observe(self, ctx):
+                return {"greeting": f"hi, {ctx.scope_name}"}
+
+            async def decide(self, ctx, obs):
+                return {"say": obs["greeting"]}
+
             async def act(self, ctx, dec):
                 return AgentReport(agent_id=self.agent_id, name=self.name, evidence=[dec["say"]])
 
@@ -109,12 +114,13 @@ class BaseAgent(abc.ABC):
 
             async def observe(self, ctx):
                 return await self.search(ctx.payload["ticker"])
+
             ...
     """
 
     # ---------------- Class-level metadata (subclass MUST set) ----------------
-    agent_id: ClassVar[str] = ""        # globally unique, e.g. "stock.monitor"
-    name: ClassVar[str] = ""            # human-readable label
+    agent_id: ClassVar[str] = ""  # globally unique, e.g. "stock.monitor"
+    name: ClassVar[str] = ""  # human-readable label
     version: ClassVar[str] = "0.1.0"
     domain: ClassVar[str] = "generic"
 
@@ -201,10 +207,14 @@ class BaseAgent(abc.ABC):
         # Bind run_id in addition to the agent fields so every nested
         # log line carries both "which agent" and "which run".
         from forge_agent.observability.logger import bind_context, unbind_context
-        from forge_agent.observability.trace import get_trace_manager, SpanType
+        from forge_agent.observability.trace import SpanType, get_trace_manager
 
-        bind_context(agent_id=self.agent_id, domain=self.domain,
-                     agent_version=self.version, run_id=ctx.run_id)
+        bind_context(
+            agent_id=self.agent_id,
+            domain=self.domain,
+            agent_version=self.version,
+            run_id=ctx.run_id,
+        )
 
         tm = get_trace_manager()
         trace = tm.current_trace
@@ -216,22 +226,34 @@ class BaseAgent(abc.ABC):
         )
         try:
             observation = await self._run_step("observe", ctx, SpanType.OBSERVE, trace)
-            decision = await self._run_step("decide", ctx, SpanType.DECIDE, trace, observation=observation)
+            decision = await self._run_step(
+                "decide", ctx, SpanType.DECIDE, trace, observation=observation
+            )
             result = await self._run_step("act", ctx, SpanType.ACT, trace, decision=decision)
             # Post-execution hooks (best-effort — never break the run)
             try:
                 await self._run_step(
-                    "reflect", ctx, SpanType.REFLECT, trace,
-                    observation=observation, decision=decision, result=result,
+                    "reflect",
+                    ctx,
+                    SpanType.REFLECT,
+                    trace,
+                    observation=observation,
+                    decision=decision,
+                    result=result,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 self.log("warning", f"reflect() failed: {exc}")
             try:
                 await self._run_step(
-                    "learn", ctx, SpanType.LEARN, trace,
-                    observation=observation, decision=decision, result=result,
+                    "learn",
+                    ctx,
+                    SpanType.LEARN,
+                    trace,
+                    observation=observation,
+                    decision=decision,
+                    result=result,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 self.log("warning", f"learn() failed: {exc}")
             tm.end_span(agent_span, status="ok")
             return result
@@ -255,6 +277,7 @@ class BaseAgent(abc.ABC):
     ) -> Any:
         """Execute a single agent step with trace span recording."""
         from forge_agent.observability.trace import get_trace_manager
+
         tm = get_trace_manager()
         span = tm.start_span(
             name=f"{self.agent_id}.{step_name}",
@@ -270,9 +293,13 @@ class BaseAgent(abc.ABC):
             elif step_name == "act":
                 result = await self.act(ctx, kwargs["decision"])
             elif step_name == "reflect":
-                result = await self.reflect(ctx, kwargs["observation"], kwargs["decision"], kwargs["result"])
+                result = await self.reflect(
+                    ctx, kwargs["observation"], kwargs["decision"], kwargs["result"]
+                )
             elif step_name == "learn":
-                result = await self.learn(ctx, kwargs["observation"], kwargs["decision"], kwargs["result"])
+                result = await self.learn(
+                    ctx, kwargs["observation"], kwargs["decision"], kwargs["result"]
+                )
             else:
                 result = None
             tm.end_span(span, status="ok")

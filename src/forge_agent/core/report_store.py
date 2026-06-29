@@ -23,6 +23,7 @@ Schema:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -113,7 +114,7 @@ class SQLiteReportStore:
 
         timestamp = report.timestamp or _now_iso()
 
-        cursor = self.conn.execute(
+        self.conn.execute(
             """INSERT INTO agent_reports
                (agent_id, name, domain, verdict, confidence, risk, weight,
                 evidence, warnings, recommended_action, metrics, raw,
@@ -270,31 +271,23 @@ class SQLiteReportStore:
     def _row_to_report(row: tuple) -> AgentReport:
         evidence: list[str] = []
         if row[7]:
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 evidence = json.loads(row[7])
-            except (json.JSONDecodeError, TypeError):
-                pass
 
         warnings: list[str] = []
         if row[8]:
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 warnings = json.loads(row[8])
-            except (json.JSONDecodeError, TypeError):
-                pass
 
         metrics: dict[str, float] = {}
         if row[10]:
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 metrics = json.loads(row[10])
-            except (json.JSONDecodeError, TypeError):
-                pass
 
         raw: dict[str, Any] = {}
         if row[11]:
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 raw = json.loads(row[11])
-            except (json.JSONDecodeError, TypeError):
-                pass
 
         return AgentReport(
             agent_id=row[0],

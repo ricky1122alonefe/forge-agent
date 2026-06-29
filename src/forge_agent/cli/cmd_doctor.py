@@ -23,7 +23,8 @@ from pathlib import Path
 def add(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("doctor", help="Check environment health")
     p.add_argument(
-        "--fix", action="store_true",
+        "--fix",
+        action="store_true",
         help="Attempt to auto-fix common issues",
     )
     p.set_defaults(func=run)
@@ -32,6 +33,7 @@ def add(sub: argparse._SubParsersAction) -> None:
 # ---------------------------------------------------------------------------
 # Check helpers
 # ---------------------------------------------------------------------------
+
 
 class CheckResult:
     """Result of a single health check."""
@@ -65,6 +67,7 @@ def _check_python_version() -> CheckResult:
 def _check_forge_agent() -> CheckResult:
     try:
         from forge_agent.__version__ import __version__
+
         return CheckResult("forge-agent", True, f"v{__version__}")
     except ImportError:
         return CheckResult("forge-agent", False, "not installed", hint="pip install forge-agent")
@@ -77,7 +80,9 @@ def _check_optional_dep(package: str, extra: str) -> CheckResult:
         return CheckResult(f"{extra} SDK", True, str(ver))
     except ImportError:
         return CheckResult(
-            f"{extra} SDK", False, "not installed",
+            f"{extra} SDK",
+            False,
+            "not installed",
             hint=f"pip install 'forge-agent[{extra}]'",
         )
 
@@ -101,10 +106,14 @@ def _check_llm_config(project: Path) -> list[CheckResult]:
                 break
 
     if config_path is None:
-        results.append(CheckResult(
-            "LLM config file", False, "not found",
-            hint="Create llm_providers.json or set FORGE_LLM_CONFIG env var",
-        ))
+        results.append(
+            CheckResult(
+                "LLM config file",
+                False,
+                "not found",
+                hint="Create llm_providers.json or set FORGE_LLM_CONFIG env var",
+            )
+        )
         return results
 
     results.append(CheckResult("LLM config file", True, str(config_path)))
@@ -113,17 +122,21 @@ def _check_llm_config(project: Path) -> list[CheckResult]:
     try:
         data = json.loads(config_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        results.append(CheckResult(
-            "LLM config JSON", False, f"invalid: {exc}",
-            hint="Fix the JSON syntax in your config file",
-        ))
+        results.append(
+            CheckResult(
+                "LLM config JSON",
+                False,
+                f"invalid: {exc}",
+                hint="Fix the JSON syntax in your config file",
+            )
+        )
         return results
 
     results.append(CheckResult("LLM config JSON", True, "valid"))
 
     # Check providers and API keys
     providers = data.get("providers", {})
-    for pid, pdata in providers.items():
+    for _pid, pdata in providers.items():
         if not isinstance(pdata, dict):
             continue
         if not pdata.get("enabled", True):
@@ -135,10 +148,14 @@ def _check_llm_config(project: Path) -> list[CheckResult]:
                 masked = key_val[:4] + "..." + key_val[-4:] if len(key_val) > 8 else "***"
                 results.append(CheckResult(f"API key: {api_key_env}", True, masked))
             else:
-                results.append(CheckResult(
-                    f"API key: {api_key_env}", False, "not set",
-                    hint=f"export {api_key_env}=your-key-here",
-                ))
+                results.append(
+                    CheckResult(
+                        f"API key: {api_key_env}",
+                        False,
+                        "not set",
+                        hint=f"export {api_key_env}=your-key-here",
+                    )
+                )
 
     return results
 
@@ -157,7 +174,9 @@ def _check_generated_dir(project: Path) -> CheckResult:
                 return CheckResult("generated_agents/", True, "exists (manifest unreadable)")
         return CheckResult("generated_agents/", True, "exists (no manifest)")
     return CheckResult(
-        "generated_agents/", False, "not found",
+        "generated_agents/",
+        False,
+        "not found",
         hint="Run 'forge-agent generate \"...\"' to create your first agent",
     )
 
@@ -165,6 +184,7 @@ def _check_generated_dir(project: Path) -> CheckResult:
 def _check_sqlite() -> CheckResult:
     try:
         import sqlite3
+
         ver = sqlite3.sqlite_version
         return CheckResult("SQLite", True, ver)
     except ImportError:
@@ -174,6 +194,7 @@ def _check_sqlite() -> CheckResult:
 # ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
+
 
 def run(args: argparse.Namespace) -> int:
     project: Path = args.project

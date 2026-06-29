@@ -28,7 +28,6 @@ Usage::
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -56,13 +55,14 @@ class DatasetItem:
     def __post_init__(self) -> None:
         if not self.id:
             import uuid
+
             self.id = uuid.uuid4().hex[:12]
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "DatasetItem":
+    def from_dict(cls, d: dict[str, Any]) -> DatasetItem:
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
@@ -100,7 +100,7 @@ class Dataset:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Dataset":
+    def from_dict(cls, d: dict[str, Any]) -> Dataset:
         items = [DatasetItem.from_dict(item) for item in d.get("items", [])]
         return cls(
             name=d["name"],
@@ -144,6 +144,7 @@ class Dataset:
             List of sampled items (or all items if n >= len(items))
         """
         import random
+
         if seed is not None:
             random.seed(seed)
         if n >= len(self.items):

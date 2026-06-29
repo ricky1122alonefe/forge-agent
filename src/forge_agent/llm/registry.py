@@ -18,9 +18,9 @@ log = logging.getLogger(__name__)
 class LLMRegistry:
     """Manages LLM clients keyed by provider_id."""
 
-    _instance: "LLMRegistry | None" = None
+    _instance: LLMRegistry | None = None
 
-    def __new__(cls) -> "LLMRegistry":
+    def __new__(cls) -> LLMRegistry:
         if cls._instance is None:
             inst = super().__new__(cls)
             inst._initialized = False
@@ -74,6 +74,7 @@ class LLMRegistry:
             provider_cfg = self.config.providers.get(pid)
             if provider_cfg is None:
                 from forge_agent.exceptions import ProviderNotConfiguredError
+
                 raise ProviderNotConfiguredError(pid, available=list(self.config.providers.keys()))
             if not provider_cfg.enabled:
                 log.warning("Provider %s is disabled in config", pid)
@@ -84,6 +85,7 @@ class LLMRegistry:
     def _build_client(self, cfg: ProviderConfig) -> LLMClient:
         """Instantiate the right provider implementation."""
         from forge_agent.llm.providers import build_client
+
         return build_client(cfg)
 
     # ------------------------------------------------------------------ Query

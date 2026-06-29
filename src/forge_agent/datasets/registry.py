@@ -35,9 +35,9 @@ class DatasetRegistry:
     Manages multiple dataset stores and provides unified access to all datasets.
     """
 
-    _instance: "DatasetRegistry | None" = None
+    _instance: DatasetRegistry | None = None
 
-    def __new__(cls) -> "DatasetRegistry":
+    def __new__(cls) -> DatasetRegistry:
         if cls._instance is None:
             inst = super().__new__(cls)
             inst._stores: dict[str, DatasetStore] = {}
@@ -86,7 +86,7 @@ class DatasetRegistry:
             try:
                 for ds_name in store.list():
                     results.append({"name": ds_name, "store": store_name})
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.warning("Failed to list datasets from store '%s': %s", store_name, exc)
         return results
 
@@ -137,7 +137,7 @@ class DatasetRegistry:
         try:
             store.save(dataset)
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.error("Failed to save dataset '%s': %s", dataset.name, exc)
             return False
 

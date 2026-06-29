@@ -23,6 +23,7 @@ class TraceSummary:
 
     def to_dict(self) -> dict[str, Any]:
         from dataclasses import asdict
+
         return asdict(self)
 
 
@@ -40,6 +41,7 @@ class TraceDetail:
 
     def to_dict(self) -> dict[str, Any]:
         from dataclasses import asdict
+
         return asdict(self)
 
 
@@ -57,6 +59,7 @@ class TraceDataSource:
         """Lazy access to the global TraceManager."""
         if self._manager is None:
             from forge_agent.observability.trace import get_trace_manager
+
             self._manager = get_trace_manager()
         return self._manager
 
@@ -69,14 +72,16 @@ class TraceDataSource:
             error_count = 0
             if trace:
                 error_count = len([s for s in trace.spans if s.status.value == "error"])
-            results.append(TraceSummary(
-                trace_id=item["trace_id"],
-                pipeline_id=item.get("pipeline_id", ""),
-                start_time=item.get("start_time", ""),
-                duration_ms=item.get("duration_ms", 0.0),
-                span_count=item.get("span_count", 0),
-                error_count=error_count,
-            ))
+            results.append(
+                TraceSummary(
+                    trace_id=item["trace_id"],
+                    pipeline_id=item.get("pipeline_id", ""),
+                    start_time=item.get("start_time", ""),
+                    duration_ms=item.get("duration_ms", 0.0),
+                    span_count=item.get("span_count", 0),
+                    error_count=error_count,
+                )
+            )
         return results
 
     def get_trace(self, trace_id: str) -> TraceDetail | None:
@@ -102,9 +107,7 @@ class TraceDataSource:
             trace = self.manager.get_trace(summary.trace_id)
             if trace is None:
                 continue
-            has_agent = any(
-                agent_id in s.name for s in trace.spans
-            )
+            has_agent = any(agent_id in s.name for s in trace.spans)
             if has_agent:
                 results.append(summary)
                 if len(results) >= limit:

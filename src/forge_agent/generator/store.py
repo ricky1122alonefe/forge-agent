@@ -23,9 +23,8 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from forge_agent.generator.manifest import AgentManifestEntry, AgentVersionMeta, Manifest
 
@@ -196,6 +195,7 @@ class FileCodeStore:
 
     def activate(self, agent_id: str, version: str) -> None:
         from forge_agent.exceptions import AgentNotFoundError, VersionNotFoundError
+
         entry = self._manifest.agents.get(agent_id)
         if not entry:
             raise AgentNotFoundError(agent_id)
@@ -207,6 +207,7 @@ class FileCodeStore:
     def rollback(self, agent_id: str) -> str:
         """Roll back to the previous version. Returns the new active version."""
         from forge_agent.exceptions import AgentNotFoundError, VersionError
+
         entry = self._manifest.agents.get(agent_id)
         if not entry:
             raise AgentNotFoundError(agent_id)
@@ -243,6 +244,7 @@ class FileCodeStore:
             return
         if len(entry.versions) <= 1:
             from forge_agent.exceptions import VersionError
+
             raise VersionError(
                 f"Cannot delete the only version of {agent_id!r}.",
                 hint="Archive the whole agent instead: forge-agent archive {agent_id}",
@@ -260,4 +262,5 @@ class FileCodeStore:
 
 def _now_iso() -> str:
     from datetime import datetime, timezone
+
     return datetime.now(timezone.utc).isoformat()

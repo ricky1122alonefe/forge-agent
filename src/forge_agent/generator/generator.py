@@ -13,16 +13,13 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 from forge_agent.generator.prompt_provider import (
-    DefaultPromptProvider,
     PromptProvider,
     get_prompt_provider,
 )
 from forge_agent.generator.prompts import (
     build_user_prompt,
-    get_system_prompt,
 )
 from forge_agent.generator.requirements import AgentRequirements
 from forge_agent.generator.validator import ContractValidator, ValidationResult
@@ -69,11 +66,11 @@ class CodeGenerator:
         prompt_provider: PromptProvider | None = None,
     ) -> None:
         """Args:
-            llm_chat: Async callable matching `LLMChatFn` signature.
-            validator: ContractValidator instance.
-            max_attempts: How many times to retry on validation failure.
-            default_model: Default model name to pass to the LLM.
-            prompt_provider: Pluggable prompt source; defaults to DefaultPromptProvider.
+        llm_chat: Async callable matching `LLMChatFn` signature.
+        validator: ContractValidator instance.
+        max_attempts: How many times to retry on validation failure.
+        default_model: Default model name to pass to the LLM.
+        prompt_provider: Pluggable prompt source; defaults to DefaultPromptProvider.
         """
         self.llm_chat = llm_chat
         self.validator = validator or ContractValidator()
@@ -93,6 +90,7 @@ class CodeGenerator:
         for attempt in range(1, self.max_attempts + 1):
             # Load type-specific template as few-shot reference
             from forge_agent.generator.templates import get_template
+
             template = get_template(ctx.requirements.agent_type)
 
             user_prompt = build_user_prompt(
@@ -104,8 +102,7 @@ class CodeGenerator:
             )
             if last_error:
                 user_prompt += (
-                    f"\n\n⚠️ 上一次生成的代码有这些问题：\n{last_error}\n"
-                    f"请修复后重新输出完整代码。"
+                    f"\n\n⚠️ 上一次生成的代码有这些问题：\n{last_error}\n请修复后重新输出完整代码。"
                 )
 
             system_prompt = self.prompt_provider.get_system_prompt(ctx.requirements.agent_type)
@@ -115,7 +112,7 @@ class CodeGenerator:
             ]
             try:
                 response = await self.llm_chat(messages, temperature=0.1)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.exception("LLM call failed on attempt %d", attempt)
                 return GenerationResult(
                     success=False,

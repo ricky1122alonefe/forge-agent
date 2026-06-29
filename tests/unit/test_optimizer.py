@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock
 
 from forge_agent.core.capabilities import InMemoryPromptManager
 from forge_agent.learning.optimizer import EvolutionRecord, PromptOptimizer
@@ -23,10 +22,12 @@ def opt(pm):
 def opt_llm(pm):
     async def mock_chat(messages, **kwargs):
         return "Improved prompt template with better instructions."
+
     return PromptOptimizer(prompt_manager=pm, llm_chat=mock_chat)
 
 
 # ------------------------------------------------------------------ should_evolve
+
 
 class TestShouldEvolve:
     def test_needs_evolve_flag(self, opt):
@@ -64,6 +65,7 @@ class TestShouldEvolve:
 
 # ------------------------------------------------------------------ bump_version
 
+
 class TestBumpVersion:
     def test_auto_increment(self, opt, pm):
         pm.register("test.agent", "v1", "template v1")
@@ -89,6 +91,7 @@ class TestBumpVersion:
 
 
 # ------------------------------------------------------------------ record_reflection & analyze_trend
+
 
 class TestTrendAnalysis:
     def test_no_history(self, opt):
@@ -130,12 +133,13 @@ class TestTrendAnalysis:
 
     def test_max_history_limit(self, pm):
         opt = PromptOptimizer(prompt_manager=pm, max_history=5)
-        for i in range(20):
+        for _i in range(20):
             opt.record_reflection({"agent_id": "a", "score": 0.5})
         assert len(opt._reflection_history["a"]) == 5
 
 
 # ------------------------------------------------------------------ evolve
+
 
 class TestEvolve:
     @pytest.mark.asyncio
@@ -211,6 +215,7 @@ class TestEvolve:
 
 # ------------------------------------------------------------------ EvolutionRecord
 
+
 class TestEvolutionRecord:
     def test_to_dict(self):
         rec = EvolutionRecord(
@@ -230,6 +235,7 @@ class TestEvolutionRecord:
 
 
 # ------------------------------------------------------------------ get_history
+
 
 class TestGetHistory:
     def test_empty_history(self, opt):

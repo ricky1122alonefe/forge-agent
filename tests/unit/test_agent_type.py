@@ -8,14 +8,15 @@ Covers:
 - String serialization
 - from_string parsing
 """
+
 from __future__ import annotations
 
 import pytest
 
 from forge_agent.core.agent_type import AgentType
 
-
 # ------------------------------------------------------------------ Enum values
+
 
 def test_agent_type_has_five_types() -> None:
     """AgentType should have exactly 5 types."""
@@ -56,6 +57,7 @@ def test_agent_type_general() -> None:
 
 # ------------------------------------------------------------------ Description
 
+
 def test_description_scraper() -> None:
     """SCRAPER should have a description."""
     desc = AgentType.SCRAPER.description
@@ -95,6 +97,7 @@ def test_all_types_have_description() -> None:
 
 
 # ------------------------------------------------------------------ Use cases
+
 
 def test_use_cases_scraper() -> None:
     """SCRAPER should have use cases."""
@@ -139,6 +142,7 @@ def test_all_types_have_use_cases() -> None:
 
 # ------------------------------------------------------------------ Default
 
+
 def test_default_type() -> None:
     """Default type should be GENERAL."""
     assert AgentType.default() == AgentType.GENERAL
@@ -151,6 +155,7 @@ def test_default_is_general() -> None:
 
 
 # ------------------------------------------------------------------ String serialization
+
 
 def test_enum_is_string() -> None:
     """AgentType should be a string enum."""
@@ -173,6 +178,7 @@ def test_json_serialization() -> None:
 
 
 # ------------------------------------------------------------------ from_string
+
 
 def test_from_string_lowercase() -> None:
     """Should parse lowercase strings."""
@@ -227,6 +233,7 @@ def test_from_string_error_message() -> None:
 
 
 # ------------------------------------------------------------------ Enum behavior
+
 
 def test_enum_comparison() -> None:
     """Should support equality comparison."""

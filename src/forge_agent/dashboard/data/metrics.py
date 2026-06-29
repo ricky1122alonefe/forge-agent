@@ -20,6 +20,7 @@ class MetricsSnapshot:
 
     def to_dict(self) -> dict[str, Any]:
         from dataclasses import asdict
+
         return asdict(self)
 
     @property
@@ -44,7 +45,6 @@ class MetricsDataSource:
     def collector(self):
         """Lazy access to the global MetricsCollector."""
         if self._collector is None:
-            from forge_agent.observability.metrics import MetricsCollector
             # Use a module-level singleton pattern
             self._collector = _get_metrics_collector()
         return self._collector
@@ -68,5 +68,6 @@ def _get_metrics_collector():
     global _collector_instance
     if _collector_instance is None:
         from forge_agent.observability.metrics import MetricsCollector
+
         _collector_instance = MetricsCollector()
     return _collector_instance

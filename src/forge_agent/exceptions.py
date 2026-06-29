@@ -7,15 +7,16 @@ Every ForgeError carries:
 Usage::
 
     from forge_agent.exceptions import AgentNotFoundError
+
     raise AgentNotFoundError("my-agent", available=["a", "b"])
 """
 
 from __future__ import annotations
 
-
 # ---------------------------------------------------------------------------
 # Base
 # ---------------------------------------------------------------------------
+
 
 class ForgeError(Exception):
     """Base class for all forge-agent user-facing errors."""
@@ -39,12 +40,15 @@ class ForgeError(Exception):
 # Registration / lookup errors
 # ---------------------------------------------------------------------------
 
+
 class AgentNotFoundError(ForgeError, KeyError):
     """Raised when an agent_id is not found in the registry or store."""
 
     default_hint = "Run 'forge-agent list' to see registered agents."
 
-    def __init__(self, agent_id: str, *, available: list[str] | None = None, hint: str | None = None) -> None:
+    def __init__(
+        self, agent_id: str, *, available: list[str] | None = None, hint: str | None = None
+    ) -> None:
         msg = f"Agent {agent_id!r} not found."
         if available:
             msg += f" Available: {sorted(available)}"
@@ -89,6 +93,7 @@ class ToolDeniedError(ForgeError, PermissionError):
 # Version / store errors
 # ---------------------------------------------------------------------------
 
+
 class VersionError(ForgeError, ValueError):
     """Raised for version-related problems in CodeStore."""
 
@@ -110,6 +115,7 @@ class VersionNotFoundError(ForgeError, KeyError):
 # Configuration errors
 # ---------------------------------------------------------------------------
 
+
 class InvalidAgentTypeError(ForgeError, ValueError):
     """Raised when an invalid agent type string is provided."""
 
@@ -125,7 +131,9 @@ class ProviderNotConfiguredError(ForgeError, KeyError):
 
     default_hint = "Add the provider to your forge-agent config or set the API key env var."
 
-    def __init__(self, provider_id: str, *, available: list[str] | None = None, hint: str | None = None) -> None:
+    def __init__(
+        self, provider_id: str, *, available: list[str] | None = None, hint: str | None = None
+    ) -> None:
         msg = f"Provider {provider_id!r} not configured."
         if available:
             msg += f" Available: {available}"
@@ -136,6 +144,7 @@ class ProviderNotConfiguredError(ForgeError, KeyError):
 # ---------------------------------------------------------------------------
 # Prompt errors
 # ---------------------------------------------------------------------------
+
 
 class PromptNotFoundError(ForgeError, KeyError):
     """Raised when no prompt is found for an agent."""
@@ -172,11 +181,15 @@ class PromptFileNotFoundError(ForgeError, FileNotFoundError):
 # Pipeline errors
 # ---------------------------------------------------------------------------
 
+
 class PipelineNodeNotFoundError(ForgeError, KeyError):
     """Raised when a pipeline node is not found."""
 
     def __init__(self, node_id: str, *, hint: str | None = None) -> None:
-        super().__init__(f"Pipeline node {node_id!r} not found.", hint=hint or "Check node IDs in your pipeline definition.")
+        super().__init__(
+            f"Pipeline node {node_id!r} not found.",
+            hint=hint or "Check node IDs in your pipeline definition.",
+        )
         self.node_id = node_id
 
 
@@ -184,13 +197,17 @@ class DuplicateNodeError(ForgeError, ValueError):
     """Raised when a duplicate node_id is added to a pipeline."""
 
     def __init__(self, node_id: str, *, hint: str | None = None) -> None:
-        super().__init__(f"Duplicate pipeline node: {node_id!r}", hint=hint or "Each node must have a unique node_id.")
+        super().__init__(
+            f"Duplicate pipeline node: {node_id!r}",
+            hint=hint or "Each node must have a unique node_id.",
+        )
         self.node_id = node_id
 
 
 # ---------------------------------------------------------------------------
 # MCP errors
 # ---------------------------------------------------------------------------
+
 
 class MCPToolCallError(ForgeError, RuntimeError):
     """Raised when an MCP tool call fails."""
@@ -225,6 +242,7 @@ class MissingDependencyError(ForgeError, ImportError):
 # ---------------------------------------------------------------------------
 # File / path errors
 # ---------------------------------------------------------------------------
+
 
 class GeneratedDirNotFoundError(ForgeError, FileNotFoundError):
     """Raised when the generated_agents/ directory is missing."""

@@ -25,10 +25,10 @@ from forge_agent.exceptions import (
     VersionNotFoundError,
 )
 
-
 # ---------------------------------------------------------------------------
 # ForgeError base
 # ---------------------------------------------------------------------------
+
 
 class TestForgeError:
     def test_message_and_hint(self):
@@ -61,6 +61,7 @@ class TestForgeError:
 # AgentNotFoundError
 # ---------------------------------------------------------------------------
 
+
 class TestAgentNotFoundError:
     def test_basic(self):
         err = AgentNotFoundError("my-agent")
@@ -85,6 +86,7 @@ class TestAgentNotFoundError:
 # DuplicateRegistrationError
 # ---------------------------------------------------------------------------
 
+
 class TestDuplicateRegistrationError:
     def test_basic(self):
         err = DuplicateRegistrationError("dup-agent")
@@ -103,6 +105,7 @@ class TestDuplicateRegistrationError:
 # InvalidAgentTypeError
 # ---------------------------------------------------------------------------
 
+
 class TestInvalidAgentTypeError:
     def test_basic(self):
         err = InvalidAgentTypeError("bad", ["scraper", "monitor"])
@@ -115,16 +118,18 @@ class TestInvalidAgentTypeError:
 
     def test_hint_lists_types(self):
         err = InvalidAgentTypeError("x", ["a", "b"])
-        assert "a" in err.hint and "b" in err.hint
+        assert "a" in err.hint
+        assert "b" in err.hint
 
 
 # ---------------------------------------------------------------------------
 # Version errors
 # ---------------------------------------------------------------------------
 
+
 class TestVersionErrors:
     def test_version_error(self):
-        err = VersionError("no previous version")
+        VersionError("no previous version")
         assert issubclass(VersionError, ValueError)
         assert issubclass(VersionError, ForgeError)
 
@@ -140,6 +145,7 @@ class TestVersionErrors:
 # ---------------------------------------------------------------------------
 # Provider errors
 # ---------------------------------------------------------------------------
+
 
 class TestProviderNotConfiguredError:
     def test_basic(self):
@@ -158,6 +164,7 @@ class TestProviderNotConfiguredError:
 # ---------------------------------------------------------------------------
 # Prompt errors
 # ---------------------------------------------------------------------------
+
 
 class TestPromptErrors:
     def test_prompt_not_found(self):
@@ -183,6 +190,7 @@ class TestPromptErrors:
 # Pipeline errors
 # ---------------------------------------------------------------------------
 
+
 class TestPipelineErrors:
     def test_node_not_found(self):
         err = PipelineNodeNotFoundError("node-99")
@@ -200,6 +208,7 @@ class TestPipelineErrors:
 # ---------------------------------------------------------------------------
 # MCP errors
 # ---------------------------------------------------------------------------
+
 
 class TestMCPErrors:
     def test_tool_not_registered(self):
@@ -244,6 +253,7 @@ class TestMCPErrors:
 # File errors
 # ---------------------------------------------------------------------------
 
+
 class TestFileErrors:
     def test_generated_dir_not_found(self):
         err = GeneratedDirNotFoundError("/tmp/foo")
@@ -257,33 +267,42 @@ class TestFileErrors:
 # Integration: raise sites use ForgeError subclasses
 # ---------------------------------------------------------------------------
 
+
 class TestRaiseSites:
     """Verify that actual code paths raise ForgeError subclasses."""
 
     def test_registry_agent_not_found(self):
+        import asyncio
+
         from forge_agent.registry.registry import AgentRegistry
+
         # Reset singleton for clean test
         AgentRegistry._instance = None
         reg = AgentRegistry()
         with pytest.raises(AgentNotFoundError) as exc_info:
-            import asyncio
             asyncio.get_event_loop().run_until_complete(reg.get("nonexistent"))
         assert "nonexistent" in str(exc_info.value)
         # Cleanup
         AgentRegistry._instance = None
 
     def test_registry_duplicate(self):
-        from forge_agent.registry.registry import AgentRegistry
         from forge_agent.core.base import BaseAgent
+        from forge_agent.registry.registry import AgentRegistry
 
         AgentRegistry._instance = None
         reg = AgentRegistry()
 
         class FakeAgent(BaseAgent):
             agent_id = "test-dup-t33"
-            async def observe(self, ctx): return {}
-            async def decide(self, ctx, obs): return {}
-            async def act(self, ctx, decision): return {}
+
+            async def observe(self, ctx):
+                return {}
+
+            async def decide(self, ctx, obs):
+                return {}
+
+            async def act(self, ctx, decision):
+                return {}
 
         reg.register(FakeAgent)
         with pytest.raises(DuplicateRegistrationError):
@@ -292,11 +311,13 @@ class TestRaiseSites:
 
     def test_agent_type_invalid(self):
         from forge_agent.core.agent_type import AgentType
+
         with pytest.raises(InvalidAgentTypeError):
             AgentType.from_string("nonexistent_type")
 
     def test_pipeline_duplicate_node(self):
-        from forge_agent.pipeline.pipeline import Pipeline, PipelineNode, NodeType
+        from forge_agent.pipeline.pipeline import NodeType, Pipeline, PipelineNode
+
         p = Pipeline(pipeline_id="test")
         node = PipelineNode(node_id="n1", node_type=NodeType.FUNCTION)
         p.add_node(node)
@@ -305,18 +326,23 @@ class TestRaiseSites:
 
     def test_pipeline_node_not_found(self):
         from forge_agent.pipeline.pipeline import Pipeline
+
         p = Pipeline(pipeline_id="test")
         with pytest.raises(PipelineNodeNotFoundError):
             p.add_edge("a", "b")
 
     def test_gateway_tool_not_registered(self):
+        import asyncio
+
         from forge_agent.mcp.gateway import MCPGateway
+
         gw = MCPGateway()
         with pytest.raises(ToolNotRegisteredError):
-            import asyncio
             asyncio.get_event_loop().run_until_complete(gw.call("nonexistent"))
 
     def test_gateway_tool_denied(self):
+        import asyncio
+
         from forge_agent.mcp.gateway import MCPGateway
         from forge_agent.mcp.permissions import PermissionPolicy
 
@@ -328,13 +354,13 @@ class TestRaiseSites:
         policy = PermissionPolicy().deny("blocked_tool", reason="blocked for testing")
         gw.register_tool("blocked_tool", dummy, policy=policy)
         with pytest.raises(ToolDeniedError):
-            import asyncio
             asyncio.get_event_loop().run_until_complete(gw.call("blocked_tool"))
 
     def test_scheduler_duplicate_task(self):
+        from forge_agent.core.context import AgentContext
         from forge_agent.scheduler.scheduler import Scheduler
         from forge_agent.scheduler.tasks import ScheduleTask
-        from forge_agent.core.context import AgentContext
+
         s = Scheduler()
         ctx = AgentContext(scope_id="s1", config={})
         task = ScheduleTask(task_id="t1", agent_id="a1", context=ctx)
@@ -344,12 +370,14 @@ class TestRaiseSites:
 
     def test_store_activate_not_found(self, tmp_path):
         from forge_agent.generator.store import FileCodeStore
+
         store = FileCodeStore(tmp_path)
         with pytest.raises(AgentNotFoundError):
             store.activate("nonexistent", "v1")
 
     def test_store_activate_version_not_found(self, tmp_path):
         from forge_agent.generator.store import FileCodeStore
+
         store = FileCodeStore(tmp_path)
         store.save("agent1", "print('hello')")
         with pytest.raises(VersionNotFoundError):
@@ -357,6 +385,7 @@ class TestRaiseSites:
 
     def test_store_rollback_no_previous(self, tmp_path):
         from forge_agent.generator.store import FileCodeStore
+
         store = FileCodeStore(tmp_path)
         store.save("agent1", "print('v1')")
         with pytest.raises(VersionError):
@@ -364,6 +393,7 @@ class TestRaiseSites:
 
     def test_store_delete_only_version(self, tmp_path):
         from forge_agent.generator.store import FileCodeStore
+
         store = FileCodeStore(tmp_path)
         store.save("agent1", "print('v1')")
         with pytest.raises(VersionError):
@@ -371,22 +401,26 @@ class TestRaiseSites:
 
     def test_prompt_store_not_found(self, tmp_path):
         from forge_agent.prompt.store import FilePromptStore
+
         ps = FilePromptStore(tmp_path)
         with pytest.raises(PromptNotFoundError):
             ps.get("nonexistent")
 
     def test_prompt_store_file_not_found(self, tmp_path):
         from forge_agent.prompt.store import FilePromptStore
+
         ps = FilePromptStore(tmp_path)
         ps.register("agent1", "v1", "Hello {name}")
         # Delete the file to trigger PromptFileNotFoundError
         import os
+
         os.unlink(tmp_path / "agent1" / "v1.j2")
         with pytest.raises(PromptFileNotFoundError):
             ps.get("agent1", version="v1")
 
     def test_prompt_store_missing_variable(self, tmp_path):
         from forge_agent.prompt.store import FilePromptStore
+
         ps = FilePromptStore(tmp_path)
         ps.register("agent1", "v1", "Hello {name}")
         with pytest.raises(PromptVariableError):
@@ -394,12 +428,14 @@ class TestRaiseSites:
 
     def test_capabilities_prompt_not_found(self):
         from forge_agent.core.capabilities import InMemoryPromptManager
+
         pm = InMemoryPromptManager()
         with pytest.raises(PromptNotFoundError):
             pm.get("nonexistent")
 
     def test_capabilities_missing_variable(self):
         from forge_agent.core.capabilities import InMemoryPromptManager
+
         pm = InMemoryPromptManager()
         pm.register("a1", "v1", "Hello {name}")
         with pytest.raises(PromptVariableError):
@@ -407,6 +443,7 @@ class TestRaiseSites:
 
     def test_helpers_generated_dir_not_found(self, tmp_path):
         from forge_agent.cli._helpers import get_store
+
         with pytest.raises(GeneratedDirNotFoundError):
             get_store(tmp_path)
 
@@ -415,51 +452,58 @@ class TestRaiseSites:
 # All ForgeError subclasses are catchable as ForgeError
 # ---------------------------------------------------------------------------
 
+
 class TestCatchAsForgeError:
     """All custom exceptions should be catchable via `except ForgeError`."""
 
-    @pytest.mark.parametrize("exc_class,args", [
-        (AgentNotFoundError, ("x",)),
-        (DuplicateRegistrationError, ("x",)),
-        (InvalidAgentTypeError, ("x", ["a"])),
-        (VersionError, ("msg",)),
-        (VersionNotFoundError, ("x", "v1")),
-        (ProviderNotConfiguredError, ("x",)),
-        (PromptNotFoundError, ("x",)),
-        (PromptVariableError, ("x", "v")),
-        (PromptFileNotFoundError, ("/p",)),
-        (PipelineNodeNotFoundError, ("x",)),
-        (DuplicateNodeError, ("x",)),
-        (ToolNotRegisteredError, ("x",)),
-        (ToolDeniedError, ("x",)),
-        (MCPToolCallError, ("x", "r")),
-        (MCPNotConnectedError, ()),
-        (MissingDependencyError, ("pkg", "ext")),
-        (GeneratedDirNotFoundError, ("/p",)),
-    ])
+    @pytest.mark.parametrize(
+        ("exc_class", "args"),
+        [
+            (AgentNotFoundError, ("x",)),
+            (DuplicateRegistrationError, ("x",)),
+            (InvalidAgentTypeError, ("x", ["a"])),
+            (VersionError, ("msg",)),
+            (VersionNotFoundError, ("x", "v1")),
+            (ProviderNotConfiguredError, ("x",)),
+            (PromptNotFoundError, ("x",)),
+            (PromptVariableError, ("x", "v")),
+            (PromptFileNotFoundError, ("/p",)),
+            (PipelineNodeNotFoundError, ("x",)),
+            (DuplicateNodeError, ("x",)),
+            (ToolNotRegisteredError, ("x",)),
+            (ToolDeniedError, ("x",)),
+            (MCPToolCallError, ("x", "r")),
+            (MCPNotConnectedError, ()),
+            (MissingDependencyError, ("pkg", "ext")),
+            (GeneratedDirNotFoundError, ("/p",)),
+        ],
+    )
     def test_catchable_as_forge_error(self, exc_class, args):
         with pytest.raises(ForgeError):
             raise exc_class(*args)
 
-    @pytest.mark.parametrize("exc_class,args", [
-        (AgentNotFoundError, ("x",)),
-        (DuplicateRegistrationError, ("x",)),
-        (InvalidAgentTypeError, ("x", ["a"])),
-        (VersionError, ("msg",)),
-        (VersionNotFoundError, ("x", "v1")),
-        (ProviderNotConfiguredError, ("x",)),
-        (PromptNotFoundError, ("x",)),
-        (PromptVariableError, ("x", "v")),
-        (PromptFileNotFoundError, ("/p",)),
-        (PipelineNodeNotFoundError, ("x",)),
-        (DuplicateNodeError, ("x",)),
-        (ToolNotRegisteredError, ("x",)),
-        (ToolDeniedError, ("x",)),
-        (MCPToolCallError, ("x", "r")),
-        (MCPNotConnectedError, ()),
-        (MissingDependencyError, ("pkg", "ext")),
-        (GeneratedDirNotFoundError, ("/p",)),
-    ])
+    @pytest.mark.parametrize(
+        ("exc_class", "args"),
+        [
+            (AgentNotFoundError, ("x",)),
+            (DuplicateRegistrationError, ("x",)),
+            (InvalidAgentTypeError, ("x", ["a"])),
+            (VersionError, ("msg",)),
+            (VersionNotFoundError, ("x", "v1")),
+            (ProviderNotConfiguredError, ("x",)),
+            (PromptNotFoundError, ("x",)),
+            (PromptVariableError, ("x", "v")),
+            (PromptFileNotFoundError, ("/p",)),
+            (PipelineNodeNotFoundError, ("x",)),
+            (DuplicateNodeError, ("x",)),
+            (ToolNotRegisteredError, ("x",)),
+            (ToolDeniedError, ("x",)),
+            (MCPToolCallError, ("x", "r")),
+            (MCPNotConnectedError, ()),
+            (MissingDependencyError, ("pkg", "ext")),
+            (GeneratedDirNotFoundError, ("/p",)),
+        ],
+    )
     def test_all_have_friendly(self, exc_class, args):
         err = exc_class(*args)
         text = err.friendly()

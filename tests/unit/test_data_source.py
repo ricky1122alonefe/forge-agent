@@ -10,7 +10,7 @@ import pytest
 from forge_agent.data.source import DataSource, DataSourceConfig
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_httpx():
     """Patch httpx.AsyncClient so network calls are never made."""
     response = MagicMock()
@@ -25,7 +25,7 @@ def mock_httpx():
         yield response
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_fetch_json(mock_httpx: AsyncMock) -> None:
     """JSON API source should return parsed JSON."""
     mock_httpx.json.return_value = {"home": "Arsenal", "away": "Liverpool"}
@@ -42,7 +42,7 @@ async def test_fetch_json(mock_httpx: AsyncMock) -> None:
     assert result["away"] == "Liverpool"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_fetch_html(mock_httpx: AsyncMock) -> None:
     """HTML source should extract fields via CSS selectors."""
     pytest.importorskip("bs4", reason="beautifulsoup4 not installed")
@@ -77,7 +77,7 @@ async def test_fetch_html(mock_httpx: AsyncMock) -> None:
     assert result["fields"]["missing"] == "n/a"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_fetch_rss(mock_httpx: AsyncMock) -> None:
     """RSS source should parse feed items."""
     mock_httpx.text = """<?xml version="1.0"?>
@@ -115,7 +115,7 @@ async def test_fetch_rss(mock_httpx: AsyncMock) -> None:
     assert result["items"][1]["title"] == "Liverpool lineup"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_fetch_custom() -> None:
     """Custom source should call the provided fetcher."""
 
@@ -135,7 +135,7 @@ async def test_fetch_custom() -> None:
     assert result["source_id"] == "test.custom"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_fetch_mock() -> None:
     """Mock source should return the configured payload."""
     config = DataSourceConfig(
@@ -148,7 +148,7 @@ async def test_fetch_mock() -> None:
     assert result["data"] == "hello"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_fetch_no_urls() -> None:
     """Fetching a non-mock source with no URLs should report an error."""
     config = DataSourceConfig(source_id="test.empty", source_type="json_api")

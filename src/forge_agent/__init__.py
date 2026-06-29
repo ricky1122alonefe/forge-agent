@@ -33,8 +33,8 @@ from __future__ import annotations
 
 from forge_agent.__version__ import __version__
 from forge_agent.core.base import BaseAgent
-from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.enums import (
     Action,
     AgentStatus,
@@ -57,49 +57,49 @@ from forge_agent.exceptions import (
     VersionError,
     VersionNotFoundError,
 )
+from forge_agent.pipeline.engine import PipelineEngine
+from forge_agent.pipeline.pipeline import Pipeline, PipelineNode
 from forge_agent.registry.decorators import register_agent
 from forge_agent.registry.registry import AgentRegistry, get_registry
 from forge_agent.scheduler.scheduler import Scheduler, ScheduleResult, ScheduleTask
-from forge_agent.pipeline.pipeline import Pipeline, PipelineNode
-from forge_agent.pipeline.engine import PipelineEngine
 
 __all__ = [
-    # Version
-    "__version__",
-    # Core abstractions
-    "BaseAgent",
-    "AgentContext",
-    "AgentReport",
-    "AgentBoard",
     "Action",
-    "AgentStatus",
-    "Verdict",
+    "AgentBoard",
+    "AgentContext",
+    "AgentNotFoundError",
     # Registry
     "AgentRegistry",
-    "get_registry",
-    "register_agent",
-    # Scheduler
-    "Scheduler",
-    "ScheduleResult",
-    "ScheduleTask",
-    # Pipeline
-    "Pipeline",
-    "PipelineNode",
-    "PipelineEngine",
+    "AgentReport",
+    "AgentStatus",
+    # Core abstractions
+    "BaseAgent",
+    "DuplicateRegistrationError",
     # Exceptions
     "ForgeError",
-    "AgentNotFoundError",
-    "DuplicateRegistrationError",
     "InvalidAgentTypeError",
-    "VersionError",
-    "VersionNotFoundError",
-    "ProviderNotConfiguredError",
+    "MCPNotConnectedError",
+    "MCPToolCallError",
+    "MissingDependencyError",
+    # Pipeline
+    "Pipeline",
+    "PipelineEngine",
+    "PipelineNode",
+    "PipelineNodeNotFoundError",
     "PromptNotFoundError",
     "PromptVariableError",
-    "PipelineNodeNotFoundError",
-    "ToolNotRegisteredError",
+    "ProviderNotConfiguredError",
+    "ScheduleResult",
+    "ScheduleTask",
+    # Scheduler
+    "Scheduler",
     "ToolDeniedError",
-    "MCPToolCallError",
-    "MCPNotConnectedError",
-    "MissingDependencyError",
+    "ToolNotRegisteredError",
+    "Verdict",
+    "VersionError",
+    "VersionNotFoundError",
+    # Version
+    "__version__",
+    "get_registry",
+    "register_agent",
 ]

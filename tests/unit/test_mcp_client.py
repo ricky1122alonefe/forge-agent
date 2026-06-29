@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from forge_agent.mcp.client import MCPClient, ToolInfo, has_mcp_sdk
+import pytest
 
+from forge_agent.mcp.client import MCPClient, ToolInfo, has_mcp_sdk
 
 # ====================================================================
 # ToolInfo tests
@@ -265,9 +265,11 @@ class TestMCPClientCallTool:
 
     async def test_call_tool_not_connected(self):
         client = MCPClient()
-        with patch("forge_agent.mcp.client._HAS_MCP_SDK", True):
-            with pytest.raises(ConnectionError, match="not connected"):
-                await client.call_tool("some_tool", {})
+        with (
+            patch("forge_agent.mcp.client._HAS_MCP_SDK", True),
+            pytest.raises(ConnectionError, match="not connected"),
+        ):
+            await client.call_tool("some_tool", {})
 
     async def test_call_tool_success(self):
         client = MCPClient()
@@ -341,17 +343,21 @@ class TestMCPClientCallTool:
         mock_session.call_tool.side_effect = Exception("timeout")
         client._session = mock_session
 
-        with patch("forge_agent.mcp.client._HAS_MCP_SDK", True):
-            with pytest.raises(RuntimeError, match="MCP tool 'slow_tool' call failed"):
-                await client.call_tool("slow_tool", {})
+        with (
+            patch("forge_agent.mcp.client._HAS_MCP_SDK", True),
+            pytest.raises(RuntimeError, match="MCP tool 'slow_tool' call failed"),
+        ):
+            await client.call_tool("slow_tool", {})
 
     async def test_call_tool_no_sdk_raises_import_error(self):
         client = MCPClient()
         client._session = MagicMock()  # Pretend connected
 
-        with patch("forge_agent.mcp.client._HAS_MCP_SDK", False):
-            with pytest.raises(ImportError, match="mcp.*package.*required"):
-                await client.call_tool("any_tool", {})
+        with (
+            patch("forge_agent.mcp.client._HAS_MCP_SDK", False),
+            pytest.raises(ImportError, match=r"mcp.*package.*required"),
+        ):
+            await client.call_tool("any_tool", {})
 
     async def test_call_tool_default_args(self):
         client = MCPClient()

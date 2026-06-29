@@ -58,7 +58,7 @@ class AgentContext:
             "metadata": self.metadata,
         }
 
-    def child(self, scope_id: str | None = None) -> "AgentContext":
+    def child(self, scope_id: str | None = None) -> AgentContext:
         """Create a child context (for nested Agent calls)."""
         return AgentContext(
             scope_id=scope_id or self.scope_id,

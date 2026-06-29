@@ -20,11 +20,10 @@ import json
 from typing import Any
 
 from forge_agent.core.base import BaseAgent
-from forge_agent.core.contracts import AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentReport
 from forge_agent.core.enums import Action, Verdict
 from forge_agent.registry.decorators import register_agent
-
 
 # v1 prompt: matches the original "intel agent" semantics.
 INTEL_PROMPT_V1 = """你是足球比赛情报分析 Agent。

@@ -5,7 +5,6 @@ from __future__ import annotations
 import shutil
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -136,14 +135,18 @@ class TestPipelineWithDataset:
         # Setup dataset
         store = LocalDatasetStore(self.tmpdir)
         ds = Dataset(name="product_examples", description="Test dataset")
-        ds.add_item(DatasetItem(
-            input="https://example.com/1",
-            output={"name": "Product 1", "price": 29.99},
-        ))
-        ds.add_item(DatasetItem(
-            input="https://example.com/2",
-            output={"name": "Product 2", "price": 49.99},
-        ))
+        ds.add_item(
+            DatasetItem(
+                input="https://example.com/1",
+                output={"name": "Product 1", "price": 29.99},
+            )
+        )
+        ds.add_item(
+            DatasetItem(
+                input="https://example.com/2",
+                output={"name": "Product 2", "price": 49.99},
+            )
+        )
         store.save(ds)
 
         registry = get_registry()
@@ -176,7 +179,7 @@ class TestAgent(BaseAgent):
                 model="mock-model",
             )
 
-        from forge_agent.generator.pipeline import GenerationPipeline, DeployMode
+        from forge_agent.generator.pipeline import DeployMode, GenerationPipeline
 
         pipeline = GenerationPipeline(llm_chat=mock_llm_chat)
         result = await pipeline.generate_and_deploy(

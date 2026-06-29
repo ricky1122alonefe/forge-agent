@@ -10,13 +10,14 @@ Verifies that:
 
 from __future__ import annotations
 
-import pytest
 from typing import Any, ClassVar
+
+import pytest
 
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.capabilities import InMemoryPromptManager, InMemoryStore
-from forge_agent.core.contracts import AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentReport
 from forge_agent.core.enums import Action, Verdict
 from forge_agent.learning.reflection import HeuristicReflector
 
@@ -84,17 +85,20 @@ class TestEvolveHighScore:
         agent.memory = InMemoryStore()
 
         # Store a high-quality execution result
-        await agent.memory.store("test.evolve_agent:run1", {
-            "agent_id": "test.evolve_agent",
-            "observation": {"data": "good"},
-            "decision": {"action": "good"},
-            "result": {
-                "verdict": "SAFE",
-                "confidence": 0.9,
-                "risk": 0.1,
-                "warnings": [],
+        await agent.memory.store(
+            "test.evolve_agent:run1",
+            {
+                "agent_id": "test.evolve_agent",
+                "observation": {"data": "good"},
+                "decision": {"action": "good"},
+                "result": {
+                    "verdict": "SAFE",
+                    "confidence": 0.9,
+                    "risk": 0.1,
+                    "warnings": [],
+                },
             },
-        })
+        )
 
         result = await agent.evolve(_make_ctx())
         assert result["evolved"] is False
@@ -111,17 +115,20 @@ class TestEvolveLowScore:
         agent.memory = InMemoryStore()
 
         # Store a poor execution result (high risk, low confidence, warnings)
-        await agent.memory.store("test.evolve_agent:run1", {
-            "agent_id": "test.evolve_agent",
-            "observation": {"data": "bad"},
-            "decision": {"action": "bad"},
-            "result": {
-                "verdict": "RISK",
-                "confidence": 0.2,
-                "risk": 0.9,
-                "warnings": ["warning1", "warning2", "warning3"],
+        await agent.memory.store(
+            "test.evolve_agent:run1",
+            {
+                "agent_id": "test.evolve_agent",
+                "observation": {"data": "bad"},
+                "decision": {"action": "bad"},
+                "result": {
+                    "verdict": "RISK",
+                    "confidence": 0.2,
+                    "risk": 0.9,
+                    "warnings": ["warning1", "warning2", "warning3"],
+                },
             },
-        })
+        )
 
         result = await agent.evolve(_make_ctx())
         assert result["evolved"] is True
@@ -144,18 +151,24 @@ class TestEvolveMultipleRuns:
         agent.memory = InMemoryStore()
 
         # Store multiple runs — last one is bad
-        await agent.memory.store("test.evolve_agent:run1", {
-            "agent_id": "test.evolve_agent",
-            "observation": {},
-            "decision": {},
-            "result": {"confidence": 0.9, "risk": 0.1, "warnings": []},
-        })
-        await agent.memory.store("test.evolve_agent:run2", {
-            "agent_id": "test.evolve_agent",
-            "observation": {},
-            "decision": {},
-            "result": {"confidence": 0.1, "risk": 0.9, "warnings": ["w1", "w2", "w3"]},
-        })
+        await agent.memory.store(
+            "test.evolve_agent:run1",
+            {
+                "agent_id": "test.evolve_agent",
+                "observation": {},
+                "decision": {},
+                "result": {"confidence": 0.9, "risk": 0.1, "warnings": []},
+            },
+        )
+        await agent.memory.store(
+            "test.evolve_agent:run2",
+            {
+                "agent_id": "test.evolve_agent",
+                "observation": {},
+                "decision": {},
+                "result": {"confidence": 0.1, "risk": 0.9, "warnings": ["w1", "w2", "w3"]},
+            },
+        )
 
         result = await agent.evolve(_make_ctx())
         # Should evolve because the most recent run is bad
@@ -178,12 +191,15 @@ class TestEvolveWithReflectionFailure:
         agent.reflector = FailingReflector()
         agent.memory = InMemoryStore()
 
-        await agent.memory.store("test.evolve_agent:run1", {
-            "agent_id": "test.evolve_agent",
-            "observation": {},
-            "decision": {},
-            "result": {},
-        })
+        await agent.memory.store(
+            "test.evolve_agent:run1",
+            {
+                "agent_id": "test.evolve_agent",
+                "observation": {},
+                "decision": {},
+                "result": {},
+            },
+        )
 
         result = await agent.evolve(_make_ctx())
         assert result["evolved"] is False

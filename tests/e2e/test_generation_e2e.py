@@ -17,6 +17,7 @@ across 10 different domains using real LLM (DeepSeek).
     # Skip e2e (no key)
     pytest tests/e2e/ -v  # auto-skip
 """
+
 from __future__ import annotations
 
 import os
@@ -57,8 +58,9 @@ DOMAINS = [
 
 # ----------------------------------------------------------------- Tests
 
+
 @pytest.mark.asyncio
-@pytest.mark.parametrize("domain,prompt", DOMAINS)
+@pytest.mark.parametrize(("domain", "prompt"), DOMAINS)
 async def test_generate_and_run(domain: str, prompt: str) -> None:
     """Full pipeline: generate agent code, validate, sandbox, produce report."""
     t0 = time.perf_counter()
@@ -83,9 +85,7 @@ async def test_generate_and_run(domain: str, prompt: str) -> None:
     elapsed = time.perf_counter() - t0
 
     # 3. Assertions
-    assert outcome.success is True, (
-        f"Pipeline failed for {domain}: {outcome.notes}"
-    )
+    assert outcome.success is True, f"Pipeline failed for {domain}: {outcome.notes}"
     assert outcome.generation is not None
     assert outcome.generation.success is True
     assert outcome.generation.source_code is not None
@@ -157,6 +157,7 @@ async def test_multiple_generations_independent() -> None:
 
 # ----------------------------------------------------------------- Performance baseline
 
+
 @pytest.mark.asyncio
 async def test_performance_baseline() -> None:
     """Record performance metrics for a single generation."""
@@ -172,7 +173,7 @@ async def test_performance_baseline() -> None:
     assert outcome.success is True
 
     # Log performance (for baseline tracking)
-    print(f"\nPerformance baseline:")
+    print("\nPerformance baseline:")
     print(f"  Total time: {total_time:.2f}s")
     if outcome.generation:
         print(f"  Generation attempts: {outcome.generation.attempts}")

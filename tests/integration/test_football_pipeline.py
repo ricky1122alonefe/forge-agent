@@ -16,11 +16,14 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
+from forge_agent.pipeline.pipeline import NodeType, Pipeline, PipelineNode  # noqa: E402
 
-def _build() -> "Pipeline":
-    from forge_agent.pipeline.pipeline import NodeType, Pipeline, PipelineNode
+
+def _build() -> Pipeline:
     p = Pipeline(pipeline_id="football.test")
-    p.add_node(PipelineNode("intel", NodeType.AGENT, agent_id="football.intel", next_nodes=["chief"]))
+    p.add_node(
+        PipelineNode("intel", NodeType.AGENT, agent_id="football.intel", next_nodes=["chief"])
+    )
     p.add_node(PipelineNode("chief", NodeType.AGENT, agent_id="generic.chief", next_nodes=["agg"]))
     p.add_node(PipelineNode("agg", NodeType.AGGREGATOR))
     return p
@@ -29,7 +32,6 @@ def _build() -> "Pipeline":
 @pytest.mark.asyncio
 async def test_football_pipeline_runs():
     from forge_agent.core.context import AgentContext
-    from forge_agent.pipeline.aggregator import Aggregator
     from forge_agent.pipeline.engine import PipelineEngine
     from forge_agent.registry.registry import get_registry
 

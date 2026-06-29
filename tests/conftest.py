@@ -34,9 +34,9 @@ def pytest_configure(config: pytest.Config) -> None:
 @pytest.fixture(autouse=True)
 def _autouse_clear():
     """Wipe the AgentRegistry & LLMRegistry before & after each test."""
-    from forge_agent.registry.registry import AgentRegistry
-    from forge_agent.llm.registry import LLMRegistry
     from forge_agent.llm import protocol as _llm_protocol
+    from forge_agent.llm.registry import LLMRegistry
+    from forge_agent.registry.registry import AgentRegistry
 
     inst = AgentRegistry._instance
     if inst is not None:
@@ -67,4 +67,4 @@ def _autouse_clear():
 @pytest.fixture
 def fresh_registry():
     """Explicit accessor (same effect as autouse)."""
-    yield
+    return

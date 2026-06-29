@@ -10,8 +10,9 @@ Tests use mocked MCPClient (no real MCP server needed) to verify:
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from forge_agent.mcp.client import MCPClient, ToolInfo
 from forge_agent.mcp.gateway import MCPGateway, get_gateway, reset_gateway
@@ -45,7 +46,9 @@ def _make_mock_client(
     tools = tools or [
         ToolInfo(name="read_file", description="Read a file", input_schema={"type": "object"}),
         ToolInfo(name="write_file", description="Write a file", input_schema={"type": "object"}),
-        ToolInfo(name="list_directory", description="List directory", input_schema={"type": "object"}),
+        ToolInfo(
+            name="list_directory", description="List directory", input_schema={"type": "object"}
+        ),
     ]
     call_results = call_results or {}
 
@@ -95,9 +98,11 @@ class TestGatewayConnectClient:
     async def test_connect_client_without_prefix(self):
         """Without server_prefix, tool names are used as-is."""
         gw = MCPGateway()
-        client = _make_mock_client([
-            ToolInfo(name="search", description="Search"),
-        ])
+        client = _make_mock_client(
+            [
+                ToolInfo(name="search", description="Search"),
+            ]
+        )
 
         registered = await gw.connect_client(client)
 
@@ -181,12 +186,16 @@ class TestGatewayMultipleClients:
         """Multiple clients can register tools in the same gateway."""
         gw = MCPGateway()
 
-        fs_client = _make_mock_client([
-            ToolInfo(name="read_file", description="Read"),
-        ])
-        search_client = _make_mock_client([
-            ToolInfo(name="web_search", description="Search"),
-        ])
+        fs_client = _make_mock_client(
+            [
+                ToolInfo(name="read_file", description="Read"),
+            ]
+        )
+        search_client = _make_mock_client(
+            [
+                ToolInfo(name="web_search", description="Search"),
+            ]
+        )
 
         await gw.connect_client(fs_client, server_prefix="fs")
         await gw.connect_client(search_client, server_prefix="tavily")
@@ -287,7 +296,10 @@ class TestGatewayFilesystemScenario:
             ToolInfo(
                 name="write_file",
                 description="Write file contents",
-                input_schema={"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}},
+                input_schema={
+                    "type": "object",
+                    "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
+                },
             ),
             ToolInfo(
                 name="list_directory",
@@ -297,12 +309,18 @@ class TestGatewayFilesystemScenario:
             ToolInfo(
                 name="move_file",
                 description="Move a file",
-                input_schema={"type": "object", "properties": {"source": {"type": "string"}, "destination": {"type": "string"}}},
+                input_schema={
+                    "type": "object",
+                    "properties": {"source": {"type": "string"}, "destination": {"type": "string"}},
+                },
             ),
             ToolInfo(
                 name="search_files",
                 description="Search for files",
-                input_schema={"type": "object", "properties": {"path": {"type": "string"}, "pattern": {"type": "string"}}},
+                input_schema={
+                    "type": "object",
+                    "properties": {"path": {"type": "string"}, "pattern": {"type": "string"}},
+                },
             ),
         ]
 

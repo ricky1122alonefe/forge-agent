@@ -64,7 +64,7 @@ def test_factory_creates_search_agent() -> None:
     assert cls.agent_id == "test.search"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_search_agent_mock_run() -> None:
     config = {
         "mission": {"mission_id": "test.search.mission", "name": "Test Search Mission"},

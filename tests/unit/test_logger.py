@@ -1,18 +1,18 @@
 """Tests for the unified logging system (structlog + contextvars)."""
+
 from __future__ import annotations
 
 import asyncio
 import io
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
 from forge_agent.observability import logger as log_mod
 
-
 # --------------------------------------------------------------- env helpers
+
 
 @pytest.fixture(autouse=True)
 def _reset_logger_state():
@@ -29,6 +29,7 @@ def _capture_stderr() -> io.StringIO:
 
 
 # --------------------------------------------------------------- configuration
+
 
 def test_configure_defaults_to_console():
     log_mod.configure_logging(level="INFO", json=False, force=True)
@@ -79,6 +80,7 @@ def test_configure_log_file_path(tmp_path: Path):
 
 # --------------------------------------------------------------- contextvars
 
+
 def test_bind_and_current_context():
     log_mod.bind_context(agent_id="a1", run_id="r1")
     assert log_mod.current_context() == {"agent_id": "a1", "run_id": "r1"}
@@ -106,6 +108,7 @@ def test_bind_skips_none_values():
 
 
 # --------------------------------------------------------------- JSON output
+
 
 def test_json_output_contains_required_keys(capsys):
     log_mod.configure_logging(level="INFO", json=True, force=True)
@@ -151,6 +154,7 @@ def test_json_output_includes_bound_context(capsys):
 
 # --------------------------------------------------------------- concurrency
 
+
 @pytest.mark.asyncio
 async def test_contextvars_isolated_across_concurrent_tasks(capsys):
     """Two concurrent tasks must NOT see each other's agent_id."""
@@ -188,6 +192,7 @@ async def test_contextvars_isolated_across_concurrent_tasks(capsys):
 
 # --------------------------------------------------------------- StructLogger
 
+
 def test_struct_logger_satisfies_protocol():
     from forge_agent.core.capabilities import LoggerProtocol
     from forge_agent.observability.logger import StructLogger
@@ -216,12 +221,13 @@ def test_struct_logger_includes_agent_id(capsys):
 
 # --------------------------------------------------------------- BaseAgent integration
 
+
 @pytest.mark.asyncio
 async def test_base_agent_run_binds_contextvars(capsys):
     """Inside an agent's run(), the bound logger must see agent_id + run_id."""
     from forge_agent.core.base import BaseAgent
-    from forge_agent.core.contracts import AgentReport
     from forge_agent.core.context import AgentContext
+    from forge_agent.core.contracts import AgentReport
     from forge_agent.core.enums import Verdict
 
     log_mod.configure_logging(level="INFO", json=True, force=True)
@@ -240,8 +246,10 @@ async def test_base_agent_run_binds_contextvars(capsys):
 
         async def act(self, ctx, dec):
             return AgentReport(
-                agent_id=self.agent_id, name=self.name,
-                verdict=Verdict.NEUTRAL, evidence=["ok"],
+                agent_id=self.agent_id,
+                name=self.name,
+                verdict=Verdict.NEUTRAL,
+                evidence=["ok"],
                 run_id=ctx.run_id,
             )
 

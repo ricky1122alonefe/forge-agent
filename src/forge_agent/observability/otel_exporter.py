@@ -46,10 +46,10 @@ _otel_status_module: Any = None
 _otel_attributes: Any = None
 
 try:
+    from opentelemetry import trace as _otel_span_mod
     from opentelemetry import trace as _otel_trace_mod
-    from opentelemetry import trace as _otel_span_mod  # noqa: F811
-    from opentelemetry.trace import StatusCode as _StatusCode
     from opentelemetry.trace import SpanKind as _SpanKind
+    from opentelemetry.trace import StatusCode as _StatusCode
 
     _otel_trace = _otel_trace_mod
     _otel_span_module = _otel_span_mod
@@ -157,7 +157,6 @@ class OTelExporter:
         kind = _get_otel_span_kind(span.span_type)
         ctx = None
         if parent_otel_span is not None and _OTEL_AVAILABLE:
-            from opentelemetry import context as otel_context
             from opentelemetry.trace import set_span_in_context
 
             ctx = set_span_in_context(parent_otel_span)

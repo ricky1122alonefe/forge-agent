@@ -11,7 +11,6 @@ This keeps app.py as a thin composition layer.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -26,7 +25,7 @@ def create_app(
     project_root: Path,
     host: str = "127.0.0.1",
     port: int = 8765,
-    auth_config: Optional[AuthConfig] = None,
+    auth_config: AuthConfig | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
 

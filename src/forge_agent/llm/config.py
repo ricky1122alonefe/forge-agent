@@ -71,7 +71,7 @@ class ProviderConfig:
     extra: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, pid: str, data: dict[str, Any]) -> "ProviderConfig":
+    def from_dict(cls, pid: str, data: dict[str, Any]) -> ProviderConfig:
         return cls(
             provider_id=pid,
             type=str(data.get("type", pid)),
@@ -82,10 +82,21 @@ class ProviderConfig:
             enabled=bool(data.get("enabled", True)),
             weight=float(data.get("weight", 1.0)),
             tags=list(data.get("tags", [])),
-            extra={k: v for k, v in data.items() if k not in {
-                "type", "model", "base_url", "api_key_env", "alt_envs",
-                "enabled", "weight", "tags",
-            }},
+            extra={
+                k: v
+                for k, v in data.items()
+                if k
+                not in {
+                    "type",
+                    "model",
+                    "base_url",
+                    "api_key_env",
+                    "alt_envs",
+                    "enabled",
+                    "weight",
+                    "tags",
+                }
+            },
         )
 
 
@@ -109,6 +120,7 @@ class LLMConfig:
         p = self.providers.get(self.primary_id)
         if p is None:
             from forge_agent.exceptions import ProviderNotConfiguredError
+
             raise ProviderNotConfiguredError(self.primary_id, available=list(self.providers.keys()))
         return p
 
@@ -133,9 +145,9 @@ def load_config(
     env_path = os.environ.get(ENV_CONFIG_PATH)
     if env_path:
         candidates.append(Path(env_path))
-    for s in (search_paths or [Path.cwd()]):
+    for s in search_paths or [Path.cwd()]:
         candidates.append(Path(s) / "llm_providers.json")
-    for s in (search_paths or [Path.cwd()]):
+    for s in search_paths or [Path.cwd()]:
         candidates.append(Path(s) / "llm_providers.example.json")
 
     data: dict[str, Any] = {}
@@ -170,4 +182,4 @@ def _parse_config(data: dict[str, Any], *, source: Path | None) -> LLMConfig:
         providers=providers,
         multi=dict(data.get("multi") or {}),
         source_path=source,
-)
+    )

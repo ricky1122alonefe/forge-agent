@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Type
+from typing import Any
 
 from forge_agent.core.base import BaseAgent
 
@@ -25,9 +25,9 @@ class AgentRegistry:
     Thread-safety: instance creation guarded by an asyncio.Lock.
     """
 
-    _instance: "AgentRegistry | None" = None
+    _instance: AgentRegistry | None = None
 
-    def __new__(cls) -> "AgentRegistry":
+    def __new__(cls) -> AgentRegistry:
         if cls._instance is None:
             instance = super().__new__(cls)
             instance._initialized = False
@@ -37,7 +37,7 @@ class AgentRegistry:
     def __init__(self) -> None:
         if self._initialized:
             return
-        self._classes: dict[str, Type[BaseAgent]] = {}
+        self._classes: dict[str, type[BaseAgent]] = {}
         self._instances: dict[str, BaseAgent] = {}
         self._metadata: dict[str, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
@@ -48,19 +48,17 @@ class AgentRegistry:
 
     def register(
         self,
-        agent_cls: Type[BaseAgent],
+        agent_cls: type[BaseAgent],
         *,
         domain: str | None = None,
         tags: list[str] | None = None,
         override: bool = False,
     ) -> None:
         from forge_agent.exceptions import DuplicateRegistrationError
+
         agent_id = getattr(agent_cls, "agent_id", None)
         if not agent_id:
-            raise ValueError(
-                f"Class {agent_cls.__name__} has no agent_id. "
-                "Set it as a ClassVar."
-            )
+            raise ValueError(f"Class {agent_cls.__name__} has no agent_id. Set it as a ClassVar.")
         if agent_id in self._classes and not override:
             raise DuplicateRegistrationError(agent_id)
         self._classes[agent_id] = agent_cls
@@ -78,7 +76,8 @@ class AgentRegistry:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    loop.create_task(self._instances[agent_id].shutdown())
+                    task = loop.create_task(self._instances[agent_id].shutdown())
+                    task.add_done_callback(lambda _: None)
             except RuntimeError:
                 pass
         self._classes.pop(agent_id, None)
@@ -103,6 +102,7 @@ class AgentRegistry:
                 return self._instances[agent_id]
             if agent_id not in self._classes:
                 from forge_agent.exceptions import AgentNotFoundError
+
                 raise AgentNotFoundError(agent_id, available=list(self._classes.keys()))
             instance = self._classes[agent_id](config=config)
             await instance.initialize()
@@ -117,9 +117,7 @@ class AgentRegistry:
     ) -> list[BaseAgent]:
         """Get many agents concurrently — useful for parallel pipeline stages."""
         return list(
-            await asyncio.gather(
-                *[self.get(aid, config=shared_config) for aid in agent_ids]
-            )
+            await asyncio.gather(*[self.get(aid, config=shared_config) for aid in agent_ids])
         )
 
     # ------------------------------------------------------------------ Query
@@ -152,7 +150,7 @@ class AgentRegistry:
         for inst in list(self._instances.values()):
             try:
                 await inst.shutdown()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception("Error shutting down %s", inst.agent_id)
         self._instances.clear()
 

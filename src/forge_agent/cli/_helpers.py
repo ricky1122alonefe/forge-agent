@@ -12,6 +12,7 @@ def get_store(project: Path) -> FileCodeStore:
     root = project / "generated_agents"
     if not root.is_dir():
         from forge_agent.exceptions import GeneratedDirNotFoundError
+
         raise GeneratedDirNotFoundError(str(root))
     return FileCodeStore(root)
 

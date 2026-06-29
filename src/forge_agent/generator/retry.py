@@ -17,19 +17,22 @@ Usage::
         generate_func, requirement="monitor stock prices"
     )
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------ Error types
+
 
 class RetryableError(str, Enum):
     """Errors that can be retried."""
@@ -55,6 +58,7 @@ class NonRetryableError(str, Enum):
 
 # ------------------------------------------------------------------ Config
 
+
 @dataclass
 class RetryConfig:
     """Configuration for retry behavior."""
@@ -76,6 +80,7 @@ class RetryConfig:
 
 
 # ------------------------------------------------------------------ Error classifier
+
 
 def classify_error(error: Exception | str) -> RetryableError | NonRetryableError:
     """Classify an error as retryable or non-retryable.
@@ -127,6 +132,7 @@ def classify_error(error: Exception | str) -> RetryableError | NonRetryableError
 
 
 # ------------------------------------------------------------------ Retry manager
+
 
 @dataclass
 class AttemptRecord:
@@ -199,7 +205,7 @@ class RetryManager:
 
                 return result, retry_log
 
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 duration_ms = (time.perf_counter() - t0) * 1000
                 error_type = classify_error(exc)
                 error_msg = str(exc)
@@ -235,9 +241,7 @@ class RetryManager:
                     break
 
                 # Exponential backoff
-                delay = self.config.initial_delay * (
-                    self.config.backoff_factor ** (attempt - 1)
-                )
+                delay = self.config.initial_delay * (self.config.backoff_factor ** (attempt - 1))
                 log.info(
                     "Attempt %d/%d failed (%s). Retrying in %.2fs...",
                     attempt,
@@ -253,6 +257,7 @@ class RetryManager:
 
 
 # ------------------------------------------------------------------ Rollback manager
+
 
 class RollbackManager:
     """Manages rollback to previous stable versions.
@@ -314,8 +319,4 @@ class RollbackManager:
         if not entry:
             return []
 
-        return [
-            v.version
-            for v in entry.versions
-            if v.validation_status == "passed"
-        ]
+        return [v.version for v in entry.versions if v.validation_status == "passed"]

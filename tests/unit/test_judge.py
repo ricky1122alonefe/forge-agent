@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
-
 from forge_agent.core.contracts import AgentBoard, AgentReport
-from forge_agent.core.enums import Action, Verdict
+from forge_agent.core.enums import Verdict
 from forge_agent.judge import (
     DimensionScore,
     IssueSeverity,
@@ -14,34 +12,33 @@ from forge_agent.judge import (
     JudgeReport,
 )
 
-
 # ------------------------------------------------------------------ Helpers
 
 
 def _good_report(**overrides) -> AgentReport:
-    defaults = dict(
-        agent_id="test.agent",
-        name="Test Agent",
-        domain="generic",
-        verdict=Verdict.LEAN_POSITIVE,
-        confidence=0.75,
-        risk=0.2,
-        evidence=["evidence 1", "evidence 2", "evidence 3"],
-    )
+    defaults = {
+        "agent_id": "test.agent",
+        "name": "Test Agent",
+        "domain": "generic",
+        "verdict": Verdict.LEAN_POSITIVE,
+        "confidence": 0.75,
+        "risk": 0.2,
+        "evidence": ["evidence 1", "evidence 2", "evidence 3"],
+    }
     defaults.update(overrides)
     return AgentReport(**defaults)
 
 
 def _bad_report(**overrides) -> AgentReport:
-    defaults = dict(
-        agent_id="test.bad",
-        name="Bad Agent",
-        domain="generic",
-        verdict=Verdict.RISK,
-        confidence=0.1,
-        risk=0.9,
-        evidence=[],
-    )
+    defaults = {
+        "agent_id": "test.bad",
+        "name": "Bad Agent",
+        "domain": "generic",
+        "verdict": Verdict.RISK,
+        "confidence": 0.1,
+        "risk": 0.9,
+        "evidence": [],
+    }
     defaults.update(overrides)
     return AgentReport(**defaults)
 
@@ -49,13 +46,13 @@ def _bad_report(**overrides) -> AgentReport:
 def _board(agents: list[AgentReport] | None = None, **overrides) -> AgentBoard:
     if agents is None:
         agents = [_good_report(), _good_report(agent_id="test.agent2")]
-    defaults = dict(
-        ok=True,
-        scope_id="scope_1",
-        scope_name="Test Scope",
-        generated_at="2026-01-01T00:00:00Z",
-        agents=agents,
-    )
+    defaults = {
+        "ok": True,
+        "scope_id": "scope_1",
+        "scope_name": "Test Scope",
+        "generated_at": "2026-01-01T00:00:00Z",
+        "agents": agents,
+    }
     defaults.update(overrides)
     return AgentBoard(**defaults)
 

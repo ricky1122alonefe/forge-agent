@@ -6,10 +6,7 @@ import argparse
 import json
 import os
 import sys
-from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from forge_agent.cli.cmd_doctor import (
     CheckResult,
@@ -22,10 +19,10 @@ from forge_agent.cli.cmd_doctor import (
     run,
 )
 
-
 # ---------------------------------------------------------------------------
 # CheckResult
 # ---------------------------------------------------------------------------
+
 
 class TestCheckResult:
     def test_ok(self):
@@ -51,6 +48,7 @@ class TestCheckResult:
 # Individual checks
 # ---------------------------------------------------------------------------
 
+
 class TestCheckPythonVersion:
     def test_current_version(self):
         r = _check_python_version()
@@ -60,6 +58,7 @@ class TestCheckPythonVersion:
 
     def test_old_version(self):
         import collections
+
         FakeVersion = collections.namedtuple("FakeVersion", ["major", "minor", "micro"])
         with patch.object(sys, "version_info", FakeVersion(3, 9, 0)):
             r = _check_python_version()
@@ -68,6 +67,7 @@ class TestCheckPythonVersion:
 
     def test_new_version(self):
         import collections
+
         FakeVersion = collections.namedtuple("FakeVersion", ["major", "minor", "micro"])
         with patch.object(sys, "version_info", FakeVersion(3, 12, 0)):
             r = _check_python_version()
@@ -198,6 +198,7 @@ class TestCheckLLMConfig:
 # Full run
 # ---------------------------------------------------------------------------
 
+
 class TestDoctorRun:
     def test_run_returns_int(self, tmp_path, capsys):
         args = argparse.Namespace(project=tmp_path, fix=False)
@@ -210,7 +211,7 @@ class TestDoctorRun:
     def test_run_with_generated_dir(self, tmp_path, capsys):
         (tmp_path / "generated_agents").mkdir()
         args = argparse.Namespace(project=tmp_path, fix=False)
-        result = run(args)
+        run(args)
         captured = capsys.readouterr()
         assert "generated_agents/" in captured.out
 

@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------ Messages
 
+
 @dataclass
 class ChatMessage:
     """A single message in a chat conversation.
@@ -47,19 +48,20 @@ class ChatMessage:
         return d
 
     @classmethod
-    def system(cls, content: str) -> "ChatMessage":
+    def system(cls, content: str) -> ChatMessage:
         return cls(role="system", content=content)
 
     @classmethod
-    def user(cls, content: str) -> "ChatMessage":
+    def user(cls, content: str) -> ChatMessage:
         return cls(role="user", content=content)
 
     @classmethod
-    def assistant(cls, content: str) -> "ChatMessage":
+    def assistant(cls, content: str) -> ChatMessage:
         return cls(role="assistant", content=content)
 
 
 # ------------------------------------------------------------------ Response
+
 
 @dataclass
 class LLMResponse:
@@ -91,6 +93,7 @@ class StreamChunk:
 
 
 # ------------------------------------------------------------------ Protocol
+
 
 @runtime_checkable
 class LLMClient(Protocol):
@@ -129,6 +132,7 @@ def _get_default_registry():  # type: ignore[no-untyped-def]
     global _DEFAULT_REGISTRY
     if _DEFAULT_REGISTRY is None:
         from forge_agent.llm.registry import LLMRegistry
+
         _DEFAULT_REGISTRY = LLMRegistry()
     return _DEFAULT_REGISTRY
 
@@ -203,7 +207,7 @@ async def multi_chat(
             r.latency_ms = (time.perf_counter() - t0) * 1000
             _record_usage(r, agent_id=agent_id, session_id=session_id)
             return r
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.warning("multi_chat: %s failed: %s", provider_id, exc)
             return LLMResponse(
                 content="",
@@ -212,7 +216,7 @@ async def multi_chat(
                 raw={"error": str(exc)},
             )
 
-    return await asyncio.gather(*[_one(c, p) for c, p in zip(clients, providers)])
+    return await asyncio.gather(*[_one(c, p) for c, p in zip(clients, providers, strict=False)])
 
 
 async def stream(
@@ -265,8 +269,9 @@ def _record_usage(
     """Auto-record token usage after an LLM call. Best-effort, never raises."""
     try:
         from forge_agent.llm.tracker import get_tracker
+
         tracker = get_tracker()
         if tracker.enabled:
             tracker.record(response, agent_id=agent_id, session_id=session_id)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.debug("Token tracking skipped: tracker not available")

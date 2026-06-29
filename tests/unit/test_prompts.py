@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from forge_agent.core.agent_type import AgentType
 from forge_agent.generator.prompts import (
     ANALYZER_SYSTEM,
@@ -15,7 +13,6 @@ from forge_agent.generator.prompts import (
     build_user_prompt,
     get_system_prompt,
 )
-
 
 # ------------------------------------------------------------------ get_system_prompt
 
@@ -46,6 +43,7 @@ class TestGetSystemPrompt:
         """If an unknown type is passed, should fall back to GENERAL_SYSTEM."""
         # Simulate by passing a non-enum value via dict.get fallback
         from forge_agent.generator.prompts import _TYPE_PROMPTS
+
         result = _TYPE_PROMPTS.get("nonexistent", GENERAL_SYSTEM)
         assert result is GENERAL_SYSTEM
 
@@ -85,7 +83,13 @@ class TestTypePromptContent:
 
     def test_all_prompts_contain_framework_contract(self) -> None:
         """All type prompts should include the base framework contract."""
-        for prompt in [SCRAPER_SYSTEM, ANALYZER_SYSTEM, MONITOR_SYSTEM, GENERATOR_SYSTEM, GENERAL_SYSTEM]:
+        for prompt in [
+            SCRAPER_SYSTEM,
+            ANALYZER_SYSTEM,
+            MONITOR_SYSTEM,
+            GENERATOR_SYSTEM,
+            GENERAL_SYSTEM,
+        ]:
             assert "BaseAgent" in prompt, f"Missing BaseAgent in prompt: {prompt[:50]}..."
             assert "agent_id" in prompt
             assert "AgentReport" in prompt

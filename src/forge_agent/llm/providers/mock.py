@@ -45,11 +45,13 @@ class MockClient(LLMClient):
         response: str | None = None,
         **kwargs: Any,
     ) -> LLMResponse:
-        self.calls.append({
-            "messages": [m.to_dict() if isinstance(m, ChatMessage) else m for m in messages],
-            "model": model or self.cfg.model,
-            "temperature": temperature,
-        })
+        self.calls.append(
+            {
+                "messages": [m.to_dict() if isinstance(m, ChatMessage) else m for m in messages],
+                "model": model or self.cfg.model,
+                "temperature": temperature,
+            }
+        )
         text = response or self._default
         # Rough token estimate (4 chars/token)
         tokens_in = sum(len(str(m)) for m in messages) // 4
@@ -75,7 +77,7 @@ class MockClient(LLMClient):
         chunk_size = 16
         for i in range(0, len(text), chunk_size):
             yield StreamChunk(
-                delta=text[i:i + chunk_size],
+                delta=text[i : i + chunk_size],
                 provider=self.provider_id,
                 model=model or self.cfg.model,
             )

@@ -8,8 +8,9 @@ Two reference implementations:
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Protocol
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class ReflectionSignal:
     """Output of a reflection pass — what the agent learns from a run."""
 
     agent_id: str
-    score: float               # 0.0 (terrible) ~ 1.0 (great)
+    score: float  # 0.0 (terrible) ~ 1.0 (great)
     notes: list[str]
     needs_evolve: bool = False
     suggested_prompt_diff: dict[str, Any] | None = None
@@ -70,7 +71,10 @@ class LLMReflector:
     """LLM-driven reflector. You provide the async chat function.
 
     Example::
-        async def my_chat(messages): return "..."
+        async def my_chat(messages):
+            return "..."
+
+
         reflector = LLMReflector(chat=my_chat, model="gpt-4o")
     """
 
@@ -92,6 +96,7 @@ class LLMReflector:
         result: dict[str, Any],
     ) -> dict[str, Any]:
         import json
+
         messages = [
             {"role": "system", "content": "You are a reflection engine. Output JSON only."},
             {
@@ -117,4 +122,9 @@ class LLMReflector:
             }
         except (json.JSONDecodeError, ValueError, TypeError):
             log.exception("LLM reflector returned non-JSON; falling back to neutral signal")
-            return {"agent_id": agent_id, "score": 0.5, "notes": ["(parse failed)"], "needs_evolve": False}
+            return {
+                "agent_id": agent_id,
+                "score": 0.5,
+                "notes": ["(parse failed)"],
+                "needs_evolve": False,
+            }

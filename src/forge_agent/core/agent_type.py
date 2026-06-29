@@ -9,8 +9,9 @@ Usage::
 
     agent_type = AgentType.SCRAPER
     print(agent_type.description)  # "数据抓取类 — 从网页/API 获取结构化数据"
-    print(agent_type.use_cases)    # ["爬取商品价格", "抓取新闻标题", ...]
+    print(agent_type.use_cases)  # ["爬取商品价格", "抓取新闻标题", ...]
 """
+
 from __future__ import annotations
 
 from enum import Enum
@@ -75,6 +76,7 @@ class AgentType(str, Enum):
             if member.value == normalized:
                 return member
         from forge_agent.exceptions import InvalidAgentTypeError
+
         raise InvalidAgentTypeError(value, [m.value for m in cls])
 
     @classmethod

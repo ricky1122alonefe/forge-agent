@@ -24,10 +24,16 @@ def run(args: argparse.Namespace) -> int:
         print("No generated agents yet. Run: forge-agent generate ...")
         return 0
 
-    print(f"AGENT ID                        TYPE       ACTIVE   VERSIONS   STATUS")
+    print("AGENT ID                        TYPE       ACTIVE   VERSIONS   STATUS")
     print("-" * 78)
     for aid, entry in manifest.agents.items():
-        status = "active" if not entry.get_active().deprecated else "deprecated" if entry.get_active().deprecated else "active"
+        status = (
+            "active"
+            if not entry.get_active().deprecated
+            else "deprecated"
+            if entry.get_active().deprecated
+            else "active"
+        )
         n = len(entry.versions)
         agent_type = entry.agent_type or "-"
         print(f"{aid:<32} {agent_type:<10} {entry.active_version:<8} {n:<10} {status}")

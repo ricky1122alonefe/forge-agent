@@ -18,8 +18,8 @@ from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Protocol, runtime_checkable
 
-
 # ------------------------------------------------------------------ 1. Logger
+
 
 @runtime_checkable
 class LoggerProtocol(Protocol):
@@ -31,8 +31,7 @@ class LoggerProtocol(Protocol):
         agent_id: str,
         msg: str,
         **extra: Any,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class StdLogger:
@@ -64,12 +63,12 @@ class StdLogger:
 
 # ------------------------------------------------------------------ 2. Searcher
 
+
 @runtime_checkable
 class SearcherProtocol(Protocol):
     """Pluggable search interface (web / knowledge / vector)."""
 
-    async def search(self, query: str, **kwargs: Any) -> list[dict[str, Any]]:
-        ...
+    async def search(self, query: str, **kwargs: Any) -> list[dict[str, Any]]: ...
 
 
 class NoopSearcher:
@@ -80,6 +79,7 @@ class NoopSearcher:
 
 
 # ------------------------------------------------------------------ 3. Memory
+
 
 @runtime_checkable
 class MemoryProtocol(Protocol):
@@ -116,6 +116,7 @@ class InMemoryStore:
 
 # ------------------------------------------------------------------ 4. Reflection
 
+
 @runtime_checkable
 class ReflectionProtocol(Protocol):
     """Reflect on an execution to produce learning signals."""
@@ -127,8 +128,7 @@ class ReflectionProtocol(Protocol):
         observation: dict[str, Any],
         decision: dict[str, Any],
         result: dict[str, Any],
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
 
 class NoopReflector:
@@ -152,12 +152,15 @@ class NoopReflector:
 
 # ------------------------------------------------------------------ 5. Prompt Manager
 
+
 @runtime_checkable
 class PromptManagerProtocol(Protocol):
     """Manages versioned, renderable prompts per agent."""
 
     def get(self, agent_id: str, *, version: str | None = None) -> str: ...
-    def render(self, agent_id: str, variables: dict[str, Any], *, version: str | None = None) -> str: ...
+    def render(
+        self, agent_id: str, variables: dict[str, Any], *, version: str | None = None
+    ) -> str: ...
     def list_versions(self, agent_id: str) -> list[str]: ...
     def register(self, agent_id: str, version: str, template: str) -> None: ...
 
@@ -175,6 +178,7 @@ class InMemoryPromptManager:
         versions = self._prompts.get(agent_id, {})
         if not versions:
             from forge_agent.exceptions import PromptNotFoundError
+
             raise PromptNotFoundError(agent_id)
         if version is None:
             return versions[max(versions.keys())]
@@ -192,6 +196,7 @@ class InMemoryPromptManager:
             return template.format(**variables)
         except KeyError as exc:
             from forge_agent.exceptions import PromptVariableError
+
             raise PromptVariableError(agent_id, str(exc.args[0])) from exc
 
     def list_versions(self, agent_id: str) -> list[str]:

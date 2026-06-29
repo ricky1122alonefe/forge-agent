@@ -11,6 +11,7 @@ This command does NOT configure the global logger — it is a pure
 reader of an existing file so the JSON it parses matches what was
 written.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,24 +28,28 @@ def add(sub: argparse._SubParsersAction) -> None:
         help="Show recent log entries (requires FORGE_LOG_FILE=1 to have written logs).",
     )
     p.add_argument(
-        "--file", "-f",
+        "--file",
+        "-f",
         type=Path,
         default=None,
         help="Log file path (default: ./logs/forge-agent.log)",
     )
     p.add_argument(
-        "--tail", "-n",
+        "--tail",
+        "-n",
         type=int,
         default=50,
         help="Number of recent lines to show (default: 50)",
     )
     p.add_argument(
-        "--follow", "-F",
+        "--follow",
+        "-F",
         action="store_true",
         help="Like tail -f: keep reading new lines as they arrive",
     )
     p.add_argument(
-        "--json", "-j",
+        "--json",
+        "-j",
         action="store_true",
         help="Output raw JSON lines (one per line, jq-friendly). Default: human-readable.",
     )
@@ -79,7 +84,7 @@ def _read_last_n_lines(path: Path, n: int) -> list[str]:
             # rest of it, so we can't safely emit it.
             nl = data.find(b"\n")
             if nl >= 0:
-                data = data[nl + 1:]
+                data = data[nl + 1 :]
         for piece in data.splitlines():
             lines.append(piece.decode("utf-8", errors="replace"))
     return list(lines)
@@ -94,7 +99,8 @@ def _format_human(entry: dict[str, Any]) -> str:
     run = entry.get("run_id", "")
     event = entry.get("event", "")
     extra_keys = {
-        k: v for k, v in entry.items()
+        k: v
+        for k, v in entry.items()
         if k not in {"timestamp", "level", "logger", "event", "agent_id", "run_id"}
     }
     head = f"{ts} {lvl} {logger}"

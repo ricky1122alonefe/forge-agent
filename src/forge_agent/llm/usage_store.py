@@ -17,6 +17,7 @@ Schema:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -64,7 +65,7 @@ class TokenUsage:
         return d
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "TokenUsage":
+    def from_dict(cls, d: dict[str, Any]) -> TokenUsage:
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
     @property
@@ -267,10 +268,8 @@ class SQLiteUsageStore:
     def _row_to_usage(row: tuple) -> TokenUsage:
         meta: dict[str, Any] = {}
         if row[9]:
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 meta = json.loads(row[9])
-            except (json.JSONDecodeError, TypeError):
-                pass
         return TokenUsage(
             id=row[0],
             provider=row[1],

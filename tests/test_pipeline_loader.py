@@ -101,7 +101,7 @@ def test_pipeline_loader_from_yaml(tmp_path: Path) -> None:
     assert loader.config.mission["mission_id"] == "test.pipeline"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_pipeline_loader_run() -> None:
     loader = PipelineLoader.from_dict(SAMPLE_CONFIG)
     board = await loader.run()
@@ -118,7 +118,7 @@ async def test_pipeline_loader_run() -> None:
     assert chief_report["verdict"] == "lean_positive"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_aggregate_odds() -> None:
     loader = PipelineLoader.from_dict(SAMPLE_CONFIG)
     records = await loader._fetch_and_normalize_sources()

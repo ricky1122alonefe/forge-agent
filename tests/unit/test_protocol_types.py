@@ -4,11 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from forge_agent.llm.protocol import LLMResponse
 from forge_agent.llm.protocol_types import LLMChatFn, LLMStreamFn
-
 
 # ------------------------------------------------------------------ Helpers
 
@@ -50,7 +47,9 @@ class TestLLMChatFn:
 
     def test_protocol_is_runtime_checkable(self):
         # LLMChatFn should be runtime_checkable
-        assert hasattr(LLMChatFn, "__protocol_attrs__") or hasattr(LLMChatFn, "_is_runtime_protocol")
+        assert hasattr(LLMChatFn, "__protocol_attrs__") or hasattr(
+            LLMChatFn, "_is_runtime_protocol"
+        )
 
 
 class TestLLMStreamFn:
@@ -59,4 +58,4 @@ class TestLLMStreamFn:
 
     def test_protocol_is_callable(self):
         # Should be a Protocol class
-        assert hasattr(LLMStreamFn, "__call__") or hasattr(LLMStreamFn, "__protocol_attrs__")
+        assert callable(LLMStreamFn) or hasattr(LLMStreamFn, "__protocol_attrs__")

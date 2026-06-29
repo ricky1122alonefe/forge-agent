@@ -81,12 +81,12 @@ class AgentBoard:
     """
 
     ok: bool
-    scope_id: str                              # e.g. fixture_id, ticker, request_id
-    scope_name: str                            # human label
-    generated_at: str                          # ISO8601
+    scope_id: str  # e.g. fixture_id, ticker, request_id
+    scope_name: str  # human label
+    generated_at: str  # ISO8601
     domain: str = "generic"
     agents: list[AgentReport] = field(default_factory=list)
-    hard_guards: list[str] = field(default_factory=list)   # hard rule violations
+    hard_guards: list[str] = field(default_factory=list)  # hard rule violations
     summary: dict[str, Any] = field(default_factory=dict)
     version: str = "0.1.0"
 

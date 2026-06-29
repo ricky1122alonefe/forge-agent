@@ -13,7 +13,9 @@ def add(sub: argparse._SubParsersAction) -> None:
 
     # list-tools
     p_list = sub_p.add_parser("list-tools", help="List tools from an MCP server")
-    p_list.add_argument("--stdio", nargs=argparse.REMAINDER, help="Command to start MCP server via stdio")
+    p_list.add_argument(
+        "--stdio", nargs=argparse.REMAINDER, help="Command to start MCP server via stdio"
+    )
     p_list.add_argument("--url", help="MCP server URL (SSE transport)")
     p_list.add_argument("--prefix", default=None, help="Server prefix for tool names")
     p_list.set_defaults(func=_list_tools)
@@ -22,7 +24,9 @@ def add(sub: argparse._SubParsersAction) -> None:
     p_call = sub_p.add_parser("call", help="Call an MCP tool")
     p_call.add_argument("tool", help="Tool name (e.g. fs.read_file)")
     p_call.add_argument("--args", "-a", default="{}", help="Tool arguments as JSON string")
-    p_call.add_argument("--stdio", nargs=argparse.REMAINDER, help="Command to start MCP server via stdio")
+    p_call.add_argument(
+        "--stdio", nargs=argparse.REMAINDER, help="Command to start MCP server via stdio"
+    )
     p_call.add_argument("--url", help="MCP server URL (SSE transport)")
     p_call.set_defaults(func=_call)
 
@@ -40,6 +44,7 @@ def _info(args: argparse.Namespace) -> int:
     if installed:
         try:
             import mcp
+
             print(f"MCP SDK version: {getattr(mcp, '__version__', 'unknown')}")
         except Exception:
             print("MCP SDK version: unknown")
@@ -54,7 +59,6 @@ def _list_tools(args: argparse.Namespace) -> int:
 
 async def _list_tools_async(args: argparse.Namespace) -> int:
     """List tools from an MCP server."""
-    from forge_agent.mcp.client import MCPClient
     from forge_agent.mcp.gateway import MCPGateway
 
     client = _build_client(args)
@@ -95,7 +99,6 @@ def _call(args: argparse.Namespace) -> int:
 
 async def _call_async(args: argparse.Namespace) -> int:
     """Call an MCP tool."""
-    from forge_agent.mcp.client import MCPClient
 
     client = _build_client(args)
     if client is None:

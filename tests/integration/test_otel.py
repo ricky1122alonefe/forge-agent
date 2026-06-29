@@ -7,11 +7,7 @@ export flow, install/uninstall hooks).
 
 from __future__ import annotations
 
-import sys
-import types
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from forge_agent.observability.otel_exporter import (
     OTelExporter,
@@ -31,7 +27,6 @@ from forge_agent.observability.trace import (
     TraceManager,
     reset_trace_manager,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -91,6 +86,7 @@ class TestIsOtelAvailable:
         """Should match whether opentelemetry is actually importable."""
         try:
             import opentelemetry  # noqa: F401
+
             assert is_otel_available() is True
         except ImportError:
             assert is_otel_available() is False
@@ -156,6 +152,7 @@ class TestGetOtelStatus:
     def test_returns_none_when_otel_unavailable(self):
         """When OTel is not installed, returns None."""
         import forge_agent.observability.otel_exporter as mod
+
         original = mod._OTEL_AVAILABLE
         try:
             mod._OTEL_AVAILABLE = False
@@ -166,6 +163,7 @@ class TestGetOtelStatus:
 
     def test_returns_none_for_all_statuses_when_unavailable(self):
         import forge_agent.observability.otel_exporter as mod
+
         original = mod._OTEL_AVAILABLE
         try:
             mod._OTEL_AVAILABLE = False
@@ -183,6 +181,7 @@ class TestGetOtelStatus:
 class TestGetOtelSpanKind:
     def test_returns_none_when_otel_unavailable(self):
         import forge_agent.observability.otel_exporter as mod
+
         original = mod._OTEL_AVAILABLE
         try:
             mod._OTEL_AVAILABLE = False
@@ -202,6 +201,7 @@ class TestOTelExporterNoOp:
 
     def test_export_span_returns_none_without_otel(self):
         import forge_agent.observability.otel_exporter as mod
+
         original = mod._OTEL_AVAILABLE
         try:
             mod._OTEL_AVAILABLE = False
@@ -214,6 +214,7 @@ class TestOTelExporterNoOp:
 
     def test_export_trace_returns_empty_without_otel(self):
         import forge_agent.observability.otel_exporter as mod
+
         original = mod._OTEL_AVAILABLE
         try:
             mod._OTEL_AVAILABLE = False
@@ -226,6 +227,7 @@ class TestOTelExporterNoOp:
 
     def test_export_traces_returns_zero_without_otel(self):
         import forge_agent.observability.otel_exporter as mod
+
         original = mod._OTEL_AVAILABLE
         try:
             mod._OTEL_AVAILABLE = False
@@ -337,7 +339,6 @@ class TestOTelExporterWithMock:
 
 
 class TestInstallUninstall:
-
     def setup_method(self):
         reset_trace_manager()
         uninstall_otel_exporter()
@@ -408,13 +409,14 @@ class TestInstallUninstall:
 
     def test_install_with_custom_tracer_provider(self):
         import forge_agent.observability.otel_exporter as mod
+
         original = mod._OTEL_AVAILABLE
         try:
             mod._OTEL_AVAILABLE = True
             mock_provider = MagicMock()
             mock_tracer = MagicMock()
             mock_provider.get_tracer.return_value = mock_tracer
-            exporter = install_otel_exporter(
+            install_otel_exporter(
                 service_name="custom",
                 tracer_provider=mock_provider,
             )
@@ -435,15 +437,18 @@ class TestSpanTypeMapping:
 
     def test_all_span_types_mapped(self):
         from forge_agent.observability.otel_exporter import _SPAN_TYPE_TO_OTEL_KIND
+
         for st in SpanType:
             assert st in _SPAN_TYPE_TO_OTEL_KIND, f"Missing mapping for {st}"
 
     def test_llm_maps_to_client(self):
         from forge_agent.observability.otel_exporter import _SPAN_TYPE_TO_OTEL_KIND
+
         assert _SPAN_TYPE_TO_OTEL_KIND[SpanType.LLM] == "CLIENT"
 
     def test_agent_maps_to_internal(self):
         from forge_agent.observability.otel_exporter import _SPAN_TYPE_TO_OTEL_KIND
+
         assert _SPAN_TYPE_TO_OTEL_KIND[SpanType.AGENT] == "INTERNAL"
 
 
@@ -455,23 +460,28 @@ class TestSpanTypeMapping:
 class TestStatusMapping:
     def test_all_statuses_mapped(self):
         from forge_agent.observability.otel_exporter import _STATUS_MAP
+
         for ss in SpanStatus:
             assert ss in _STATUS_MAP, f"Missing mapping for {ss}"
 
     def test_ok_maps_to_ok(self):
         from forge_agent.observability.otel_exporter import _STATUS_MAP
+
         assert _STATUS_MAP[SpanStatus.OK] == "OK"
 
     def test_error_maps_to_error(self):
         from forge_agent.observability.otel_exporter import _STATUS_MAP
+
         assert _STATUS_MAP[SpanStatus.ERROR] == "ERROR"
 
     def test_timeout_maps_to_error(self):
         from forge_agent.observability.otel_exporter import _STATUS_MAP
+
         assert _STATUS_MAP[SpanStatus.TIMEOUT] == "ERROR"
 
     def test_cancelled_maps_to_unset(self):
         from forge_agent.observability.otel_exporter import _STATUS_MAP
+
         assert _STATUS_MAP[SpanStatus.CANCELLED] == "UNSET"
 
 
@@ -481,7 +491,6 @@ class TestStatusMapping:
 
 
 class TestOtelIntegration:
-
     def setup_method(self):
         reset_trace_manager()
         uninstall_otel_exporter()

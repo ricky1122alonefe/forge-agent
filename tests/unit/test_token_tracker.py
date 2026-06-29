@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -11,8 +10,8 @@ from forge_agent.llm.protocol import LLMResponse
 from forge_agent.llm.tracker import TokenTracker, estimate_cost
 from forge_agent.llm.usage_store import SQLiteUsageStore, TokenUsage
 
-
 # ------------------------------------------------------------------ Fixtures
+
 
 @pytest.fixture
 def tmp_db(tmp_path: Path) -> Path:
@@ -52,6 +51,7 @@ def _make_response(
 
 
 # ------------------------------------------------------------------ TokenUsage dataclass
+
 
 class TestTokenUsage:
     def test_basic_creation(self):
@@ -108,6 +108,7 @@ class TestTokenUsage:
 
 # ------------------------------------------------------------------ SQLiteUsageStore
 
+
 class TestSQLiteUsageStore:
     def test_insert_and_query(self, store: SQLiteUsageStore):
         u = TokenUsage(
@@ -125,72 +126,121 @@ class TestSQLiteUsageStore:
         assert records[0].provider == "deepseek"
 
     def test_query_by_agent_id(self, store: SQLiteUsageStore):
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z", agent_id="stock.monitor",
-        ))
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=200, tokens_out=100, cost_usd=0.002,
-            timestamp="2026-06-27T10:01:00Z", agent_id="weather.check",
-        ))
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+                agent_id="stock.monitor",
+            )
+        )
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=200,
+                tokens_out=100,
+                cost_usd=0.002,
+                timestamp="2026-06-27T10:01:00Z",
+                agent_id="weather.check",
+            )
+        )
         records = store.query(agent_id="stock.monitor")
         assert len(records) == 1
         assert records[0].agent_id == "stock.monitor"
 
     def test_query_by_session_id(self, store: SQLiteUsageStore):
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z", session_id="gen_abc",
-        ))
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=200, tokens_out=100, cost_usd=0.002,
-            timestamp="2026-06-27T10:01:00Z", session_id="gen_xyz",
-        ))
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+                session_id="gen_abc",
+            )
+        )
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=200,
+                tokens_out=100,
+                cost_usd=0.002,
+                timestamp="2026-06-27T10:01:00Z",
+                session_id="gen_xyz",
+            )
+        )
         records = store.query(session_id="gen_abc")
         assert len(records) == 1
         assert records[0].session_id == "gen_abc"
 
     def test_query_by_provider(self, store: SQLiteUsageStore):
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z",
-        ))
-        store.insert(TokenUsage(
-            provider="openai", model="gpt-4",
-            tokens_in=200, tokens_out=100, cost_usd=0.01,
-            timestamp="2026-06-27T10:01:00Z",
-        ))
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+            )
+        )
+        store.insert(
+            TokenUsage(
+                provider="openai",
+                model="gpt-4",
+                tokens_in=200,
+                tokens_out=100,
+                cost_usd=0.01,
+                timestamp="2026-06-27T10:01:00Z",
+            )
+        )
         records = store.query(provider="openai")
         assert len(records) == 1
         assert records[0].provider == "openai"
 
     def test_query_by_time_range(self, store: SQLiteUsageStore):
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z",
-        ))
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=200, tokens_out=100, cost_usd=0.002,
-            timestamp="2026-06-27T12:00:00Z",
-        ))
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+            )
+        )
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=200,
+                tokens_out=100,
+                cost_usd=0.002,
+                timestamp="2026-06-27T12:00:00Z",
+            )
+        )
         records = store.query(since="2026-06-27T11:00:00Z")
         assert len(records) == 1
         assert records[0].tokens_in == 200
 
     def test_query_limit(self, store: SQLiteUsageStore):
         for i in range(10):
-            store.insert(TokenUsage(
-                provider="deepseek", model="deepseek-chat",
-                tokens_in=100, tokens_out=50, cost_usd=0.001,
-                timestamp=f"2026-06-27T10:{i:02d}:00Z",
-            ))
+            store.insert(
+                TokenUsage(
+                    provider="deepseek",
+                    model="deepseek-chat",
+                    tokens_in=100,
+                    tokens_out=50,
+                    cost_usd=0.001,
+                    timestamp=f"2026-06-27T10:{i:02d}:00Z",
+                )
+            )
         records = store.query(limit=5)
         assert len(records) == 5
 
@@ -199,16 +249,26 @@ class TestSQLiteUsageStore:
         assert records == []
 
     def test_summary_basic(self, store: SQLiteUsageStore):
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z",
-        ))
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=200, tokens_out=100, cost_usd=0.002,
-            timestamp="2026-06-27T10:01:00Z",
-        ))
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+            )
+        )
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=200,
+                tokens_out=100,
+                cost_usd=0.002,
+                timestamp="2026-06-27T10:01:00Z",
+            )
+        )
         s = store.summary()
         assert s["call_count"] == 2
         assert s["total_tokens_in"] == 300
@@ -217,16 +277,26 @@ class TestSQLiteUsageStore:
         assert abs(s["total_cost_usd"] - 0.003) < 1e-6
 
     def test_summary_group_by_provider(self, store: SQLiteUsageStore):
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z",
-        ))
-        store.insert(TokenUsage(
-            provider="openai", model="gpt-4",
-            tokens_in=200, tokens_out=100, cost_usd=0.01,
-            timestamp="2026-06-27T10:01:00Z",
-        ))
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+            )
+        )
+        store.insert(
+            TokenUsage(
+                provider="openai",
+                model="gpt-4",
+                tokens_in=200,
+                tokens_out=100,
+                cost_usd=0.01,
+                timestamp="2026-06-27T10:01:00Z",
+            )
+        )
         s = store.summary(group_by="provider")
         assert "by_provider" in s
         assert "deepseek" in s["by_provider"]
@@ -234,48 +304,75 @@ class TestSQLiteUsageStore:
         assert s["by_provider"]["openai"]["cost_usd"] > s["by_provider"]["deepseek"]["cost_usd"]
 
     def test_summary_with_filter(self, store: SQLiteUsageStore):
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z", agent_id="stock.monitor",
-        ))
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=200, tokens_out=100, cost_usd=0.002,
-            timestamp="2026-06-27T10:01:00Z", agent_id="weather.check",
-        ))
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+                agent_id="stock.monitor",
+            )
+        )
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=200,
+                tokens_out=100,
+                cost_usd=0.002,
+                timestamp="2026-06-27T10:01:00Z",
+                agent_id="weather.check",
+            )
+        )
         s = store.summary(agent_id="stock.monitor")
         assert s["call_count"] == 1
         assert s["total_tokens_in"] == 100
 
     def test_reset(self, store: SQLiteUsageStore):
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z",
-        ))
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+            )
+        )
         count = store.reset()
         assert count == 1
         assert store.query() == []
 
     def test_metadata_json_roundtrip(self, store: SQLiteUsageStore):
         meta = {"attempt": 2, "retry_reason": "validation_failed"}
-        store.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z",
-            metadata=meta,
-        ))
+        store.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+                metadata=meta,
+            )
+        )
         records = store.query()
         assert records[0].metadata == meta
 
     def test_persistence_across_instances(self, tmp_db: Path):
         store1 = SQLiteUsageStore(tmp_db)
-        store1.insert(TokenUsage(
-            provider="deepseek", model="deepseek-chat",
-            tokens_in=100, tokens_out=50, cost_usd=0.001,
-            timestamp="2026-06-27T10:00:00Z",
-        ))
+        store1.insert(
+            TokenUsage(
+                provider="deepseek",
+                model="deepseek-chat",
+                tokens_in=100,
+                tokens_out=50,
+                cost_usd=0.001,
+                timestamp="2026-06-27T10:00:00Z",
+            )
+        )
         store1.close()
         store2 = SQLiteUsageStore(tmp_db)
         records = store2.query()
@@ -284,6 +381,7 @@ class TestSQLiteUsageStore:
 
 
 # ------------------------------------------------------------------ estimate_cost
+
 
 class TestEstimateCost:
     def test_known_model(self):
@@ -308,6 +406,7 @@ class TestEstimateCost:
 
 
 # ------------------------------------------------------------------ TokenTracker
+
 
 class TestTokenTracker:
     def test_record_basic(self, tracker: TokenTracker):
@@ -373,12 +472,13 @@ class TestTokenTracker:
 
     def test_record_with_metadata(self, tracker: TokenTracker):
         resp = _make_response()
-        usage = tracker.record(resp, metadata={"attempt": 2})
+        tracker.record(resp, metadata={"attempt": 2})
         records = tracker.query()
         assert records[0].metadata == {"attempt": 2}
 
 
 # ------------------------------------------------------------------ Integration with llm.chat()
+
 
 class TestChatIntegration:
     """Test that llm.chat() auto-records token usage."""

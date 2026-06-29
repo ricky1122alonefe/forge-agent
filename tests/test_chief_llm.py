@@ -38,7 +38,7 @@ def _make_report(
     )
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_chief_weighted_vote_default() -> None:
     agent = ChiefAgent()
     reports = [
@@ -55,7 +55,7 @@ async def test_chief_weighted_vote_default() -> None:
     assert decision["recommended_action"] == "execute"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_chief_no_reports() -> None:
     agent = ChiefAgent()
     decision = await agent.decide(None, {"reports": [], "n_reports": 0})  # type: ignore[arg-type]
@@ -64,7 +64,7 @@ async def test_chief_no_reports() -> None:
     assert decision["recommended_action"] == "watch"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_chief_hard_risk_downgrade() -> None:
     agent = ChiefAgent({"hard_risk_threshold": 0.6})
     reports = [
@@ -77,7 +77,7 @@ async def test_chief_hard_risk_downgrade() -> None:
     assert any("hard risk" in g for g in decision["hard_guards"])
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_chief_llm_mock_mode() -> None:
     mock_response = (
         '{"verdict": "lean_positive", "confidence": 0.85, "risk": 0.15, '
@@ -104,7 +104,7 @@ async def test_chief_llm_mock_mode() -> None:
     assert decision["evidence"] == ["e1"]
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_chief_llm_mock_downgrade_with_hard_guard() -> None:
     """Even if LLM returns execute, hard guard must downgrade to cautious."""
     mock_response = (
@@ -129,7 +129,7 @@ async def test_chief_llm_mock_downgrade_with_hard_guard() -> None:
     assert "downgraded" in " ".join(decision.get("warnings", [])).lower()
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_chief_llm_parse_falls_back() -> None:
     agent = ChiefAgent(
         {
@@ -148,7 +148,7 @@ async def test_chief_llm_parse_falls_back() -> None:
     assert "llm_parse_error" in decision
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_chief_guard_rules_by_agent_and_risk() -> None:
     agent = ChiefAgent(
         {
@@ -180,7 +180,7 @@ async def test_chief_guard_rules_by_agent_and_risk() -> None:
     assert decision["recommended_action"] == "execute_cautious"
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_chief_guard_rules_downgrade_llm_execute() -> None:
     mock_response = (
         '{"verdict": "lean_positive", "confidence": 0.9, "risk": 0.1, '

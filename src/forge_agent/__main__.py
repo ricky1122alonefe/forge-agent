@@ -1,4 +1,5 @@
 """Allow `python -m forge_agent` to invoke the CLI."""
+
 from __future__ import annotations
 
 from forge_agent.cli import main

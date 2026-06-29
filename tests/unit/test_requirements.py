@@ -7,12 +7,11 @@ import pytest
 from forge_agent.core.agent_type import AgentType
 from forge_agent.generator.requirements import (
     AgentRequirements,
-    FieldSpec,
     RequirementsParser,
 )
 
-
 # ------------------------------------------------------------------ Helpers
+
 
 def _make_req(**overrides: object) -> AgentRequirements:
     defaults = {
@@ -26,6 +25,7 @@ def _make_req(**overrides: object) -> AgentRequirements:
 
 
 # ------------------------------------------------------------------ agent_type field
+
 
 class TestAgentTypeField:
     def test_default_is_general(self):
@@ -51,6 +51,7 @@ class TestAgentTypeField:
 
 # ------------------------------------------------------------------ to_dict
 
+
 class TestToDict:
     def test_includes_agent_type(self):
         req = _make_req(agent_type=AgentType.SCRAPER)
@@ -72,6 +73,7 @@ class TestToDict:
 
 # ------------------------------------------------------------------ to_prompt
 
+
 class TestToPrompt:
     def test_includes_type_line(self):
         req = _make_req(agent_type=AgentType.MONITOR)
@@ -91,6 +93,7 @@ class TestToPrompt:
 
 
 # ------------------------------------------------------------------ RequirementsParser heuristic
+
 
 class TestHeuristicParser:
     def setup_method(self):
@@ -126,6 +129,7 @@ class TestHeuristicParser:
 
 
 # ------------------------------------------------------------------ RequirementsParser._from_dict
+
 
 class TestFromDict:
     def setup_method(self):
@@ -188,6 +192,7 @@ class TestFromDict:
 
 
 # ------------------------------------------------------------------ Async parse
+
 
 class TestAsyncParse:
     @pytest.mark.asyncio

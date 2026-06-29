@@ -76,6 +76,7 @@ def estimate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
 
 # ------------------------------------------------------------------ Tracker
 
+
 class TokenTracker:
     """Global token consumption tracker.
 
@@ -83,9 +84,9 @@ class TokenTracker:
     querying, and summarizing LLM token usage.
     """
 
-    _instance: "TokenTracker | None" = None
+    _instance: TokenTracker | None = None
 
-    def __new__(cls, db_path: Path | str | None = None) -> "TokenTracker":
+    def __new__(cls, db_path: Path | str | None = None) -> TokenTracker:
         if cls._instance is None:
             inst = super().__new__(cls)
             inst._store = SQLiteUsageStore(db_path)
@@ -136,6 +137,7 @@ class TokenTracker:
             cost = estimate_cost(response.model, response.tokens_in, response.tokens_out)
 
         from datetime import datetime, timezone
+
         usage = TokenUsage(
             provider=response.provider,
             model=response.model,
@@ -149,7 +151,7 @@ class TokenTracker:
         )
         try:
             return self._store.insert(usage)
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("Failed to record token usage")
             return usage
 

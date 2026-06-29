@@ -15,7 +15,6 @@ from forge_agent.llm.config import ProviderConfig
 from forge_agent.llm.exceptions import (
     LLMAuthError,
     LLMError,
-    LLMNetworkError,
     LLMRateLimitError,
 )
 from forge_agent.llm.protocol import (
@@ -47,7 +46,9 @@ class AnthropicClient(LLMClient):
             return self._api_key
         envs = [self.cfg.api_key_env] if self.cfg.api_key_env else ["ANTHROPIC_API_KEY"]
         envs.extend(self.cfg.alt_envs)
-        resolved = self._key_manager.resolve(envs[0], alt_names=envs[1:], search_paths=[os.getcwd()])
+        resolved = self._key_manager.resolve(
+            envs[0], alt_names=envs[1:], search_paths=[os.getcwd()]
+        )
         if not resolved:
             raise LLMAuthError(
                 f"API key for {self.provider_id!r} not found. Tried: {envs}",
@@ -83,7 +84,7 @@ class AnthropicClient(LLMClient):
                 messages=msgs,
                 **{k: v for k, v in kwargs.items() if k not in ("model", "max_tokens")},
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             msg = str(exc).lower()
             if "auth" in msg or "api key" in msg:
                 raise LLMAuthError(str(exc), provider=self.provider_id) from exc
@@ -104,7 +105,70 @@ class AnthropicClient(LLMClient):
             raw={},
         )
 
-    async def stream(self, messages, **kwargs) -> AsyncIterator[StreamChunk]:
-        # TODO: implement streaming
-        yield StreamChunk(delta="", provider=self.provider_id, model=self.cfg.model, finish_reason="error")
-        return
+    async def stream(
+        self,
+        messages,
+        *,
+        model: str | None = None,
+        max_tokens: int = 1024,
+        **kwargs: Any,
+    ) -> AsyncIterator[StreamChunk]:
+        try:
+            from anthropic import AsyncAnthropic  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise LLMError(
+                "anthropic SDK not installed. Run: pip install anthropic",
+                provider=self.provider_id,
+            ) from exc
+        if self._client is None:
+            self._client = AsyncAnthropic(api_key=self._resolve_key())
+
+        # Normalize to Anthropic format (system extracted, rest = messages)
+        system = None
+        msgs: list[dict[str, Any]] = []
+        for m in messages:
+            d = m.to_dict() if isinstance(m, ChatMessage) else m
+            if d.get("role") == "system":
+                system = d["content"]
+            else:
+                msgs.append({"role": d["role"], "content": d["content"]})
+
+        try:
+            stream = await self._client.messages.create(
+                model=model or self.cfg.model,
+                max_tokens=max_tokens,
+                system=system or "",
+                messages=msgs,
+                stream=True,
+                **{k: v for k, v in kwargs.items() if k not in ("model", "max_tokens")},
+            )
+        except Exception as exc:
+            msg = str(exc).lower()
+            if "auth" in msg or "api key" in msg:
+                raise LLMAuthError(str(exc), provider=self.provider_id) from exc
+            if "rate" in msg:
+                raise LLMRateLimitError(str(exc), provider=self.provider_id) from exc
+            raise LLMError(str(exc), provider=self.provider_id) from exc
+
+        async for event in stream:
+            try:
+                # anthropic SDK streaming events: content_block_delta, message_stop, etc.
+                if event.type == "content_block_delta":
+                    delta = getattr(event.delta, "text", "") or ""
+                    yield StreamChunk(
+                        delta=delta,
+                        provider=self.provider_id,
+                        model=model or self.cfg.model,
+                        finish_reason=None,
+                        raw=event.model_dump() if hasattr(event, "model_dump") else {},
+                    )
+                elif event.type == "message_stop":
+                    yield StreamChunk(
+                        delta="",
+                        provider=self.provider_id,
+                        model=model or self.cfg.model,
+                        finish_reason="stop",
+                        raw=event.model_dump() if hasattr(event, "model_dump") else {},
+                    )
+            except (AttributeError, TypeError):
+                continue

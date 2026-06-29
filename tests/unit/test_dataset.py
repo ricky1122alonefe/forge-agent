@@ -6,14 +6,12 @@ import shutil
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from forge_agent.datasets import Dataset, DatasetItem
 from forge_agent.datasets.registry import DatasetRegistry, get_registry, setup_default_registry
 from forge_agent.datasets.store import LocalDatasetStore, SQLiteDatasetStore
 
-
 # ------------------------------------------------------------------ DatasetItem
+
 
 class TestDatasetItem:
     def test_basic_creation(self):
@@ -50,6 +48,7 @@ class TestDatasetItem:
 
 
 # ------------------------------------------------------------------ Dataset
+
 
 class TestDataset:
     def test_basic_creation(self):
@@ -140,6 +139,7 @@ class TestDataset:
 
 # ------------------------------------------------------------------ LocalDatasetStore
 
+
 class TestLocalDatasetStore:
     def setup_method(self):
         self.tmpdir = Path(tempfile.mkdtemp())
@@ -188,6 +188,7 @@ class TestLocalDatasetStore:
 
 
 # ------------------------------------------------------------------ SQLiteDatasetStore
+
 
 class TestSQLiteDatasetStore:
     def setup_method(self):
@@ -251,6 +252,7 @@ class TestSQLiteDatasetStore:
 
 
 # ------------------------------------------------------------------ DatasetRegistry
+
 
 class TestDatasetRegistry:
     def setup_method(self):

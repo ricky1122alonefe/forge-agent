@@ -13,8 +13,8 @@ import asyncio
 import logging
 from typing import Any
 
-from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.pipeline.aggregator import Aggregator
 from forge_agent.pipeline.pipeline import NodeType, Pipeline, PipelineNode
 from forge_agent.scheduler.scheduler import Scheduler, ScheduleTask
@@ -25,8 +25,14 @@ log = logging.getLogger(__name__)
 class PipelineEngine:
     """Runs a Pipeline DAG and returns the final state dict."""
 
-    def __init__(self, *, aggregator: Aggregator | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        aggregator: Aggregator | None = None,
+        execution_mode: str = "sequential",
+    ) -> None:
         self.aggregator = aggregator or Aggregator()
+        self.execution_mode = execution_mode
 
     async def run(self, pipeline: Pipeline, ctx: AgentContext) -> dict[str, Any]:
         """Execute the pipeline starting from `pipeline.entry`.
@@ -40,7 +46,7 @@ class PipelineEngine:
                 "trace_id": str | None,
             }
         """
-        from forge_agent.observability.trace import get_trace_manager, SpanType
+        from forge_agent.observability.trace import SpanType, get_trace_manager
 
         state: dict[str, Any] = {
             "ctx": ctx,
@@ -59,7 +65,12 @@ class PipelineEngine:
             attributes={"pipeline_id": pipeline.pipeline_id, "entry": pipeline.entry},
         )
 
-        log.info("Pipeline[%s] starting from %s (trace=%s)", pipeline.pipeline_id, pipeline.entry, trace.trace_id)
+        log.info(
+            "Pipeline[%s] starting from %s (trace=%s)",
+            pipeline.pipeline_id,
+            pipeline.entry,
+            trace.trace_id,
+        )
         try:
             await self._walk(pipeline, pipeline.entry, ctx, state, set())
             tm.end_span(pipeline_span, status="ok")
@@ -69,7 +80,9 @@ class PipelineEngine:
             tm.end_trace(trace.trace_id)
             raise
 
-        log.info("Pipeline[%s] done. %d node(s) executed.", pipeline.pipeline_id, len(state["reports"]))
+        log.info(
+            "Pipeline[%s] done. %d node(s) executed.", pipeline.pipeline_id, len(state["reports"])
+        )
         return state
 
     # ------------------------------------------------------------------ Internal
@@ -109,9 +122,26 @@ class PipelineEngine:
             state["board"] = board
             return  # aggregator is typically a terminal node
 
-        # ---- Walk next nodes (default: sequential) ----
-        for nxt in node.next_nodes:
-            await self._walk(pipeline, nxt, ctx, state, visited)
+        # ---- Walk next nodes ----
+        if self.execution_mode == "parallel" and len(node.next_nodes) > 1:
+            await self._walk_parallel(pipeline, node.next_nodes, ctx, state, visited)
+        else:
+            for nxt in node.next_nodes:
+                await self._walk(pipeline, nxt, ctx, state, visited)
+
+    async def _walk_parallel(
+        self,
+        pipeline: Pipeline,
+        node_ids: list[str],
+        ctx: AgentContext,
+        state: dict[str, Any],
+        visited: set[str],
+    ) -> None:
+        """Execute sibling next-nodes concurrently."""
+        await asyncio.gather(
+            *(self._walk(pipeline, nxt, ctx, state, visited) for nxt in node_ids),
+            return_exceptions=True,
+        )
 
     async def _run_agent_node(
         self,

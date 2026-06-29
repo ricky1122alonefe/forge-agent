@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from forge_agent.observability.trace import (
     Span,
     SpanStatus,
@@ -14,7 +12,6 @@ from forge_agent.observability.trace import (
     get_trace_manager,
     reset_trace_manager,
 )
-
 
 # ------------------------------------------------------------------ Helpers
 

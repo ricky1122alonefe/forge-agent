@@ -10,7 +10,7 @@ from typing import Any
 
 from forge_agent.llm.config import LLMConfig, load_config
 from forge_agent.llm.protocol import LLMClient
-from forge_agent.llm.registry import LLMRegistry, get_registry
+from forge_agent.llm.registry import get_registry
 
 log = logging.getLogger(__name__)
 
@@ -27,8 +27,9 @@ class LLMFactory:
         api_key: str | None = None,
         **kwargs: Any,
     ) -> LLMClient:
-        from forge_agent.llm.providers import build_client_from_type
         from forge_agent.llm.config import ProviderConfig
+        from forge_agent.llm.providers import build_client_from_type
+
         cfg = ProviderConfig(
             provider_id=provider_type,
             type=provider_type,

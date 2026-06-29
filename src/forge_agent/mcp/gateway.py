@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from forge_agent.mcp.permissions import PermissionPolicy
 
@@ -47,17 +48,20 @@ class MCPGateway:
     def set_policy(self, name: str, policy: PermissionPolicy) -> None:
         if name not in self._tools:
             from forge_agent.exceptions import ToolNotRegisteredError
+
             raise ToolNotRegisteredError(name)
         self._policies[name] = policy
 
     async def call(self, name: str, args: dict[str, Any] | None = None) -> dict[str, Any]:
         if name not in self._tools:
             from forge_agent.exceptions import ToolNotRegisteredError
+
             raise ToolNotRegisteredError(name)
         policy = self._policies[name]
         allowed, reason = policy.check(name)
         if not allowed:
             from forge_agent.exceptions import ToolDeniedError
+
             raise ToolDeniedError(name, reason)
         handler = self._tools[name]
         return await handler(args or {})
@@ -135,7 +139,7 @@ class MCPGateway:
         for client in self._clients:
             try:
                 await client.disconnect()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.debug("Error disconnecting client", exc_info=True)
         self._clients.clear()
         log.info("MCPGateway: disconnected all clients")

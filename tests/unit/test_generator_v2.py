@@ -4,23 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import json
+
 import pytest
-from pathlib import Path
 
 from forge_agent.generator.manifest import Manifest
 from forge_agent.generator.pipeline import DeployMode, GenerationPipeline
-from forge_agent.generator.registry_getter import get_registry_lazy
 from forge_agent.generator.requirements import (
     AgentRequirements,
     FieldSpec,
     RequirementsParser,
 )
-from forge_agent.generator.sandbox import ResourceLimits, Sandbox
+from forge_agent.generator.sandbox import Sandbox
 from forge_agent.generator.store import FileCodeStore
 from forge_agent.generator.validator import ContractValidator
 
-
 # ------------------------------------------------------------------ Requirements
+
 
 def test_requirements_parser_heuristic_domain_football():
     p = RequirementsParser()  # no LLM
@@ -37,26 +36,29 @@ def test_requirements_parser_heuristic_domain_stock():
 
 
 def test_requirements_parser_with_mock_llm():
-    from forge_agent.llm.providers.mock import MockClient
     from forge_agent.llm.config import ProviderConfig
     from forge_agent.llm.protocol import LLMResponse
+    from forge_agent.llm.providers.mock import MockClient
 
     cfg = ProviderConfig(provider_id="mock", type="mock", model="x")
-    mock = MockClient(cfg)
+    MockClient(cfg)
 
     async def _llm_chat(messages, **kwargs):
         # Return a JSON spec
         return LLMResponse(
-            content=json.dumps({
-                "agent_id": "stock.nvda",
-                "name": "NVDA Stock",
-                "domain": "stock",
-                "description": "Monitors NVDA",
-                "inputs": [{"name": "ticker", "type": "str", "description": "Symbol"}],
-                "outputs": [{"name": "verdict", "type": "str", "description": "Decision"}],
-                "capabilities_required": ["llm", "search"],
-            }),
-            provider="mock", model="x",
+            content=json.dumps(
+                {
+                    "agent_id": "stock.nvda",
+                    "name": "NVDA Stock",
+                    "domain": "stock",
+                    "description": "Monitors NVDA",
+                    "inputs": [{"name": "ticker", "type": "str", "description": "Symbol"}],
+                    "outputs": [{"name": "verdict", "type": "str", "description": "Decision"}],
+                    "capabilities_required": ["llm", "search"],
+                }
+            ),
+            provider="mock",
+            model="x",
         )
 
     p = RequirementsParser(llm_chat=_llm_chat)
@@ -68,6 +70,7 @@ def test_requirements_parser_with_mock_llm():
 
 # ------------------------------------------------------------------ Validator
 
+
 def test_validator_rejects_incomplete_source():
     v = ContractValidator()
     r = v.validate_source("class X: pass")  # no BaseAgent, no methods
@@ -76,7 +79,7 @@ def test_validator_rejects_incomplete_source():
 
 def test_validator_passes_minimal_agent():
     v = ContractValidator()
-    src = '''
+    src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -87,17 +90,18 @@ class MyAgent(BaseAgent):
     async def decide(self, ctx: AgentContext, o: dict) -> dict: return {}
     async def act(self, ctx: AgentContext, d: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     r = v.validate_source(src)
     assert r.ok or len(r.errors) == 0
 
 
 # ------------------------------------------------------------------ Sandbox
 
+
 @pytest.mark.asyncio
 async def test_sandbox_blocks_subprocess_import(tmp_path):
     sb = Sandbox()
-    bad_src = '''
+    bad_src = """
 import subprocess
 from forge_agent.core.base import BaseAgent
 class BadAgent(BaseAgent):
@@ -108,22 +112,21 @@ class BadAgent(BaseAgent):
     async def act(self, ctx, d):
         from forge_agent.core.contracts import AgentReport
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
     # Compile to a class
     ns: dict = {"__name__": "_sandbox_test"}
-    from forge_agent.core.base import BaseAgent
-    from forge_agent.core.contracts import AgentReport
     from forge_agent.core.context import AgentContext
+
     exec(compile(bad_src, "<test>", "exec"), ns)
     cls = ns["BadAgent"]
     cls._source_code = bad_src
-    from forge_agent.core.context import AgentContext
     result = await sb.run_smoke_test(cls, AgentContext(scope_id="t", scope_name="t"))
     assert not result.success
     assert "subprocess" in (result.error or "")
 
 
 # ------------------------------------------------------------------ Store + Manifest
+
 
 def test_store_save_creates_v1(tmp_path):
     store = FileCodeStore(tmp_path / "gen")
@@ -190,12 +193,10 @@ def test_manifest_atomic_write(tmp_path):
 
 # ------------------------------------------------------------------ Pipeline (end-to-end with mock LLM)
 
+
 @pytest.mark.asyncio
 async def test_pipeline_end_to_end_with_mock(tmp_path):
-    from forge_agent.llm.providers.mock import MockClient
     from forge_agent.llm.protocol import LLMResponse
-    from forge_agent.llm.config import ProviderConfig
-    from forge_agent.generator.requirements import AgentRequirements, FieldSpec
 
     gen_dir = tmp_path / "generated_agents"
     code_store = FileCodeStore(gen_dir)
@@ -211,7 +212,7 @@ async def test_pipeline_end_to_end_with_mock(tmp_path):
     )
 
     # Mock LLM that returns a valid BaseAgent subclass
-    generated_src = '''
+    generated_src = """
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.contracts import AgentReport
 from forge_agent.core.context import AgentContext
@@ -234,7 +235,7 @@ class GeneratedAgent(BaseAgent):
             agent_id=self.agent_id, name=self.name,
             evidence=[f"y={dec['y']}"],
         )
-'''
+"""
 
     async def _llm_chat(messages, **kwargs):
         return LLMResponse(content=generated_src, provider="mock", model="x")
@@ -247,6 +248,7 @@ class GeneratedAgent(BaseAgent):
     # Pre-set the spec via the parser (bypass LLM)
     async def _parse(req):
         return spec
+
     pipeline.requirements_parser.parse = _parse  # type: ignore[assignment]
 
     outcome = await pipeline.generate_and_deploy(

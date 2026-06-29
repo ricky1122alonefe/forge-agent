@@ -8,23 +8,22 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pathlib import Path
 
 # Make `forge_agent` importable when running this file directly.
 import sys
+from pathlib import Path
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
-from forge_agent.core.context import AgentContext
-from forge_agent.registry.discovery import discover_filesystem
-from forge_agent.registry.registry import get_registry
-
 # Side-effect import: triggers @register_agent decorators.
-from examples.football_match_agent import agents  # noqa: F401
-from examples.football_match_agent.pipeline import run_pipeline
-from forge_agent.builtin import chief_agent  # noqa: F401  (registers generic.chief)
+from examples.football_match_agent import agents  # noqa: E402, F401
+from examples.football_match_agent.pipeline import run_pipeline  # noqa: E402
 
+from forge_agent.builtin import chief_agent  # noqa: E402, F401
+from forge_agent.core.context import AgentContext  # noqa: E402
+from forge_agent.registry.registry import get_registry  # noqa: E402
 
 SAMPLE_FIXTURE = {
     "scope_id": "wc_2026_group_a_001",

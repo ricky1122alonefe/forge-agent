@@ -7,9 +7,11 @@ This script runs inside an isolated subprocess. Communication protocol:
 
 The subprocess applies resource limits (RLIMIT_*) before executing the agent.
 """
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import sys
@@ -30,10 +32,8 @@ def _apply_limits(limits: dict) -> None:
 
     cpu = limits.get("cpu_seconds", 0)
     if cpu > 0:
-        try:
+        with contextlib.suppress(ValueError):
             resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
-        except ValueError:
-            pass  # hard limit too low — skip
 
     mem_mb = limits.get("memory_mb", 0)
     if mem_mb > 0:
@@ -52,10 +52,8 @@ def _apply_limits(limits: dict) -> None:
 
     if not limits.get("file_write", False):
         # Allow up to 1MB for stdout JSON output; block large file writes.
-        try:
+        with contextlib.suppress(ValueError):
             resource.setrlimit(resource.RLIMIT_FSIZE, (1024 * 1024, 1024 * 1024))
-        except ValueError:
-            pass
 
 
 def main() -> None:
@@ -84,7 +82,7 @@ def main() -> None:
         ctx = AgentContext(**context_dict)
 
         ns: dict = {}
-        exec(compile(source, "<sandbox>", "exec"), ns)  # noqa: S102
+        exec(compile(source, "<sandbox>", "exec"), ns)
 
         agent_cls = ns[class_name]
         agent = agent_cls()
@@ -94,10 +92,8 @@ def main() -> None:
                 await agent.initialize()
             report = await agent.run(ctx)
             if hasattr(agent, "shutdown"):
-                try:
+                with contextlib.suppress(Exception):
                     await agent.shutdown()
-                except Exception:  # noqa: BLE001
-                    pass
             return report
 
         report = asyncio.run(_run())
@@ -108,7 +104,7 @@ def main() -> None:
             sys.stdout,
         )
 
-    except Exception:  # noqa: BLE001
+    except Exception:
         elapsed = (time.perf_counter() - t0) * 1000
         json.dump(
             {

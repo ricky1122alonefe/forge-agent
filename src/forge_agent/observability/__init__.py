@@ -34,16 +34,31 @@ from forge_agent.observability.trace import (
 
 __all__ = [
     # Event bus & metrics
-    "EventBus", "MetricsCollector",
-    # Logger
-    "StructLogger", "configure_logging", "get_logger",
-    "is_configured", "current_config",
-    # Context helpers
-    "bind_context", "unbind_context", "clear_context", "current_context",
-    # Trace
-    "Span", "SpanStatus", "SpanType", "Trace", "TraceManager",
-    "get_trace_manager", "reset_trace_manager",
+    "EventBus",
+    "MetricsCollector",
     # OTel
-    "OTelExporter", "is_otel_available", "install_otel_exporter",
-    "uninstall_otel_exporter", "get_installed_exporter",
+    "OTelExporter",
+    # Trace
+    "Span",
+    "SpanStatus",
+    "SpanType",
+    # Logger
+    "StructLogger",
+    "Trace",
+    "TraceManager",
+    # Context helpers
+    "bind_context",
+    "clear_context",
+    "configure_logging",
+    "current_config",
+    "current_context",
+    "get_installed_exporter",
+    "get_logger",
+    "get_trace_manager",
+    "install_otel_exporter",
+    "is_configured",
+    "is_otel_available",
+    "reset_trace_manager",
+    "unbind_context",
+    "uninstall_otel_exporter",
 ]

@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 try:
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
-    from mcp.types import Tool, CallToolResult, TextContent
+    from mcp.types import CallToolResult
 
     _HAS_MCP_SDK = True
 except ImportError:
@@ -36,6 +36,7 @@ def has_mcp_sdk() -> bool:
 # ---------------------------------------------------------------------------
 # Tool info dataclass (SDK-agnostic)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ToolInfo:
@@ -57,12 +58,15 @@ class ToolInfo:
 # MCPClient
 # ---------------------------------------------------------------------------
 
+
 class MCPClient:
     """MCP client that wraps the official ``mcp`` SDK.
 
     Usage::
 
-        async with MCPClient.from_stdio("npx", ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]) as client:
+        async with MCPClient.from_stdio(
+            "npx", ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+        ) as client:
             tools = await client.list_tools()
             result = await client.call_tool("read_file", {"path": "/tmp/test.txt"})
 
@@ -172,7 +176,7 @@ class MCPClient:
         if self._session_cm is not None:
             try:
                 await self._session_cm.__aexit__(None, None, None)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.debug("Error closing session context manager", exc_info=True)
             self._session_cm = None
             self._session = None
@@ -180,7 +184,7 @@ class MCPClient:
         if self._cm is not None:
             try:
                 await self._cm.__aexit__(None, None, None)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.debug("Error closing transport context manager", exc_info=True)
             self._cm = None
             self._read_stream = None
@@ -219,7 +223,7 @@ class MCPClient:
                 )
             log.info("MCPClient: discovered %d tools", len(tools))
             return tools
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("MCPClient: list_tools failed")
             return []
 
@@ -240,10 +244,12 @@ class MCPClient:
         """
         if not _HAS_MCP_SDK:
             from forge_agent.exceptions import MissingDependencyError
+
             raise MissingDependencyError("mcp", "mcp")
 
         if not self._session:
             from forge_agent.exceptions import MCPNotConnectedError
+
             raise MCPNotConnectedError()
 
         try:
@@ -265,6 +271,7 @@ class MCPClient:
         except Exception as exc:
             log.exception("MCPClient: call_tool(%s) failed", name)
             from forge_agent.exceptions import MCPToolCallError
+
             raise MCPToolCallError(name, str(exc)) from exc
 
     # ---- Convenience: list tools as dicts (backward compat) ----

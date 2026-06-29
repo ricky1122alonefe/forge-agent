@@ -4,7 +4,7 @@ Mounted at /ws prefix by create_app().
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -47,7 +47,7 @@ class LogBroadcaster:
 
 
 # Module-level singleton
-_broadcaster: Optional[LogBroadcaster] = None
+_broadcaster: LogBroadcaster | None = None
 
 
 def get_broadcaster() -> LogBroadcaster:
@@ -74,10 +74,12 @@ async def websocket_logs(websocket: WebSocket) -> None:
     await broadcaster.connect(websocket)
     try:
         # Send a welcome message
-        await websocket.send_json({
-            "type": "connected",
-            "message": "Connected to forge-agent log stream",
-        })
+        await websocket.send_json(
+            {
+                "type": "connected",
+                "message": "Connected to forge-agent log stream",
+            }
+        )
         # Keep connection alive, listen for client messages (e.g. filter commands)
         while True:
             data = await websocket.receive_text()

@@ -18,9 +18,9 @@ Quick start::
 
     from forge_agent.observability.logger import configure_logging, get_logger
 
-    configure_logging(level="INFO", json=False)   # call once at startup
+    configure_logging(level="INFO", json=False)  # call once at startup
     log = get_logger("forge_agent.demo")
-    log.info("hello", extra_field=42)              # auto-includes context
+    log.info("hello", extra_field=42)  # auto-includes context
 
 Inside a running Agent, the `BaseAgent.run()` template method
 automatically binds contextvars — user code in `observe()` / `decide()` /
@@ -34,6 +34,7 @@ Env vars honored at `configure_logging()` time:
                        (path defaults to ./logs/forge-agent.log)
     FORGE_LOG_FILE_PATH   override the file path
 """
+
 from __future__ import annotations
 
 import logging
@@ -49,9 +50,17 @@ try:
     import structlog
     from structlog.contextvars import (
         bind_contextvars as _bind_contextvars,
+    )
+    from structlog.contextvars import (
         clear_contextvars as _clear_contextvars,
+    )
+    from structlog.contextvars import (
         get_contextvars as _get_contextvars,
+    )
+    from structlog.contextvars import (
         merge_contextvars,
+    )
+    from structlog.contextvars import (
         unbind_contextvars as _unbind_contextvars,
     )
 
@@ -85,6 +94,7 @@ except ImportError:  # pragma: no cover - pyproject enforces structlog
 import contextvars as _stdlib_contextvars
 
 if _HAS_STRUCTLOG:
+
     def bind_context(**kv: Any) -> None:
         """Bind key/value pairs to the current async-task log context.
 
@@ -108,30 +118,30 @@ if _HAS_STRUCTLOG:
         """Return a copy of the current context bindings (read-only view)."""
         return dict(_get_contextvars())
 else:
-    _fallback_context: _stdlib_contextvars.ContextVar[dict[str, Any]] = (
-        _stdlib_contextvars.ContextVar("forge_log_context_fallback", default={})
+    _fallback_context: _stdlib_contextvars.ContextVar[dict[str, Any] | None] = (
+        _stdlib_contextvars.ContextVar("forge_log_context_fallback", default=None)
     )
 
     def bind_context(**kv: Any) -> None:
-        current = dict(_fallback_context.get())
+        current = dict(_fallback_context.get() or {})
         current.update({k: v for k, v in kv.items() if v is not None})
         _fallback_context.set(current)
 
     def unbind_context(*keys: str) -> None:
-        current = dict(_fallback_context.get())
+        current = dict(_fallback_context.get() or {})
         for k in keys:
             current.pop(k, None)
         _fallback_context.set(current)
 
     def clear_context() -> None:
-        _fallback_context.set({})
+        _fallback_context.set(None)
 
     def current_context() -> dict[str, Any]:
-        return dict(_fallback_context.get())
+        return dict(_fallback_context.get() or {})
 
     def _merge_fallback_contextvars(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
         """Custom processor that merges our fallback ContextVar."""
-        for k, v in _fallback_context.get().items():
+        for k, v in (_fallback_context.get() or {}).items():
             if k not in event_dict:
                 event_dict[k] = v
         return event_dict
@@ -213,7 +223,9 @@ def configure_logging(
 
     # Resolve effective settings
     eff_level = (level or _detect_level()).upper()
-    eff_format: LogFormat = "json" if json is True else ("console" if json is False else _detect_format())
+    eff_format: LogFormat = (
+        "json" if json is True else ("console" if json is False else _detect_format())
+    )
 
     # Tee-to-file path
     eff_file: Path | None = None
@@ -224,14 +236,16 @@ def configure_logging(
 
     # ----- structlog processor chain -----
     shared_processors: list[Any] = [
-        merge_contextvars,                              # inject contextvars
-        structlog.processors.add_log_level,              # "level": "info"
+        merge_contextvars,  # inject contextvars
+        structlog.processors.add_log_level,  # "level": "info"
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,           # exc_info → text
+        structlog.processors.format_exc_info,  # exc_info → text
         structlog.processors.CallsiteParameterAdder(
-            parameters=[structlog.processors.CallsiteParameter.MODULE,
-                        structlog.processors.CallsiteParameter.LINENO],
+            parameters=[
+                structlog.processors.CallsiteParameter.MODULE,
+                structlog.processors.CallsiteParameter.LINENO,
+            ],
         ),
         # Ensure `logger` is present (fall back to name) so JSON has it.
         _ensure_logger_key,
@@ -243,7 +257,7 @@ def configure_logging(
         renderer = structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty() if sys.stderr else True)
 
     structlog.configure(
-        processors=shared_processors + [renderer],
+        processors=[*shared_processors, renderer],
         wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, eff_level)),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
@@ -254,7 +268,10 @@ def configure_logging(
     _bridge_stdlib(eff_level, shared_processors, renderer, eff_file)
 
     _configured.update(
-        configured=True, format=eff_format, level=eff_level, file_path=eff_file,
+        configured=True,
+        format=eff_format,
+        level=eff_level,
+        file_path=eff_file,
     )
 
 
@@ -299,7 +316,10 @@ def _bridge_stdlib(
         from logging.handlers import RotatingFileHandler
 
         file_handler = RotatingFileHandler(
-            log_file, maxBytes=10 * 1024 * 1024, backupCount=3, encoding="utf-8",
+            log_file,
+            maxBytes=10 * 1024 * 1024,
+            backupCount=3,
+            encoding="utf-8",
         )
         file_handler.setFormatter(formatter)
         file_handler._forge_bridge = True  # type: ignore[attr-defined]
@@ -313,6 +333,7 @@ def _bridge_stdlib(
 # =====================================================================
 # Public API
 # =====================================================================
+
 
 def get_logger(name: str = "forge_agent") -> Any:
     """Return a structlog BoundLogger (lazy-configured).
@@ -349,6 +370,7 @@ def reset_for_tests() -> None:
 # =====================================================================
 # Structured logger that satisfies LoggerProtocol
 # =====================================================================
+
 
 class StructLogger:
     """Adapter exposing structlog as `LoggerProtocol`.

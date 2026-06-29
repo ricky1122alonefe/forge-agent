@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.enums import Action, Verdict
 from forge_agent.core.validation import (
     AgentBoardModel,
@@ -20,16 +20,14 @@ from forge_agent.core.validation import (
     schema_llm_response,
     schema_report,
     validate_board,
-    validate_chat_message,
     validate_context,
-    validate_llm_response,
     validate_report,
 )
-
 
 # ---------------------------------------------------------------------------
 # AgentReport validation
 # ---------------------------------------------------------------------------
+
 
 class TestAgentReportValidation:
     def test_valid_report(self):
@@ -111,6 +109,7 @@ class TestAgentReportValidation:
 # AgentBoard validation
 # ---------------------------------------------------------------------------
 
+
 class TestAgentBoardValidation:
     def test_valid_board(self):
         board = AgentBoard(
@@ -148,6 +147,7 @@ class TestAgentBoardValidation:
 # AgentContext validation
 # ---------------------------------------------------------------------------
 
+
 class TestAgentContextValidation:
     def test_valid_context(self):
         ctx = AgentContext(scope_id="test_scope", domain="finance")
@@ -169,6 +169,7 @@ class TestAgentContextValidation:
 # ChatMessage validation
 # ---------------------------------------------------------------------------
 
+
 class TestChatMessageValidation:
     def test_valid_message(self):
         msg = ChatMessageModel(role="user", content="Hello")
@@ -187,6 +188,7 @@ class TestChatMessageValidation:
 # ---------------------------------------------------------------------------
 # LLMResponse validation
 # ---------------------------------------------------------------------------
+
 
 class TestLLMResponseValidation:
     def test_valid_response(self):
@@ -210,6 +212,7 @@ class TestLLMResponseValidation:
 # ---------------------------------------------------------------------------
 # JSON Schema export
 # ---------------------------------------------------------------------------
+
 
 class TestJSONSchema:
     def test_schema_report(self):
@@ -250,6 +253,7 @@ class TestJSONSchema:
 # Integration: validate real dataclass instances
 # ---------------------------------------------------------------------------
 
+
 class TestIntegration:
     def test_validate_real_report(self):
         report = AgentReport(
@@ -276,7 +280,9 @@ class TestIntegration:
             generated_at="2026-06-27T14:00:00Z",
             domain="finance",
             agents=[
-                AgentReport(agent_id="a1", name="A1", confidence=0.8, verdict=Verdict.LEAN_POSITIVE),
+                AgentReport(
+                    agent_id="a1", name="A1", confidence=0.8, verdict=Verdict.LEAN_POSITIVE
+                ),
                 AgentReport(agent_id="a2", name="A2", confidence=0.6, verdict=Verdict.LEAN_NEUTRAL),
             ],
             hard_guards=[],

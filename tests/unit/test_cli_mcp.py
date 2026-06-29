@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
-from forge_agent.cli.cmd_mcp import _info, _list_tools, _call, _build_client
+import pytest
+
+from forge_agent.cli.cmd_mcp import _build_client, _info
 from forge_agent.mcp.client import MCPClient, ToolInfo
 
 
@@ -16,9 +16,11 @@ class TestMCPInfoCommand:
     def test_info_with_sdk_installed(self, capsys):
         """info should show SDK status when installed."""
         args = MagicMock()
-        with patch("forge_agent.mcp.client.has_mcp_sdk", return_value=True):
-            with patch.dict("sys.modules", {"mcp": MagicMock(__version__="1.0.0")}):
-                result = _info(args)
+        with (
+            patch("forge_agent.mcp.client.has_mcp_sdk", return_value=True),
+            patch.dict("sys.modules", {"mcp": MagicMock(__version__="1.0.0")}),
+        ):
+            result = _info(args)
         assert result == 0
         captured = capsys.readouterr()
         assert "MCP SDK installed: True" in captured.out
@@ -92,10 +94,12 @@ class TestMCPListTools:
         args.url = None
         args.prefix = "fs"
 
-        mock_client = _make_mock_client([
-            ToolInfo(name="read_file", description="Read a file"),
-            ToolInfo(name="write_file", description="Write a file"),
-        ])
+        mock_client = _make_mock_client(
+            [
+                ToolInfo(name="read_file", description="Read a file"),
+                ToolInfo(name="write_file", description="Write a file"),
+            ]
+        )
 
         with patch("forge_agent.cli.cmd_mcp._build_client", return_value=mock_client):
             result = await _list_tools_async_direct(args)
@@ -162,6 +166,7 @@ class TestMCPCallTool:
 
 # ------------------------------------------------------------------ Helpers
 
+
 def _make_mock_client(
     tools: list[ToolInfo] | None = None,
     call_results: dict[str, dict] | None = None,
@@ -215,10 +220,12 @@ def _make_mock_client(
 async def _list_tools_async_direct(args):
     """Direct call to the async implementation."""
     from forge_agent.cli.cmd_mcp import _list_tools_async
+
     return await _list_tools_async(args)
 
 
 async def _call_async_direct(args):
     """Direct call to the async implementation."""
     from forge_agent.cli.cmd_mcp import _call_async
+
     return await _call_async(args)

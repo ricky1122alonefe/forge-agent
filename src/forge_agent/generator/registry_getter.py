@@ -8,4 +8,5 @@ from typing import Any
 def get_registry_lazy() -> Any:
     """Return the global AgentRegistry without creating an import cycle."""
     from forge_agent.registry.registry import AgentRegistry
+
     return AgentRegistry()

@@ -16,6 +16,7 @@ Commands:
     new         Create a new project from a template
     logs        Show recent structured log entries
     dashboard   Start the local observability dashboard (web UI)
+    review      Post-match feedback and agent evolution
 """
 
 from __future__ import annotations
@@ -34,13 +35,15 @@ def main(argv: list[str] | None = None) -> int:
         description="forge-agent CLI: scaffold, generate, manage, and deploy AI agents.",
     )
     parser.add_argument(
-        "--project", "-p",
+        "--project",
+        "-p",
         type=Path,
         default=Path.cwd(),
         help="Project root (default: cwd)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Verbose logging",
     )
@@ -48,11 +51,27 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     # Top-level commands — lazily import to avoid heavy deps at startup
-    from forge_agent.cli import cmd_generate, cmd_list, cmd_history, cmd_use
-    from forge_agent.cli import cmd_rollback, cmd_diff, cmd_manifest
-    from forge_agent.cli import cmd_save, cmd_restore, cmd_archive, cmd_delete
-    from forge_agent.cli import cmd_llm, cmd_new, cmd_logs, cmd_datasets, cmd_mcp, cmd_doctor
-    from forge_agent.cli import cmd_dashboard
+    from forge_agent.cli import (
+        cmd_archive,
+        cmd_dashboard,
+        cmd_datasets,
+        cmd_delete,
+        cmd_diff,
+        cmd_doctor,
+        cmd_generate,
+        cmd_history,
+        cmd_list,
+        cmd_llm,
+        cmd_logs,
+        cmd_manifest,
+        cmd_mcp,
+        cmd_new,
+        cmd_restore,
+        cmd_review,
+        cmd_rollback,
+        cmd_save,
+        cmd_use,
+    )
 
     cmd_generate.add(sub)
     cmd_list.add(sub)
@@ -72,6 +91,7 @@ def main(argv: list[str] | None = None) -> int:
     cmd_mcp.add(sub)
     cmd_doctor.add(sub)
     cmd_dashboard.add(sub)
+    cmd_review.add(sub)
 
     args = parser.parse_args(argv)
 
@@ -86,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         return 130
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         if args.verbose:
             raise

@@ -24,7 +24,7 @@ def test_alias() -> None:
     assert TavilySearcher is TavilySearch
 
 
-@pytest.mark.anyio()
+@pytest.mark.anyio
 async def test_search_normalizes_results() -> None:
     """Results from Tavily client should be normalized to the standard schema."""
     fake_client = MagicMock()

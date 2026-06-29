@@ -106,7 +106,10 @@ class ForgeStore(SQLiteConnection):
 
         # Monitor stores metrics
         store.insert(
-            "server.monitor", {"cpu": 85, "memory": 72}, category="metric", tags=["production", "web"]
+            "server.monitor",
+            {"cpu": 85, "memory": 72},
+            category="metric",
+            tags=["production", "web"],
         )
 
         # Analyzer stores analysis results

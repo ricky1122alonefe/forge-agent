@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import logging
 from pathlib import Path
 
@@ -18,7 +17,8 @@ def add(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("generate", help="Generate an Agent from a natural-language description")
     p.add_argument("requirement", help="Natural-language description of the agent")
     p.add_argument(
-        "--mode", "-m",
+        "--mode",
+        "-m",
         choices=[m.value for m in DeployMode],
         default=DeployMode.MANUAL_REVIEW.value,
         help="Deploy mode (default: manual_review)",
@@ -54,7 +54,10 @@ async def _run(args: argparse.Namespace) -> int:
         available = list_providers()
         if not available:
             print("Error: no LLM providers configured.", file=__import__("sys").stderr)
-            print("Create a llm_providers.json or set $DEEPSEEK_API_KEY.", file=__import__("sys").stderr)
+            print(
+                "Create a llm_providers.json or set $DEEPSEEK_API_KEY.",
+                file=__import__("sys").stderr,
+            )
             return 2
         provider = available[0]
         print(f"Using provider: {provider}")
@@ -70,6 +73,7 @@ async def _run(args: argparse.Namespace) -> int:
         code_store = None
     else:
         from forge_agent.generator.store import FileCodeStore
+
         code_store = FileCodeStore(code_store_path)
 
     pipeline = GenerationPipeline(

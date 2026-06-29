@@ -15,7 +15,9 @@ from __future__ import annotations
 class LLMError(Exception):
     """Base class for all LLM-related errors."""
 
-    def __init__(self, message: str, *, provider: str | None = None, model: str | None = None) -> None:
+    def __init__(
+        self, message: str, *, provider: str | None = None, model: str | None = None
+    ) -> None:
         super().__init__(message)
         self.provider = provider
         self.model = model

@@ -46,11 +46,11 @@ class PermissionPolicy:
 
     rules: list[PermissionRule] = field(default_factory=list)
 
-    def allow(self, tool: str, reason: str = "") -> "PermissionPolicy":
+    def allow(self, tool: str, reason: str = "") -> PermissionPolicy:
         self.rules.append(PermissionRule(action="allow", tool=tool, reason=reason))
         return self
 
-    def deny(self, tool: str, reason: str = "") -> "PermissionPolicy":
+    def deny(self, tool: str, reason: str = "") -> PermissionPolicy:
         self.rules.append(PermissionRule(action="deny", tool=tool, reason=reason))
         return self
 

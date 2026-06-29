@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from forge_agent.dashboard.data.traces import TraceDataSource, TraceSummary, TraceDetail
-from forge_agent.observability.trace import get_trace_manager, reset_trace_manager, SpanType
+from forge_agent.dashboard.data.traces import TraceDataSource, TraceDetail, TraceSummary
+from forge_agent.observability.trace import SpanType, get_trace_manager, reset_trace_manager
 
 
 @pytest.fixture(autouse=True)
@@ -103,6 +103,7 @@ class TestTraceDataSource:
         span = trace.start_span("failing_op", span_type=SpanType.FUNCTION)
         span.set_error("something broke")
         from forge_agent.observability.trace import SpanStatus
+
         span.end(status=SpanStatus.ERROR)
         mgr.end_trace()
 

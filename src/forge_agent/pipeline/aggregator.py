@@ -7,10 +7,9 @@ Replace with a Chief Agent (LLM-based) for sophisticated synthesis.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
 
-from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.core.enums import Verdict
 
 
@@ -29,8 +28,7 @@ class Aggregator:
         for r in reports:
             if r.is_hard_risk(self.hard_risk_threshold):
                 hard_guards.append(
-                    f"{r.agent_id} triggered hard risk "
-                    f"({r.risk:.2f} >= {self.hard_risk_threshold})"
+                    f"{r.agent_id} triggered hard risk ({r.risk:.2f} >= {self.hard_risk_threshold})"
                 )
 
         board = AgentBoard(
@@ -45,15 +43,9 @@ class Aggregator:
                 "n_agents": len(reports),
                 "total_weight": sum(r.weight for r in reports),
                 "avg_confidence": (
-                    sum(r.confidence for r in reports) / len(reports)
-                    if reports
-                    else 0.0
+                    sum(r.confidence for r in reports) / len(reports) if reports else 0.0
                 ),
-                "avg_risk": (
-                    sum(r.risk for r in reports) / len(reports)
-                    if reports
-                    else 0.0
-                ),
+                "avg_risk": (sum(r.risk for r in reports) / len(reports) if reports else 0.0),
                 "weighted_verdict": board_verdict(reports),
             },
         )

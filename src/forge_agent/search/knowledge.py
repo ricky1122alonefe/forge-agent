@@ -41,6 +41,5 @@ class KeywordKnowledgeSearcher(SearcherProtocol):
                 scores.append((score, path, text[:500]))
         scores.sort(key=lambda t: -t[0])
         return [
-            {"path": str(p), "score": float(s), "snippet": snip}
-            for s, p, snip in scores[:top_k]
+            {"path": str(p), "score": float(s), "snippet": snip} for s, p, snip in scores[:top_k]
         ]

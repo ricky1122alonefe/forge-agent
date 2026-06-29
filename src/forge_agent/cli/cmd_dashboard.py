@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
 
 
@@ -43,8 +44,7 @@ def run(args: argparse.Namespace) -> int:
         import uvicorn
     except ImportError:
         print(
-            "Error: uvicorn not installed.\n"
-            "Install with: pip install 'forge-agent[dashboard]'",
+            "Error: uvicorn not installed.\nInstall with: pip install 'forge-agent[dashboard]'",
             file=sys.stderr,
         )
         return 1
@@ -74,10 +74,8 @@ def run(args: argparse.Namespace) -> int:
         def _open_browser() -> None:
             time.sleep(1.0)  # wait for server to start
             url = f"http://{args.host}:{args.port}"
-            try:
+            with contextlib.suppress(Exception):
                 webbrowser.open(url)
-            except Exception:  # noqa: BLE001
-                pass
 
         threading.Thread(target=_open_browser, daemon=True).start()
 

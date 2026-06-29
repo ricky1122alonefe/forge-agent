@@ -14,15 +14,16 @@ Backward compatible: the ``Sandbox`` class keeps the same ``run_smoke_test``
 API from v0.2.  When ``_source_code`` is not attached to the agent class,
 the sandbox falls back to in-process execution (legacy mode).
 """
+
 from __future__ import annotations
 
 import ast
 import asyncio
+import contextlib
 import json
 import logging
 import os
 import signal
-import subprocess
 import sys
 import tempfile
 import time
@@ -34,6 +35,7 @@ log = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------ Config
+
 
 @dataclass
 class ResourceLimits:
@@ -62,32 +64,53 @@ class SmokeTestResult:
 # ------------------------------------------------------------------ Deny list
 
 DENY_NAMES: set[str] = {
-    "os.system", "os.exec", "os.execl", "os.execle", "os.execlp",
-    "subprocess", "shutil.rmtree", "shutil.move",
+    "os.system",
+    "os.exec",
+    "os.execl",
+    "os.execle",
+    "os.execlp",
+    "subprocess",
+    "shutil.rmtree",
+    "shutil.move",
     "socket",
     "ctypes",
     "multiprocessing",
     "threading",
     "asyncio.subprocess",
-    "pty", "fcntl",
+    "pty",
+    "fcntl",
     "signal",
     "pickle",
     "marshal",
 }
 
 DENY_MODULES: set[str] = {
-    "subprocess", "ctypes", "pty", "fcntl", "multiprocessing",
-    "asyncio.subprocess", "signal", "socket", "pickle", "marshal",
+    "subprocess",
+    "ctypes",
+    "pty",
+    "fcntl",
+    "multiprocessing",
+    "asyncio.subprocess",
+    "signal",
+    "socket",
+    "pickle",
+    "marshal",
 }
 
 # Modules/patterns that indicate network egress.
 NETWORK_MODULES: set[str] = {
-    "httpx", "aiohttp", "urllib", "urllib2", "requests",
-    "httplib", "http.client",
+    "httpx",
+    "aiohttp",
+    "urllib",
+    "urllib2",
+    "requests",
+    "httplib",
+    "http.client",
 }
 
 
 # ------------------------------------------------------------------ Sandbox
+
 
 class Sandbox:
     """Isolated sandbox for generated Agents.
@@ -145,7 +168,10 @@ class Sandbox:
         # --- Phase 2: subprocess execution ---
         if src:
             return await self._run_in_subprocess(
-                agent_cls, src, sample_context, t0,
+                agent_cls,
+                src,
+                sample_context,
+                t0,
             )
 
         # --- Fallback: in-process (legacy, no source available) ---
@@ -169,8 +195,8 @@ class Sandbox:
                 "source": source,
                 "class_name": class_name,
                 "context_dict": sample_context.to_dict()
-                    if hasattr(sample_context, "to_dict")
-                    else {"scope_id": str(sample_context)},
+                if hasattr(sample_context, "to_dict")
+                else {"scope_id": str(sample_context)},
                 "limits": {
                     "cpu_seconds": self.limits.cpu_seconds,
                     "memory_mb": self.limits.memory_mb,
@@ -189,7 +215,7 @@ class Sandbox:
                     error=f"timeout after {self.limits.timeout_seconds}s",
                     error_type="Timeout",
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 return SmokeTestResult(
                     success=False,
                     agent_id=agent_id,
@@ -219,8 +245,7 @@ class Sandbox:
                     success=False,
                     agent_id=agent_id,
                     duration_ms=elapsed,
-                    error=f"process exited with code {returncode}: "
-                          f"{stderr_data[:500]}",
+                    error=f"process exited with code {returncode}: {stderr_data[:500]}",
                     error_type="ProcessError",
                 )
 
@@ -232,8 +257,7 @@ class Sandbox:
                     success=False,
                     agent_id=agent_id,
                     duration_ms=elapsed,
-                    error=f"invalid subprocess output (rc={returncode}): "
-                          f"{stdout_data[:200]}",
+                    error=f"invalid subprocess output (rc={returncode}): {stdout_data[:200]}",
                     error_type="InvalidOutput",
                 )
 
@@ -254,16 +278,13 @@ class Sandbox:
             )
 
     async def _spawn_subprocess(
-        self, request: dict,
+        self,
+        request: dict,
     ) -> tuple[int, str, str]:
         """Spawn a subprocess and return (returncode, stdout, stderr)."""
-        entry_script = str(
-            Path(__file__).parent.parent / "_subprocess_entry.py"
-        )
+        entry_script = str(Path(__file__).parent.parent / "_subprocess_entry.py")
         if not os.path.exists(entry_script):
-            raise FileNotFoundError(
-                f"Subprocess entry script not found: {entry_script}"
-            )
+            raise FileNotFoundError(f"Subprocess entry script not found: {entry_script}")
 
         python_path = os.pathsep.join(sys.path)
         env = os.environ.copy()
@@ -272,7 +293,8 @@ class Sandbox:
         input_data = json.dumps(request)
 
         proc = await asyncio.create_subprocess_exec(
-            sys.executable, entry_script,
+            sys.executable,
+            entry_script,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -316,10 +338,8 @@ class Sandbox:
                 timeout=self.limits.timeout_seconds,
             )
             if hasattr(agent, "shutdown"):
-                try:
+                with contextlib.suppress(Exception):
                     await asyncio.wait_for(agent.shutdown(), timeout=5.0)
-                except Exception:  # noqa: BLE001
-                    pass
             return SmokeTestResult(
                 success=True,
                 agent_id=agent_id,
@@ -334,7 +354,7 @@ class Sandbox:
                 error=f"timeout after {self.limits.timeout_seconds}s",
                 error_type="Timeout",
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return SmokeTestResult(
                 success=False,
                 agent_id=agent_id,
@@ -368,7 +388,11 @@ class Sandbox:
                 names = node.names  # local ref for Python 3.14 compat
                 for alias in names:
                     if alias.name in {
-                        "system", "exec", "execl", "Popen", "rmtree",
+                        "system",
+                        "exec",
+                        "execl",
+                        "Popen",
+                        "rmtree",
                     }:
                         violations.append(f"{full}.{alias.name}")
         return {"ok": not violations, "violations": violations}
@@ -397,6 +421,7 @@ class Sandbox:
 
 # ------------------------------------------------------------------ Helpers
 
+
 def _kill_process_tree(proc: asyncio.subprocess.Process) -> None:
     """Kill a subprocess and all its children."""
     if proc.pid is None:
@@ -404,10 +429,8 @@ def _kill_process_tree(proc: asyncio.subprocess.Process) -> None:
     try:
         os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
     except (ProcessLookupError, OSError, PermissionError):
-        try:
+        with contextlib.suppress(ProcessLookupError):
             proc.kill()
-        except ProcessLookupError:
-            pass
 
 
 def _signal_name(sig: int) -> str:

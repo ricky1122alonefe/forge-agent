@@ -1,10 +1,9 @@
 """Tests for the `forge-agent logs` CLI command."""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-
-import pytest
 
 from forge_agent.cli import cmd_logs
 

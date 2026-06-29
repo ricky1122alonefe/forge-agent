@@ -8,8 +8,9 @@ score drops below threshold.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from forge_agent.core.capabilities import PromptManagerProtocol
 
@@ -111,7 +112,9 @@ class PromptOptimizer:
         self._reflection_history[agent_id].append(signal)
         # Keep only recent history
         if len(self._reflection_history[agent_id]) > self._max_history:
-            self._reflection_history[agent_id] = self._reflection_history[agent_id][-self._max_history:]
+            self._reflection_history[agent_id] = self._reflection_history[agent_id][
+                -self._max_history :
+            ]
 
     def analyze_trend(self, agent_id: str) -> dict[str, Any]:
         """Analyze score trend from recent reflections.
@@ -195,7 +198,9 @@ class PromptOptimizer:
             agent_id=agent_id,
             old_version=old_version,
             new_version=new_version,
-            reason=signal.get("notes", ["score below threshold"])[0] if signal.get("notes") else "score below threshold",
+            reason=signal.get("notes", ["score below threshold"])[0]
+            if signal.get("notes")
+            else "score below threshold",
             score_before=float(signal.get("score", 0.0)),
             notes=signal.get("notes", []),
         )
@@ -233,19 +238,25 @@ class PromptOptimizer:
         score = signal.get("score", 0.0)
 
         messages = [
-            {"role": "system", "content": (
-                "You are a prompt engineer. Given a current prompt template and "
-                "reflection feedback, output an improved prompt template. "
-                "Output ONLY the improved template text, nothing else."
-            )},
-            {"role": "user", "content": (
-                f"Agent: {agent_id}\n"
-                f"Current score: {score}\n"
-                f"Feedback notes: {json.dumps(notes, ensure_ascii=False)}\n"
-                f"Suggested changes: {json.dumps(suggested_diff, ensure_ascii=False) if suggested_diff else 'none'}\n\n"
-                f"Current prompt template:\n{current_template}\n\n"
-                f"Output the improved template:"
-            )},
+            {
+                "role": "system",
+                "content": (
+                    "You are a prompt engineer. Given a current prompt template and "
+                    "reflection feedback, output an improved prompt template. "
+                    "Output ONLY the improved template text, nothing else."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Agent: {agent_id}\n"
+                    f"Current score: {score}\n"
+                    f"Feedback notes: {json.dumps(notes, ensure_ascii=False)}\n"
+                    f"Suggested changes: {json.dumps(suggested_diff, ensure_ascii=False) if suggested_diff else 'none'}\n\n"
+                    f"Current prompt template:\n{current_template}\n\n"
+                    f"Output the improved template:"
+                ),
+            },
         ]
 
         try:
@@ -253,7 +264,7 @@ class PromptOptimizer:
             improved = improved.strip()
             if improved and improved != current_template:
                 return improved
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("LLM-based prompt improvement failed; falling back to heuristic")
 
         return self._heuristic_improve(current_template, signal)
@@ -270,7 +281,9 @@ class PromptOptimizer:
         if suggested_diff and isinstance(suggested_diff, dict):
             additions = suggested_diff.get("add", "")
             if additions:
-                improved = improved.rstrip() + "\n\n# Improvement based on reflection:\n" + additions
+                improved = (
+                    improved.rstrip() + "\n\n# Improvement based on reflection:\n" + additions
+                )
 
         # Add reflection notes as guidance
         if notes:

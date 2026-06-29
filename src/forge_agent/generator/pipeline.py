@@ -6,17 +6,15 @@ The high-level API used by `forge-agent generate` CLI and by external projects.
 from __future__ import annotations
 
 import logging
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
 from forge_agent.generator.generator import CodeGenerator, GenerationContext, GenerationResult
-from forge_agent.generator.manifest import Manifest
 from forge_agent.generator.registry_getter import get_registry_lazy
-from forge_agent.generator.requirements import AgentRequirements, RequirementsParser
-from forge_agent.generator.sandbox import ResourceLimits, Sandbox, SmokeTestResult
+from forge_agent.generator.requirements import RequirementsParser
+from forge_agent.generator.sandbox import Sandbox, SmokeTestResult
 from forge_agent.generator.store import FileCodeStore, SavedCode
 from forge_agent.generator.validator import ContractValidator, ValidationResult
 
@@ -26,9 +24,9 @@ log = logging.getLogger(__name__)
 class DeployMode(str, Enum):
     """How to handle a freshly generated agent."""
 
-    MANUAL_REVIEW = "manual_review"   # Generate + save + validate, but don't inject
-    AUTO_DEPLOY = "auto_deploy"       # Generate + save + validate + sandbox + inject
-    SANDBOX_ONLY = "sandbox_only"     # Generate + save + validate + sandbox; no inject
+    MANUAL_REVIEW = "manual_review"  # Generate + save + validate, but don't inject
+    AUTO_DEPLOY = "auto_deploy"  # Generate + save + validate + sandbox + inject
+    SANDBOX_ONLY = "sandbox_only"  # Generate + save + validate + sandbox; no inject
 
 
 @dataclass
@@ -107,24 +105,27 @@ class GenerationPipeline:
         dataset_examples = None
         if dataset_name:
             from forge_agent.datasets.registry import get_registry
+
             registry = get_registry()
             ds = registry.load(dataset_name)
             if ds is not None:
                 dataset_examples = [
-                    {"input": item.input, "output": item.output}
-                    for item in ds.sample(n=5)
+                    {"input": item.input, "output": item.output} for item in ds.sample(n=5)
                 ]
-                notes.append(f"Loaded {len(dataset_examples)} examples from dataset '{dataset_name}'")
+                notes.append(
+                    f"Loaded {len(dataset_examples)} examples from dataset '{dataset_name}'"
+                )
 
         # 1.6 Get available MCP tools from gateway
         mcp_tools_available: list[str] = []
         try:
             from forge_agent.mcp.gateway import get_gateway
+
             gw = get_gateway()
             mcp_tools_available = gw.list_tools()
             if mcp_tools_available:
                 notes.append(f"MCP tools available: {len(mcp_tools_available)}")
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass  # MCP gateway not configured; proceed without tools
 
         # 2. Generate code
@@ -147,7 +148,7 @@ class GenerationPipeline:
                 validation=generation.validation,
                 smoke_test=None,
                 saved=None,
-                notes=notes + ["code generation failed"],
+                notes=[*notes, "code generation failed"],
             )
         notes.append(f"Generated in {generation.attempts} attempt(s)")
 
@@ -161,7 +162,9 @@ class GenerationPipeline:
                 created_by="cli",
                 llm_provider=generation.llm_provider,
                 llm_model=generation.llm_model,
-                validation_status="passed" if (generation.validation and generation.validation.ok) else "failed",
+                validation_status="passed"
+                if (generation.validation and generation.validation.ok)
+                else "failed",
                 validation_errors=(generation.validation.errors if generation.validation else []),
                 agent_type=spec.agent_type.value,
             )
@@ -197,7 +200,7 @@ class GenerationPipeline:
                     validation=generation.validation,
                     smoke_test=smoke_test,
                     saved=saved,
-                    notes=notes + ["smoke test failed; not deployed"],
+                    notes=[*notes, "smoke test failed; not deployed"],
                 )
 
         # 5. Optionally: deploy (inject into Registry)
@@ -205,8 +208,9 @@ class GenerationPipeline:
         if deploy_mode == DeployMode.AUTO_DEPLOY and saved:
             try:
                 from forge_agent.generator.injector import AgentInjector
+
                 inj = AgentInjector(validator=self.validator)
-                cls, v_result = inj.inject_source(
+                _cls, v_result = inj.inject_source(
                     generation.source_code,
                     module_name=f"_generated_{spec.agent_id.replace('.', '_')}",
                 )
@@ -215,7 +219,7 @@ class GenerationPipeline:
                     notes.append(f"Deployed: registered {spec.agent_id}")
                 else:
                     notes.append(f"Deploy failed: {v_result.errors}")
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 notes.append(f"Deploy exception: {exc}")
                 log.exception("Deploy failed")
 
@@ -245,6 +249,7 @@ class GenerationPipeline:
         # Default sample context for football-like agents
         if sample_context is None:
             from forge_agent.core.context import AgentContext
+
             sample_context = AgentContext(
                 scope_id="smoke_test",
                 scope_name="smoke",
@@ -258,7 +263,7 @@ class GenerationPipeline:
                 source,
                 module_name=f"_smoke_{agent_id.replace('.', '_')}",
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return SmokeTestResult(
                 success=False,
                 agent_id=agent_id,

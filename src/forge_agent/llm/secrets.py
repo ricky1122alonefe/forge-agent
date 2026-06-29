@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Iterable
 
 log = logging.getLogger(__name__)
 
@@ -117,7 +117,7 @@ class APIKeyManager:
                 k = k.strip()
                 v = v.strip().strip('"').strip("'")
                 self._dotenv_cache[k] = v
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("Failed to read .env at %s", path)
 
     def _from_dotenv(self, name: str, *, search_paths: Iterable[str | Path] | None) -> str | None:
@@ -143,6 +143,7 @@ class APIKeyManager:
                 continue
             try:
                 import importlib.util
+
                 spec = importlib.util.spec_from_file_location("local_secrets", c)
                 if not spec or not spec.loader:
                     continue
@@ -157,12 +158,14 @@ class APIKeyManager:
                         cache[attr] = v
                 self._local_secrets_cache = cache
                 return
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception("Failed to load local_secrets.py at %s", c)
                 continue
         self._local_secrets_cache = {}
 
-    def _from_local_secrets(self, name: str, *, search_paths: Iterable[str | Path] | None) -> str | None:
+    def _from_local_secrets(
+        self, name: str, *, search_paths: Iterable[str | Path] | None
+    ) -> str | None:
         self._load_local_secrets(search_paths)
         return (self._local_secrets_cache or {}).get(name)
 
@@ -173,6 +176,6 @@ class APIKeyManager:
             return None
         try:
             return keyring.get_password("forge-agent", name)
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.debug("keyring lookup failed for %s", name, exc_info=True)
             return None

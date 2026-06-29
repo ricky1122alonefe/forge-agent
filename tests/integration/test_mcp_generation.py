@@ -9,11 +9,10 @@ Verifies that:
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from forge_agent.generator.generator import GenerationContext
 from forge_agent.generator.prompts import build_user_prompt
-from forge_agent.mcp.gateway import MCPGateway, get_gateway, reset_gateway
+from forge_agent.mcp.gateway import get_gateway, reset_gateway
 
 
 @pytest.fixture(autouse=True)
@@ -50,6 +49,7 @@ class TestGenerationContextMCP:
 
     def test_default_empty_mcp_tools(self):
         from forge_agent.generator.requirements import AgentRequirements
+
         req = AgentRequirements(
             agent_id="test.agent",
             name="Test",
@@ -61,6 +61,7 @@ class TestGenerationContextMCP:
 
     def test_mcp_tools_in_context(self):
         from forge_agent.generator.requirements import AgentRequirements
+
         req = AgentRequirements(
             agent_id="test.agent",
             name="Test",
@@ -87,7 +88,10 @@ class TestPipelineMCPIntegration:
             return {"ok": True}
 
         from forge_agent.mcp.permissions import PermissionPolicy
-        gw.register_tool("tavily.search", dummy_handler, policy=PermissionPolicy().allow("tavily.search"))
+
+        gw.register_tool(
+            "tavily.search", dummy_handler, policy=PermissionPolicy().allow("tavily.search")
+        )
         gw.register_tool("db.read", dummy_handler, policy=PermissionPolicy().allow("db.read"))
 
         assert set(gw.list_tools()) == {"tavily.search", "db.read"}
@@ -98,6 +102,7 @@ class TestPipelineMCPIntegration:
 
         # Verify they'd be passed to GenerationContext
         from forge_agent.generator.requirements import AgentRequirements
+
         req = AgentRequirements(
             agent_id="test.agent",
             name="Test",
@@ -118,6 +123,7 @@ class TestPipelineMCPIntegration:
         assert gw.list_tools() == []
 
         from forge_agent.generator.requirements import AgentRequirements
+
         req = AgentRequirements(
             agent_id="test.agent",
             name="Test",
@@ -139,8 +145,13 @@ class TestPipelineMCPIntegration:
             return {"ok": True}
 
         from forge_agent.mcp.permissions import PermissionPolicy
-        gw.register_tool("tavily.search", dummy_handler, policy=PermissionPolicy().allow("tavily.search"))
-        gw.register_tool("fs.read_file", dummy_handler, policy=PermissionPolicy().allow("fs.read_file"))
+
+        gw.register_tool(
+            "tavily.search", dummy_handler, policy=PermissionPolicy().allow("tavily.search")
+        )
+        gw.register_tool(
+            "fs.read_file", dummy_handler, policy=PermissionPolicy().allow("fs.read_file")
+        )
 
         # Simulate pipeline flow
         mcp_tools = gw.list_tools()

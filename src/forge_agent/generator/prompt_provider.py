@@ -19,10 +19,12 @@ Usage::
     system = provider.get_system_prompt(AgentType.SCRAPER)
 
     # Use file overrides
-    provider = ChainPromptProvider([
-        FilePromptProvider("./prompts/"),
-        DefaultPromptProvider(),
-    ])
+    provider = ChainPromptProvider(
+        [
+            FilePromptProvider("./prompts/"),
+            DefaultPromptProvider(),
+        ]
+    )
 """
 
 from __future__ import annotations
@@ -60,6 +62,7 @@ class DefaultPromptProvider:
 
     def get_system_prompt(self, agent_type: AgentType) -> str:
         from forge_agent.generator.prompts import get_system_prompt
+
         return get_system_prompt(agent_type)
 
     def get_user_prompt_template(self, agent_type: AgentType) -> str | None:
@@ -95,6 +98,7 @@ class FilePromptProvider:
                 return content
         # Fallback to default
         from forge_agent.generator.prompts import get_system_prompt
+
         return get_system_prompt(agent_type)
 
     def get_user_prompt_template(self, agent_type: AgentType) -> str | None:
@@ -125,10 +129,13 @@ class ChainPromptProvider:
                 result = provider.get_system_prompt(agent_type)
                 if result:
                     return result
-            except Exception:  # noqa: BLE001
-                log.debug("PromptProvider %s failed for %s", type(provider).__name__, agent_type.value)
+            except Exception:
+                log.debug(
+                    "PromptProvider %s failed for %s", type(provider).__name__, agent_type.value
+                )
         # Ultimate fallback
         from forge_agent.generator.prompts import get_system_prompt
+
         return get_system_prompt(agent_type)
 
     def get_user_prompt_template(self, agent_type: AgentType) -> str | None:
@@ -137,8 +144,10 @@ class ChainPromptProvider:
                 result = provider.get_user_prompt_template(agent_type)
                 if result is not None:
                     return result
-            except Exception:  # noqa: BLE001
-                log.debug("PromptProvider %s failed for %s", type(provider).__name__, agent_type.value)
+            except Exception:
+                log.debug(
+                    "PromptProvider %s failed for %s", type(provider).__name__, agent_type.value
+                )
         return None
 
 

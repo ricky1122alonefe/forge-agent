@@ -10,6 +10,7 @@ Covers:
 - Filesystem isolation (chdir to temp dir)
 - Legacy in-process fallback (no _source_code)
 """
+
 from __future__ import annotations
 
 import pytest
@@ -17,8 +18,8 @@ import pytest
 from forge_agent.core.context import AgentContext
 from forge_agent.generator.sandbox import ResourceLimits, Sandbox, SmokeTestResult
 
-
 # ----------------------------------------------------------------- Fixtures
+
 
 @pytest.fixture
 def sandbox() -> Sandbox:
@@ -36,6 +37,7 @@ def ctx() -> AgentContext:
 
 
 # ----------------------------------------------------------------- Static: imports
+
 
 def test_check_imports_clean(sandbox: Sandbox) -> None:
     src = "import json\nimport os\n"
@@ -73,6 +75,7 @@ def test_check_imports_syntax_error(sandbox: Sandbox) -> None:
 
 # ----------------------------------------------------------------- Static: network
 
+
 def test_check_network_clean(sandbox: Sandbox) -> None:
     src = "import json\nimport os\n"
     result = sandbox._check_network(src)
@@ -102,7 +105,7 @@ def test_check_network_from_aiohttp_blocked(sandbox: Sandbox) -> None:
 
 # ----------------------------------------------------------------- Subprocess: happy path
 
-_GOOD_AGENT_SRC = '''\
+_GOOD_AGENT_SRC = """\
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -121,7 +124,7 @@ class GoodAgent(BaseAgent):
         return AgentReport(
             agent_id=self.agent_id, name=self.name, evidence=["ok"],
         )
-'''
+"""
 
 
 @pytest.mark.asyncio
@@ -141,7 +144,7 @@ async def test_subprocess_happy_path(sandbox: Sandbox, ctx: AgentContext) -> Non
 
 # ----------------------------------------------------------------- Subprocess: timeout
 
-_LOOP_AGENT_SRC = '''\
+_LOOP_AGENT_SRC = """\
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -159,12 +162,13 @@ class LoopAgent(BaseAgent):
 
     async def act(self, ctx: AgentContext, dec: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
 
 
 @pytest.mark.asyncio
 async def test_subprocess_timeout(
-    sandbox_fast: Sandbox, ctx: AgentContext,
+    sandbox_fast: Sandbox,
+    ctx: AgentContext,
 ) -> None:
     class LoopAgent:
         agent_id = "test.loop"
@@ -181,7 +185,7 @@ async def test_subprocess_timeout(
 
 # ----------------------------------------------------------------- Subprocess: forbidden imports
 
-_SUBPROCESS_AGENT_SRC = '''\
+_SUBPROCESS_AGENT_SRC = """\
 import subprocess
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
@@ -199,12 +203,13 @@ class SubAgent(BaseAgent):
 
     async def act(self, ctx: AgentContext, dec: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
 
 
 @pytest.mark.asyncio
 async def test_subprocess_forbidden_import(
-    sandbox: Sandbox, ctx: AgentContext,
+    sandbox: Sandbox,
+    ctx: AgentContext,
 ) -> None:
     class SubAgent:
         agent_id = "test.sub"
@@ -220,7 +225,7 @@ async def test_subprocess_forbidden_import(
 
 # ----------------------------------------------------------------- Subprocess: network policy
 
-_HTTP_AGENT_SRC = '''\
+_HTTP_AGENT_SRC = """\
 import httpx
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
@@ -238,12 +243,13 @@ class HttpAgent(BaseAgent):
 
     async def act(self, ctx: AgentContext, dec: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
 
 
 @pytest.mark.asyncio
 async def test_subprocess_network_policy(
-    sandbox: Sandbox, ctx: AgentContext,
+    sandbox: Sandbox,
+    ctx: AgentContext,
 ) -> None:
     class HttpAgent:
         agent_id = "test.http"
@@ -276,7 +282,7 @@ async def test_subprocess_network_allowed_when_enabled(
 
 # ----------------------------------------------------------------- Filesystem isolation
 
-_WRITE_AGENT_SRC = '''\
+_WRITE_AGENT_SRC = """\
 import os
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
@@ -299,7 +305,7 @@ class WriteAgent(BaseAgent):
             agent_id=self.agent_id, name=self.name,
             evidence=[dec.get("cwd", "")],
         )
-'''
+"""
 
 
 @pytest.mark.asyncio
@@ -329,6 +335,7 @@ async def test_filesystem_isolation(sandbox: Sandbox, ctx: AgentContext) -> None
 
 # ----------------------------------------------------------------- Legacy: in-process fallback
 
+
 @pytest.mark.asyncio
 async def test_inprocess_fallback(sandbox: Sandbox, ctx: AgentContext) -> None:
     """When agent has no _source_code, run in-process (legacy mode)."""
@@ -347,7 +354,9 @@ async def test_inprocess_fallback(sandbox: Sandbox, ctx: AgentContext) -> None:
 
         async def act(self, ctx: AgentContext, dec: dict) -> AgentReport:
             return AgentReport(
-                agent_id=self.agent_id, name=self.name, evidence=["legacy"],
+                agent_id=self.agent_id,
+                name=self.name,
+                evidence=["legacy"],
             )
 
     result = await sandbox.run_smoke_test(LegacyAgent, ctx)
@@ -357,7 +366,8 @@ async def test_inprocess_fallback(sandbox: Sandbox, ctx: AgentContext) -> None:
 
 @pytest.mark.asyncio
 async def test_inprocess_timeout(
-    sandbox_fast: Sandbox, ctx: AgentContext,
+    sandbox_fast: Sandbox,
+    ctx: AgentContext,
 ) -> None:
     """In-process mode also respects timeout."""
     from forge_agent.core.base import BaseAgent
@@ -369,6 +379,7 @@ async def test_inprocess_timeout(
 
         async def observe(self, ctx: AgentContext) -> dict:
             import asyncio
+
             await asyncio.sleep(100)
             return {}
 
@@ -385,11 +396,12 @@ async def test_inprocess_timeout(
 
 # ----------------------------------------------------------------- Error handling
 
+
 @pytest.mark.asyncio
 async def test_subprocess_runtime_error(sandbox: Sandbox, ctx: AgentContext) -> None:
     """Agent that raises an exception is caught and reported."""
 
-    error_src = '''\
+    error_src = """\
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
@@ -406,7 +418,7 @@ class ErrorAgent(BaseAgent):
 
     async def act(self, ctx: AgentContext, dec: dict) -> AgentReport:
         return AgentReport(agent_id=self.agent_id, name=self.name)
-'''
+"""
 
     class ErrorAgent:
         agent_id = "test.error"
@@ -421,6 +433,7 @@ class ErrorAgent(BaseAgent):
 
 
 # ----------------------------------------------------------------- Backward compat
+
 
 def test_backward_compat_imports() -> None:
     """Old import paths still work."""
@@ -437,7 +450,9 @@ def test_backward_compat_imports() -> None:
 
 def test_smoke_test_result_dataclass() -> None:
     r = SmokeTestResult(
-        success=True, agent_id="test", duration_ms=10.0,
+        success=True,
+        agent_id="test",
+        duration_ms=10.0,
     )
     assert r.success is True
     assert r.error is None

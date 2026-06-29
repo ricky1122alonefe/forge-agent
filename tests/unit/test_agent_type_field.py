@@ -2,20 +2,17 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 import tempfile
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-from forge_agent.generator.manifest import AgentManifestEntry, AgentVersionMeta, Manifest
+from forge_agent.generator.manifest import AgentManifestEntry, Manifest
 from forge_agent.generator.store import FileCodeStore
 
-
 # ── Manifest agent_type ──────────────────────────────────────────────
+
 
 class TestManifestAgentType:
     def test_default_empty(self):
@@ -23,16 +20,26 @@ class TestManifestAgentType:
         assert entry.agent_type == ""
 
     def test_set_type(self):
-        entry = AgentManifestEntry(agent_id="a1", created_at="2026-01-01", active_version="v1", agent_type="scraper")
+        entry = AgentManifestEntry(
+            agent_id="a1", created_at="2026-01-01", active_version="v1", agent_type="scraper"
+        )
         assert entry.agent_type == "scraper"
 
     def test_to_dict_includes_type(self):
-        entry = AgentManifestEntry(agent_id="a1", created_at="2026-01-01", active_version="v1", agent_type="analyzer")
+        entry = AgentManifestEntry(
+            agent_id="a1", created_at="2026-01-01", active_version="v1", agent_type="analyzer"
+        )
         d = entry.to_dict()
         assert d["agent_type"] == "analyzer"
 
     def test_from_dict_with_type(self):
-        d = {"agent_id": "a1", "created_at": "2026-01-01", "active_version": "v1", "agent_type": "monitor", "versions": []}
+        d = {
+            "agent_id": "a1",
+            "created_at": "2026-01-01",
+            "active_version": "v1",
+            "agent_type": "monitor",
+            "versions": [],
+        }
         entry = AgentManifestEntry.from_dict(d)
         assert entry.agent_type == "monitor"
 
@@ -42,12 +49,15 @@ class TestManifestAgentType:
         assert entry.agent_type == ""
 
     def test_roundtrip(self):
-        entry = AgentManifestEntry(agent_id="a1", created_at="2026-01-01", active_version="v1", agent_type="generator")
+        entry = AgentManifestEntry(
+            agent_id="a1", created_at="2026-01-01", active_version="v1", agent_type="generator"
+        )
         restored = AgentManifestEntry.from_dict(entry.to_dict())
         assert restored.agent_type == "generator"
 
 
 # ── FileCodeStore agent_type ─────────────────────────────────────────
+
 
 class TestStoreAgentType:
     def setup_method(self):
@@ -85,6 +95,7 @@ class TestStoreAgentType:
 
 # ── cmd_list TYPE column ─────────────────────────────────────────────
 
+
 class TestCmdListType:
     def setup_method(self):
         self.tmpdir = Path(tempfile.mkdtemp())
@@ -99,8 +110,9 @@ class TestCmdListType:
 
     def test_list_shows_type_column(self):
         store = self._make_store_with_agent("scraper")
-        from forge_agent.cli.cmd_list import run
         import argparse
+
+        from forge_agent.cli.cmd_list import run
 
         args = argparse.Namespace(project=str(self.tmpdir / "out"))
         with patch("forge_agent.cli._helpers.get_store", return_value=store):
@@ -114,8 +126,9 @@ class TestCmdListType:
 
     def test_list_shows_dash_for_empty_type(self):
         store = self._make_store_with_agent("")
-        from forge_agent.cli.cmd_list import run
         import argparse
+
+        from forge_agent.cli.cmd_list import run
 
         args = argparse.Namespace(project=str(self.tmpdir / "out"))
         with patch("forge_agent.cli._helpers.get_store", return_value=store):
@@ -126,6 +139,6 @@ class TestCmdListType:
         assert "TYPE" in output
         # Should show "-" for empty type
         lines = output.strip().split("\n")
-        data_line = [l for l in lines if "my-agent" in l][0]
+        data_line = next(line for line in lines if "my-agent" in line)
         assert "-" in data_line
         assert ret == 0

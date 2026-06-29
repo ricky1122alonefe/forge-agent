@@ -7,7 +7,6 @@ Decoupled from FastAPI — pure data access.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 
 class CodeSource:
@@ -22,6 +21,7 @@ class CodeSource:
         """Lazy access to FileCodeStore."""
         if self._store is None:
             from forge_agent.generator.store import FileCodeStore
+
             store_path = self._project_root / "generated_agents"
             if store_path.exists():
                 self._store = FileCodeStore(store_path)

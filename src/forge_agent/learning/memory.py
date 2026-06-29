@@ -7,7 +7,6 @@ For long-term & multi-node, use a vector store / Redis / SQLite.
 from __future__ import annotations
 
 import json
-from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable

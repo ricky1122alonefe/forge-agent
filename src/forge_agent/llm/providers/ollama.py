@@ -8,16 +8,8 @@ so it can reuse OpenAICompatibleClient — we just subclass for special handling
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
-from typing import Any
 
-from forge_agent.llm.config import ProviderConfig
 from forge_agent.llm.providers.openai_compat import OpenAICompatibleClient
-from forge_agent.llm.protocol import (
-    ChatMessage,
-    LLMResponse,
-    StreamChunk,
-)
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +23,7 @@ class OllamaClient(OpenAICompatibleClient):
     async def list_local_models(self) -> list[str]:
         """Hit Ollama's /api/tags to list installed models."""
         import httpx
+
         base = (self.cfg.base_url or "http://localhost:11434/v1").rstrip("/")
         tags_url = base.replace("/v1", "") + "/api/tags"
         try:
@@ -39,6 +32,6 @@ class OllamaClient(OpenAICompatibleClient):
                 r.raise_for_status()
                 data = r.json()
                 return [m.get("name", "") for m in data.get("models", []) if m.get("name")]
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.warning("Failed to list Ollama models (is it running?)", exc_info=True)
             return []

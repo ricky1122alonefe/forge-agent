@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Type
+from collections.abc import Callable
 
 from forge_agent.core.base import BaseAgent
 from forge_agent.registry.registry import get_registry
@@ -13,7 +13,7 @@ def register_agent(
     domain: str | None = None,
     tags: list[str] | None = None,
     override: bool = False,
-) -> Callable[[Type[BaseAgent]], Type[BaseAgent]]:
+) -> Callable[[type[BaseAgent]], type[BaseAgent]]:
     """Class decorator that registers a BaseAgent subclass with the global registry.
 
     Usage::
@@ -30,7 +30,7 @@ def register_agent(
         override: Allow replacing an already-registered agent_id.
     """
 
-    def decorator(cls: Type[BaseAgent]) -> Type[BaseAgent]:
+    def decorator(cls: type[BaseAgent]) -> type[BaseAgent]:
         get_registry().register(cls, domain=domain, tags=tags, override=override)
         return cls
 

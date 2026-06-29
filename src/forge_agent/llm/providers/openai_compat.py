@@ -7,7 +7,7 @@ single class covers ~90% of the ecosystem.
 
 from __future__ import annotations
 
-import json
+import contextlib
 import logging
 import os
 from collections.abc import AsyncIterator
@@ -60,7 +60,9 @@ class OpenAICompatibleClient(LLMClient):
                 f"No api_key_env configured for provider {self.provider_id!r}",
                 provider=self.provider_id,
             )
-        resolved = self._key_manager.resolve(envs[0], alt_names=envs[1:], search_paths=[os.getcwd()])
+        resolved = self._key_manager.resolve(
+            envs[0], alt_names=envs[1:], search_paths=[os.getcwd()]
+        )
         if not resolved:
             raise LLMAuthError(
                 f"API key for {self.provider_id!r} not found. Tried: {envs}",
@@ -105,7 +107,7 @@ class OpenAICompatibleClient(LLMClient):
                 max_tokens=max_tokens,
                 **kwargs,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise self._classify_error(exc) from exc
 
         return self._parse_response(resp)
@@ -130,7 +132,7 @@ class OpenAICompatibleClient(LLMClient):
                 stream=True,
                 **kwargs,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise self._classify_error(exc) from exc
 
         async for event in stream:
@@ -176,10 +178,8 @@ class OpenAICompatibleClient(LLMClient):
             ) from exc
 
         raw: dict[str, Any] = {}
-        try:
+        with contextlib.suppress(Exception):
             raw = resp.model_dump() if hasattr(resp, "model_dump") else {}
-        except Exception:  # noqa: BLE001
-            pass
 
         return LLMResponse(
             content=content,

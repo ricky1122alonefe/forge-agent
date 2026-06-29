@@ -8,25 +8,26 @@ Covers:
 - Retry logging
 - Rollback to previous stable version
 """
+
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
 from forge_agent.generator.retry import (
     AttemptRecord,
     NonRetryableError,
+    RetryableError,
     RetryConfig,
     RetryManager,
-    RetryableError,
     RollbackManager,
     classify_error,
 )
 
-
 # ------------------------------------------------------------------ Error classifier
+
 
 def test_classify_timeout_as_retryable() -> None:
     """Timeout errors should be retryable."""
@@ -70,6 +71,7 @@ def test_classify_exception_object() -> None:
 
 
 # ------------------------------------------------------------------ Retry manager: success
+
 
 @pytest.mark.asyncio
 async def test_retry_success_first_attempt() -> None:
@@ -137,6 +139,7 @@ async def test_retry_success_third_attempt() -> None:
 
 # ------------------------------------------------------------------ Retry manager: failure
 
+
 @pytest.mark.asyncio
 async def test_retry_exhausted() -> None:
     """Should raise after all retries exhausted."""
@@ -188,6 +191,7 @@ async def test_retry_forbidden_import_no_retry() -> None:
 
 # ------------------------------------------------------------------ Exponential backoff
 
+
 @pytest.mark.asyncio
 async def test_exponential_backoff_timing() -> None:
     """Should apply exponential backoff between retries."""
@@ -219,6 +223,7 @@ async def test_exponential_backoff_timing() -> None:
 
 
 # ------------------------------------------------------------------ Retry logging
+
 
 @pytest.mark.asyncio
 async def test_retry_log_records_all_attempts() -> None:
@@ -272,6 +277,7 @@ async def test_retry_log_duration() -> None:
 
 
 # ------------------------------------------------------------------ Rollback manager
+
 
 def test_rollback_to_previous_version() -> None:
     """Should rollback to the previous stable version."""
@@ -375,6 +381,7 @@ def test_get_stable_versions() -> None:
 
 # ------------------------------------------------------------------ AttemptRecord
 
+
 def test_attempt_record_dataclass() -> None:
     """AttemptRecord should be a proper dataclass."""
     record = AttemptRecord(
@@ -392,6 +399,7 @@ def test_attempt_record_dataclass() -> None:
 
 
 # ------------------------------------------------------------------ RetryConfig
+
 
 def test_retry_config_defaults() -> None:
     """RetryConfig should have sensible defaults."""

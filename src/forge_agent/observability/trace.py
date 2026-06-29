@@ -79,12 +79,12 @@ class Span:
     error_message: str = ""
     _start_perf: float = field(default=0.0, repr=False)
 
-    def start(self) -> "Span":
+    def start(self) -> Span:
         self._start_perf = time.perf_counter()
         self.start_time = _now_iso()
         return self
 
-    def end(self, status: SpanStatus = SpanStatus.OK) -> "Span":
+    def end(self, status: SpanStatus = SpanStatus.OK) -> Span:
         self.end_time = _now_iso()
         self.duration_ms = round((time.perf_counter() - self._start_perf) * 1000, 2)
         self.status = status
@@ -94,11 +94,13 @@ class Span:
         self.attributes[key] = value
 
     def add_event(self, name: str, **attrs: Any) -> None:
-        self.events.append({
-            "name": name,
-            "timestamp": _now_iso(),
-            "attributes": attrs,
-        })
+        self.events.append(
+            {
+                "name": name,
+                "timestamp": _now_iso(),
+                "attributes": attrs,
+            }
+        )
 
     def set_error(self, message: str) -> None:
         self.error_message = message
@@ -134,12 +136,12 @@ class Trace:
     attributes: dict[str, Any] = field(default_factory=dict)
     _start_perf: float = field(default=0.0, repr=False)
 
-    def start(self) -> "Trace":
+    def start(self) -> Trace:
         self._start_perf = time.perf_counter()
         self.start_time = _now_iso()
         return self
 
-    def end(self) -> "Trace":
+    def end(self) -> Trace:
         self.end_time = _now_iso()
         self.duration_ms = round((time.perf_counter() - self._start_perf) * 1000, 2)
         return self
@@ -174,12 +176,8 @@ class Trace:
     def summary(self) -> dict[str, Any]:
         agent_spans = self.get_spans_by_type(SpanType.AGENT)
         error_spans = [s for s in self.spans if s.status == SpanStatus.ERROR]
-        total_tokens_in = sum(
-            s.attributes.get("tokens_in", 0) for s in self.spans
-        )
-        total_tokens_out = sum(
-            s.attributes.get("tokens_out", 0) for s in self.spans
-        )
+        total_tokens_in = sum(s.attributes.get("tokens_in", 0) for s in self.spans)
+        total_tokens_out = sum(s.attributes.get("tokens_out", 0) for s in self.spans)
         return {
             "trace_id": self.trace_id,
             "pipeline_id": self.pipeline_id,

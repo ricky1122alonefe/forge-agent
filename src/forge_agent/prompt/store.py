@@ -43,11 +43,13 @@ class FilePromptStore(PromptManagerProtocol):
             versions = self.list_versions(agent_id)
             if not versions:
                 from forge_agent.exceptions import PromptNotFoundError
+
                 raise PromptNotFoundError(agent_id)
             version = sorted(versions)[-1]
         path = self.root / agent_id / f"{version}.j2"
         if not path.is_file():
             from forge_agent.exceptions import PromptFileNotFoundError
+
             raise PromptFileNotFoundError(str(path))
         return path.read_text(encoding="utf-8")
 
@@ -63,6 +65,7 @@ class FilePromptStore(PromptManagerProtocol):
             return template.format(**variables)
         except KeyError as exc:
             from forge_agent.exceptions import PromptVariableError
+
             raise PromptVariableError(agent_id, str(exc.args[0])) from exc
 
     def list_versions(self, agent_id: str) -> list[str]:

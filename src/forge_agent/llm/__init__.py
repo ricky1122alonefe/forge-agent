@@ -28,6 +28,7 @@
 **Streaming:**::
 
     from forge_agent.llm import stream
+
     async for chunk in stream("Tell me a story"):
         print(chunk.delta, end="", flush=True)
 """
@@ -53,48 +54,49 @@ from forge_agent.llm.protocol import (
     stream,
 )
 from forge_agent.llm.protocol_types import LLMChatFn, LLMStreamFn
-from forge_agent.llm.registry import LLMRegistry, get_registry as get_llm_registry
+from forge_agent.llm.registry import LLMRegistry
+from forge_agent.llm.registry import get_registry as get_llm_registry
 from forge_agent.llm.secrets import APIKeyManager, APIKeySource
 from forge_agent.llm.tracker import TokenTracker, estimate_cost, get_tracker
 from forge_agent.llm.usage_store import SQLiteUsageStore, TokenUsage
 
 __all__ = [
-    # Core types
-    "ChatMessage",
-    "LLMResponse",
-    "StreamChunk",
-    "LLMClient",
-    # Protocol types
-    "LLMChatFn",
-    "LLMStreamFn",
-    # Config
-    "LLMConfig",
-    "ProviderConfig",
-    "load_config",
-    # Exceptions
-    "LLMError",
-    "LLMAuthError",
-    "LLMRateLimitError",
-    "LLMNetworkError",
-    "LLMContextOverflowError",
     # Secrets
     "APIKeyManager",
     "APIKeySource",
-    # Registry
-    "LLMRegistry",
-    "get_llm_registry",
+    # Core types
+    "ChatMessage",
+    "LLMAuthError",
+    # Protocol types
+    "LLMChatFn",
+    "LLMClient",
+    # Config
+    "LLMConfig",
+    "LLMContextOverflowError",
+    # Exceptions
+    "LLMError",
     # Factory
     "LLMFactory",
-    "get_client",
-    "list_providers",
-    # High-level helpers
-    "chat",
-    "multi_chat",
-    "stream",
+    "LLMNetworkError",
+    "LLMRateLimitError",
+    # Registry
+    "LLMRegistry",
+    "LLMResponse",
+    "LLMStreamFn",
+    "ProviderConfig",
+    "SQLiteUsageStore",
+    "StreamChunk",
     # Token tracking
     "TokenTracker",
     "TokenUsage",
-    "SQLiteUsageStore",
-    "get_tracker",
+    # High-level helpers
+    "chat",
     "estimate_cost",
+    "get_client",
+    "get_llm_registry",
+    "get_tracker",
+    "list_providers",
+    "load_config",
+    "multi_chat",
+    "stream",
 ]

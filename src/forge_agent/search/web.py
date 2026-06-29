@@ -7,7 +7,8 @@ by subclassing or by injecting a `search_fn`.
 from __future__ import annotations
 
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from forge_agent.core.capabilities import SearcherProtocol
 
@@ -19,6 +20,8 @@ class WebSearcher(SearcherProtocol):
 
     Usage::
         async def my_search(query: str, **kw): ...
+
+
         searcher = WebSearcher(search_fn=my_search, name="tavily")
     """
 

@@ -9,7 +9,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -33,5 +34,5 @@ class EventBus:
         for handler in list(self._subs.get(topic, [])):
             try:
                 await handler(payload)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception("EventBus handler failed for %s", topic)

@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import pytest
 
 from forge_agent.cli.cmd_new import TEMPLATES, run
 
-
 # ---------------------------------------------------------------------------
 # Template definitions
 # ---------------------------------------------------------------------------
+
 
 class TestTemplateDefinitions:
     def test_all_templates_exist(self):
@@ -42,7 +41,7 @@ class TestTemplateDefinitions:
     def test_templates_are_differentiated(self):
         """Each template should produce different agent code."""
         all_codes = []
-        for name, tmpl in TEMPLATES.items():
+        for _name, tmpl in TEMPLATES.items():
             codes = [a["code"] for a in tmpl["agents"]]
             all_codes.append("".join(codes))
         # At least check they're not all identical
@@ -71,6 +70,7 @@ class TestTemplateDefinitions:
 # ---------------------------------------------------------------------------
 # Run function — project creation
 # ---------------------------------------------------------------------------
+
 
 class TestRunCreatesProject:
     def _make_args(self, tmp_path, name="myproject", template="basic"):

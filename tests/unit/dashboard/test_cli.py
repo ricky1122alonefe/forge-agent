@@ -6,8 +6,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from forge_agent.cli.cmd_dashboard import add, run
 
 
@@ -127,9 +125,11 @@ class TestRunCommand:
         mock_uvicorn = MagicMock()
         mock_create_app = MagicMock()
 
-        with patch.dict(sys.modules, {"uvicorn": mock_uvicorn}):
-            with patch("forge_agent.dashboard.app.create_app", mock_create_app):
-                run(args)
+        with (
+            patch.dict(sys.modules, {"uvicorn": mock_uvicorn}),
+            patch("forge_agent.dashboard.app.create_app", mock_create_app),
+        ):
+            run(args)
 
         # Verify create_app was called with correct params
         mock_create_app.assert_called_once_with(
@@ -153,11 +153,11 @@ class TestRunCommand:
         mock_uvicorn = MagicMock()
         mock_create_app = MagicMock()
 
-        with patch.dict(sys.modules, {"uvicorn": mock_uvicorn}):
-            with patch("forge_agent.dashboard.app.create_app", mock_create_app):
-                run(args)
-
-        # Verify uvicorn.run was called
+        with (
+            patch.dict(sys.modules, {"uvicorn": mock_uvicorn}),
+            patch("forge_agent.dashboard.app.create_app", mock_create_app),
+        ):
+            run(args)
         mock_uvicorn.run.assert_called_once()
         call_kwargs = mock_uvicorn.run.call_args[1]
         assert call_kwargs["host"] == "127.0.0.1"
@@ -179,8 +179,10 @@ class TestRunCommand:
         mock_uvicorn = MagicMock()
         mock_create_app = MagicMock()
 
-        with patch.dict(sys.modules, {"uvicorn": mock_uvicorn}):
-            with patch("forge_agent.dashboard.app.create_app", mock_create_app):
-                result = run(args)
+        with (
+            patch.dict(sys.modules, {"uvicorn": mock_uvicorn}),
+            patch("forge_agent.dashboard.app.create_app", mock_create_app),
+        ):
+            result = run(args)
 
         assert result == 0

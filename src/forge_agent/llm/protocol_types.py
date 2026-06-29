@@ -7,6 +7,7 @@ Usage::
 
     from forge_agent.llm.protocol_types import LLMChatFn
 
+
     class CodeGenerator:
         def __init__(self, llm_chat: LLMChatFn):
             self.llm_chat = llm_chat

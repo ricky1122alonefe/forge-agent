@@ -139,6 +139,7 @@ class TestTemplateContent:
     def test_all_templates_are_valid_python(self) -> None:
         """Templates should be syntactically valid Python."""
         import ast
+
         for at in AgentType:
             tmpl = get_template(at)
             assert tmpl is not None
@@ -156,6 +157,7 @@ class TestBuildUserPromptWithTemplate:
 
     def test_template_included_in_prompt(self) -> None:
         from forge_agent.generator.prompts import build_user_prompt
+
         tmpl = "class MyAgent(BaseAgent): ..."
         result = build_user_prompt("需求规格", template=tmpl)
         assert "参考以下代码骨架" in result
@@ -163,11 +165,13 @@ class TestBuildUserPromptWithTemplate:
 
     def test_no_template_no_reference_section(self) -> None:
         from forge_agent.generator.prompts import build_user_prompt
+
         result = build_user_prompt("需求规格")
         assert "参考以下代码骨架" not in result
 
     def test_template_with_mcp_tools(self) -> None:
         from forge_agent.generator.prompts import build_user_prompt
+
         tmpl = "class MyAgent: ..."
         result = build_user_prompt("需求", template=tmpl, mcp_tools=["tavily.search"])
         assert "参考以下代码骨架" in result
