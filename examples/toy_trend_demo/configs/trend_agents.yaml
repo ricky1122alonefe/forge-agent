@@ -1,0 +1,169 @@
+# 潮玩趋势情报官 - 平台专家配置
+# 默认 mock_mode=true，无需 API key 即可跑通 demo。
+# 接入真实 LLM 或真实 scraper 时，将 mock_mode 改为 false。
+
+agents:
+  - agent_id: trend.weibo
+    name: 微博热度专家
+    domain: toy_trend
+    template: scraper_agent
+    tags: [social, weibo]
+    config:
+      platform: weibo
+      tools: [weibo.hot_search]
+      keyword_variable: keyword
+      provider: openai
+      model: gpt-4o-mini
+      temperature: 0.2
+      mock_mode: true
+      mock_response: |
+        {
+          "verdict": "lean_positive",
+          "confidence": 0.82,
+          "risk": 0.15,
+          "evidence": [
+            "微博热搜中 {keyword} 相关话题上榜 3 条，总阅读量过亿。",
+            "评论区以正面情绪为主，大量用户表示「想冲」。"
+          ],
+          "recommended_action": "execute",
+          "metrics": {"matched_topics": 3, "total_heat": 120000000}
+        }
+      prompt: |
+        你是一位微博舆情分析专家。请分析以下微博热搜数据，判断关键词「{keyword}」相关的潮玩热度趋势。
+
+        数据：
+        {data}
+
+        请输出 JSON：
+        {
+          "verdict": "lean_positive|lean_neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["关键发现1", "关键发现2"],
+          "recommended_action": "execute|watch|hold|alert",
+          "metrics": {"matched_topics": 0, "total_heat": 0}
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+        recommended_action: str
+        metrics: dict
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+        recommended_action: recommended_action
+        metrics: metrics
+
+  - agent_id: trend.xiaohongshu
+    name: 小红书种草专家
+    domain: toy_trend
+    template: scraper_agent
+    tags: [social, xiaohongshu]
+    config:
+      platform: xiaohongshu
+      tools: [xiaohongshu.search]
+      keyword_variable: keyword
+      provider: openai
+      model: gpt-4o-mini
+      temperature: 0.2
+      mock_mode: true
+      mock_response: |
+        {
+          "verdict": "lean_positive",
+          "confidence": 0.78,
+          "risk": 0.20,
+          "evidence": [
+            "小红书近 7 天 {keyword} 相关笔记点赞均值 1.2w，种草氛围浓厚。",
+            "「开箱」「隐藏款」类笔记占比高，转化意图强。"
+          ],
+          "recommended_action": "execute",
+          "metrics": {"matched_notes": 156, "avg_likes": 12000}
+        }
+      prompt: |
+        你是一位小红书种草趋势分析专家。请分析以下小红书笔记数据，判断关键词「{keyword}」相关的潮玩种草热度。
+
+        数据：
+        {data}
+
+        请输出 JSON：
+        {
+          "verdict": "lean_positive|lean_neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["关键发现1", "关键发现2"],
+          "recommended_action": "execute|watch|hold|alert",
+          "metrics": {"matched_notes": 0, "avg_likes": 0}
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+        recommended_action: str
+        metrics: dict
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+        recommended_action: recommended_action
+        metrics: metrics
+
+  - agent_id: trend.dewu
+    name: 得物价量专家
+    domain: toy_trend
+    template: scraper_agent
+    tags: [commerce, dewu]
+    config:
+      platform: dewu
+      tools: [dewu.search]
+      keyword_variable: keyword
+      provider: openai
+      model: gpt-4o-mini
+      temperature: 0.2
+      mock_mode: true
+      mock_response: |
+        {
+          "verdict": "lean_neutral",
+          "confidence": 0.65,
+          "risk": 0.35,
+          "evidence": [
+            "得物 {keyword} 成交均价较发行价溢价 18%，但成交量环比下滑。",
+            "市场买盘意愿中等，存在短期回调风险。"
+          ],
+          "recommended_action": "watch",
+          "metrics": {"avg_price": 299, "premium_rate": 0.18}
+        }
+      prompt: |
+        你是一位得物二级市场分析专家。请分析以下得物价量数据，判断关键词「{keyword}」相关的潮玩供需与价格趋势。
+
+        数据：
+        {data}
+
+        请输出 JSON：
+        {
+          "verdict": "lean_positive|lean_neutral|lean_negative|risk",
+          "confidence": 0.0-1.0,
+          "risk": 0.0-1.0,
+          "evidence": ["关键发现1", "关键发现2"],
+          "recommended_action": "execute|watch|hold|alert",
+          "metrics": {"avg_price": 0, "premium_rate": 0.0}
+        }
+      output_schema:
+        verdict: str
+        confidence: float
+        risk: float
+        evidence: list[str]
+        recommended_action: str
+        metrics: dict
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        risk: risk
+        evidence: evidence
+        recommended_action: recommended_action
+        metrics: metrics
