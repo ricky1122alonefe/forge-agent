@@ -76,6 +76,8 @@ class TeamRunner:
     def _build_context(self, mission: Mission) -> AgentContext:
         team = mission.team
         payload = {**team.payload, **mission.payload}
+        if team.chief_config:
+            payload["chief_config"] = team.chief_config
         return AgentContext(
             scope_id=mission.mission_id,
             scope_name=mission.name,
@@ -120,7 +122,11 @@ class TeamRunner:
     ) -> AgentReport | None:
         try:
             registry = get_registry()
-            chief = await registry.get(chief_id)
+            # Use the team-level chief config if available. Force a fresh instance
+            # so that repeated pipeline runs with different configs do not reuse a
+            # stale chief.
+            chief_config = ctx.payload.get("chief_config", {})
+            chief = await registry.get(chief_id, config=chief_config, force_new=True)
             chief_ctx = ctx.child()
             chief_ctx.payload["reports"] = [r.to_dict() for r in board.agents]
             chief_ctx.payload["board"] = board.to_dict()

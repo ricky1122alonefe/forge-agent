@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import ClassVar
 
 from forge_agent.core.base import BaseAgent
-from forge_agent.core.contracts import AgentReport
 from forge_agent.core.context import AgentContext
-from forge_agent.core.enums import Verdict
+from forge_agent.core.contracts import AgentReport
+from forge_agent.core.enums import Action, Verdict
 from forge_agent.llm import chat
 
 
@@ -69,7 +69,7 @@ class AnalyzerAgent(BaseAgent):
         return {
             "analysis": analysis,
             "confidence": 0.8,
-            "verdict": "SAFE",
+            "verdict": Verdict.SAFE.value,
         }
 
     async def act(self, ctx: AgentContext, decision: dict) -> AgentReport:
@@ -78,8 +78,16 @@ class AnalyzerAgent(BaseAgent):
         confidence = decision.get("confidence", 0.5)
         verdict_str = decision.get("verdict", "NEUTRAL")
 
-        verdict_map = {"SAFE": Verdict.SAFE, "RISK": Verdict.RISK}
+        verdict_map = {
+            "SAFE": Verdict.SAFE,
+            "RISK": Verdict.RISK,
+            "NEUTRAL": Verdict.NEUTRAL,
+        }
         verdict = verdict_map.get(verdict_str, Verdict.NEUTRAL)
+
+        recommended_action = Action.EXECUTE if verdict == Verdict.SAFE else Action.WATCH
+        if verdict == Verdict.RISK:
+            recommended_action = Action.ESCALATE
 
         return AgentReport(
             agent_id=self.agent_id,
@@ -87,5 +95,6 @@ class AnalyzerAgent(BaseAgent):
             verdict=verdict,
             confidence=confidence,
             evidence=[analysis],
+            recommended_action=recommended_action,
             metrics={"analysis_length": len(analysis)},
         )

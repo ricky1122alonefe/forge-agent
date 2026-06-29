@@ -1,6 +1,6 @@
 mission:
   mission_id: sports.pipeline.demo
-  name: 海港 vs 泰山 综合分析
+  name: 阿森纳 vs 利物浦 综合分析
   description: 整合多源赔率与情报，输出 Chief 决策
 
 match:
@@ -246,4 +246,22 @@ team:
     - sports.odds
     - sports.search
   chief_id: generic.chief
+  # 关闭 llm_mode 即回退到加权投票；mock_mode=true 可在无 API key 时测试 LLM Chief 流程。
+  chief_config:
+    llm_mode: true
+    mock_mode: true
+    mock_response: |
+      {
+        "verdict": "lean_negative",
+        "confidence": 0.68,
+        "risk": 0.42,
+        "recommended_action": "execute_cautious",
+        "summary": "多数专家认为利物浦客场具备竞争力，但阿森纳主场让球较深，欧亚方向存在分歧，建议谨慎参考。",
+        "evidence": [
+          "赔率专家与情报专家对主客方向判断不一致",
+          "天气和历史因素对阿森纳略有利好，但风险偏高"
+        ],
+        "warnings": ["当前为 mock 数据，仅用于流程验证"]
+      }
+    temperature: 0.2
   mode: parallel

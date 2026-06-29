@@ -13,8 +13,9 @@ from __future__ import annotations
 from typing import Any
 
 from forge_agent.core.base import BaseAgent
-from forge_agent.core.contracts import AgentReport
 from forge_agent.core.context import AgentContext
+from forge_agent.core.contracts import AgentReport
+from forge_agent.core.enums import Action, Verdict
 from forge_agent.registry.decorators import register_agent
 
 
@@ -59,12 +60,12 @@ class LoggingAgent(BaseAgent):
             agent_id=self.agent_id,
             name=self.name,
             domain=self.domain,
-            verdict="neutral",  # type: ignore[arg-type]
+            verdict=Verdict.NEUTRAL,
             confidence=0.5,
             risk=0.0,
             weight=1.0,
             evidence=[f"prompt length={len(decision.get('prompt', ''))}"],
-            recommended_action="watch",  # type: ignore[arg-type]
+            recommended_action=Action.WATCH,
             raw={"decision": decision, "run_id": ctx.run_id},
             run_id=ctx.run_id,
             timestamp=ctx.timestamp,

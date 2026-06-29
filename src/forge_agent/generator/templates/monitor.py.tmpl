@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import ClassVar
 
 from forge_agent.core.base import BaseAgent
-from forge_agent.core.contracts import AgentReport
 from forge_agent.core.context import AgentContext
-from forge_agent.core.enums import Verdict
+from forge_agent.core.contracts import AgentReport
+from forge_agent.core.enums import Action, Verdict
 
 
 class MonitorAgent(BaseAgent):
@@ -18,7 +18,7 @@ class MonitorAgent(BaseAgent):
     domain: ClassVar[str] = "generic"
     version: ClassVar[str] = "0.1.0"
 
-    # 告警阈值（可在 payload 中覆盖）
+    # 告警阈值 (可在 payload 中覆盖)
     DEFAULT_THRESHOLD = 0.05  # 5%
 
     async def observe(self, ctx: AgentContext) -> dict:
@@ -35,7 +35,7 @@ class MonitorAgent(BaseAgent):
         # 获取当前值
         current_value = ctx.payload.get("current_value", 0.0)
 
-        # 获取历史基线（如果有 memory）
+        # 获取历史基线 (如果有 memory)
         baseline = 0.0
         if self.memory:
             history = await self.memory.get(f"baseline:{target}")
@@ -56,10 +56,7 @@ class MonitorAgent(BaseAgent):
         threshold = observation.get("threshold", self.DEFAULT_THRESHOLD)
 
         # 计算变化幅度
-        if baseline > 0:
-            change_pct = abs(current - baseline) / baseline
-        else:
-            change_pct = 0.0
+        change_pct = abs(current - baseline) / baseline if baseline > 0 else 0.0
 
         is_alert = change_pct > threshold
         risk_level = "INFO"
@@ -99,7 +96,7 @@ class MonitorAgent(BaseAgent):
                 f"风险等级: {risk_level}",
                 f"变化幅度: {change_pct:.2%}",
             ],
-            recommended_action="ALERT" if is_alert else "WATCH",
+            recommended_action=Action.ALERT if is_alert else Action.WATCH,
             metrics={
                 "change_pct": change_pct,
                 "risk_level": risk_level,

@@ -30,6 +30,7 @@ class Team:
     domain: str = "generic"
     agent_ids: list[str] = field(default_factory=list)
     chief_id: str | None = None
+    chief_config: dict[str, Any] = field(default_factory=dict)
     mode: str = "parallel"
     payload: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -47,6 +48,7 @@ class Team:
             "domain": self.domain,
             "agent_ids": list(self.agent_ids),
             "chief_id": self.chief_id,
+            "chief_config": dict(self.chief_config),
             "mode": self.mode,
             "payload": dict(self.payload),
             "metadata": dict(self.metadata),
@@ -61,6 +63,7 @@ class Team:
             domain=data.get("domain", "generic"),
             agent_ids=list(data.get("agent_ids", [])),
             chief_id=data.get("chief_id"),
+            chief_config=dict(data.get("chief_config", {})),
             mode=data.get("mode", "parallel"),
             payload=dict(data.get("payload", {})),
             metadata=dict(data.get("metadata", {})),

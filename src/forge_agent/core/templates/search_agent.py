@@ -22,6 +22,7 @@ from forge_agent.core.contracts import AgentReport
 from forge_agent.core.templates.prompt_agent import PromptAgent
 from forge_agent.registry.registry import get_registry
 from forge_agent.search.knowledge import KeywordKnowledgeSearcher
+from forge_agent.search.tavily import TavilySearch
 from forge_agent.search.web import WebSearcher
 
 log = logging.getLogger(__name__)
@@ -108,6 +109,9 @@ class SearchAgent(PromptAgent):
         if self.search_backend == "web":
             searcher = WebSearcher()
             return await searcher.search(query, **self.search_kwargs)
+        if self.search_backend == "tavily":
+            searcher = TavilySearch(**self.search_kwargs)
+            return await searcher.search(query)
         if self.search_backend == "knowledge":
             corpus_dir = self.search_kwargs.get("corpus_dir", "knowledge")
             searcher = KeywordKnowledgeSearcher(corpus_dir)

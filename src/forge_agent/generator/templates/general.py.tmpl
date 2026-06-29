@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import ClassVar
 
 from forge_agent.core.base import BaseAgent
-from forge_agent.core.contracts import AgentReport
 from forge_agent.core.context import AgentContext
-from forge_agent.core.enums import Verdict
+from forge_agent.core.contracts import AgentReport
+from forge_agent.core.enums import Action, Verdict
 
 
 class GeneralAgent(BaseAgent):
@@ -49,6 +49,7 @@ class GeneralAgent(BaseAgent):
         """执行动作并返回报告。"""
         action = decision.get("action", "execute")
         confidence = decision.get("confidence", 0.5)
+        recommended_action = Action.EXECUTE if action == "execute" else Action.WATCH
 
         return AgentReport(
             agent_id=self.agent_id,
@@ -56,5 +57,5 @@ class GeneralAgent(BaseAgent):
             verdict=Verdict.SAFE if confidence > 0.7 else Verdict.NEUTRAL,
             confidence=confidence,
             evidence=[f"执行动作: {action}"],
-            recommended_action=action,
+            recommended_action=recommended_action,
         )
