@@ -7,11 +7,12 @@ Each template generates a domain-specific scaffold with:
     - Pipeline example (where applicable)
 
 Templates:
-    basic    — minimal scaffold, generic agent
-    stock    — stock market monitoring (scraper + analyzer)
-    football — sports data tracking (scraper + monitor)
-    social   — social media analysis (scraper + generator)
-    office   — office automation (monitor + generator)
+    config-driven — low-code/no-code scaffold with YAML agents and pipelines
+    basic         — minimal scaffold, generic agent
+    stock         — stock market monitoring (scraper + analyzer)
+    football      — sports data tracking (scraper + monitor)
+    social        — social media analysis (scraper + generator)
+    office        — office automation (monitor + generator)
 """
 
 from __future__ import annotations
@@ -27,9 +28,9 @@ def add(sub: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--template",
         "-t",
-        default="basic",
-        choices=["basic", "stock", "football", "social", "office"],
-        help="Template to use (default: basic)",
+        default="config-driven",
+        choices=["config-driven", "basic", "stock", "football", "social", "office"],
+        help="Template to use (default: config-driven)",
     )
     p.set_defaults(func=run)
 
@@ -39,6 +40,18 @@ def add(sub: argparse._SubParsersAction) -> None:
 # ---------------------------------------------------------------------------
 
 TEMPLATES: dict[str, dict[str, Any]] = {
+    "config-driven": {
+        "description": "Low-code/no-code scaffold: YAML agents, pipelines, and built-in tools",
+        "domain": "generic",
+        "extra_deps": ["pyyaml"],
+        "agents": [],
+        "readme_extra": (
+            "Low-code / no-code project scaffold.\n\n"
+            "Define agents in `agents/*.yaml`, pipelines in `pipelines/*.yaml`, "
+            "and run with `python run.py`.\n\n"
+            "To add a built-in capability, edit the YAML files; no Python code is required.\n"
+        ),
+    },
     "basic": {
         "description": "Minimal scaffold with a generic agent",
         "domain": "generic",
@@ -454,6 +467,265 @@ def run(args: argparse.Namespace) -> int:
         return 1
 
     template = TEMPLATES[args.template]
+
+    if args.template == "config-driven":
+        return _create_config_driven_project(target, args.name, template)
+
+    return _create_code_first_project(target, args.name, args.template, template)
+
+
+def _create_config_driven_project(target: Path, name: str, template: dict[str, Any]) -> int:
+    """Create a low-code/no-code project scaffold."""
+    extra_deps = template["extra_deps"]
+
+    # Create directory structure
+    target.mkdir(parents=True)
+    (target / "agents").mkdir()
+    (target / "pipelines").mkdir()
+    (target / "tools").mkdir()
+    (target / "configs").mkdir()
+    (target / "tests").mkdir()
+    (target / "generated_agents").mkdir()
+    (target / "generated_agents" / ".gitkeep").touch()
+
+    # pyproject.toml
+    deps_lines = ['    "forge-agent",']
+    for dep in extra_deps:
+        deps_lines.append(f'    "{dep}",')
+    deps_str = "\n".join(deps_lines)
+
+    (target / "pyproject.toml").write_text(
+        f"""[project]
+name = "{name}"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+{deps_str}
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["tools*"]
+exclude = ["tests*", "pipelines*", "generated_agents*", "agents*", "configs*"]
+""",
+        encoding="utf-8",
+    )
+
+    # Config files
+    (target / "configs" / "project.yaml").write_text(
+        f"""project:
+  name: {name}
+  version: 0.1.0
+  default_pipeline: example
+""",
+        encoding="utf-8",
+    )
+
+    # Example agent YAML
+    (target / "agents" / "example.yaml").write_text(
+        """agents:
+  - agent_id: example.analyzer
+    name: Example Analyzer
+    domain: generic
+    template: prompt_agent
+    config:
+      mock_mode: true
+      mock_response: |
+        {"verdict": "positive", "confidence": 0.85, "evidence": ["Sample evidence"]}
+      variables:
+        data: data
+      prompt: |
+        Analyze the following data and provide a structured assessment.
+
+        Data: {data}
+
+        Respond with a JSON object containing:
+        - verdict: one of [positive, neutral, negative]
+        - confidence: a number between 0 and 1
+        - evidence: a list of short strings explaining your reasoning
+      output_schema:
+        type: object
+        properties:
+          verdict:
+            type: string
+            enum: [positive, neutral, negative]
+          confidence:
+            type: number
+            minimum: 0
+            maximum: 1
+          evidence:
+            type: array
+            items:
+              type: string
+        required: [verdict, confidence, evidence]
+      output_mapping:
+        verdict: verdict
+        confidence: confidence
+        evidence: evidence
+""",
+        encoding="utf-8",
+    )
+
+    # Example pipeline YAML
+    (target / "pipelines" / "example.yaml").write_text(
+        """pipeline_id: example
+name: Example Pipeline
+description: A simple example pipeline that runs a single analyzer agent.
+team:
+  team_id: example_team
+  name: Example Team
+  domain: generic
+  agent_ids:
+    - example.analyzer
+  chief_id: generic.chief
+  mode: parallel
+""",
+        encoding="utf-8",
+    )
+
+    # Tools package placeholder
+    (target / "tools" / "__init__.py").write_text(
+        '"""Project-specific tools and MCP tool registrations."""\n',
+        encoding="utf-8",
+    )
+
+    # Generic runner
+    (target / "run.py").write_text(
+        f"""\"\"\"Generic runner for {name}.
+
+Loads agents from `agents/*.yaml`, pipelines from `pipelines/*.yaml`,
+and executes the requested pipeline via forge-agent's TeamRunner.
+\"\"\"
+from __future__ import annotations
+
+import argparse
+import asyncio
+import logging
+from pathlib import Path
+
+import yaml
+
+from forge_agent.builtin import ChiefAgent  # noqa: F401
+from forge_agent.core import Mission, Team
+from forge_agent.core.factory import AgentFactory
+from forge_agent.core.runner import TeamRunner
+
+log = logging.getLogger(__name__)
+
+
+def _load_agents(factory: AgentFactory, agents_dir: Path) -> None:
+    for yaml_file in sorted(agents_dir.glob("*.yaml")):
+        log.info("Loading agents from %s", yaml_file)
+        factory.load_yaml(yaml_file)
+
+
+def _load_pipeline(pipeline_path: Path) -> dict:
+    return yaml.safe_load(pipeline_path.read_text(encoding="utf-8"))
+
+
+async def run_pipeline(pipeline_id: str, payload: dict) -> None:
+    factory = AgentFactory()
+    _load_agents(factory, Path("agents"))
+
+    pipeline_path = Path("pipelines") / f"{{pipeline_id}}.yaml"
+    if not pipeline_path.exists():
+        raise FileNotFoundError(f"Pipeline not found: {{pipeline_path}}")
+
+    pipeline = _load_pipeline(pipeline_path)
+    team = Team.from_dict(pipeline["team"])
+
+    mission = Mission(
+        mission_id=f"{{pipeline_id}}_run",
+        name=pipeline["name"],
+        description=pipeline.get("description", ""),
+        team=team,
+        payload=payload,
+    )
+
+    board = await TeamRunner().run(mission)
+    print(f"\\nPipeline: {{pipeline['name']}}")
+    for report in board.agents:
+        print(f"  [{{report.name}}] {{report.raw}}")
+    if board.summary:
+        print(f"Chief summary: {{board.summary}}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run {name} pipeline")
+    parser.add_argument("--pipeline", "-p", default="example", help="Pipeline ID")
+    parser.add_argument("--payload", default="{{}}", help="YAML/JSON payload string")
+    args = parser.parse_args()
+
+    payload = yaml.safe_load(args.payload) or {{}}
+    asyncio.run(run_pipeline(args.pipeline, payload))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+""",
+        encoding="utf-8",
+    )
+
+    # Install scripts
+    _write_install_sh(target, name)
+    _write_install_bat(target, name)
+
+    # README
+    readme_extra = template.get("readme_extra", "")
+    (target / "README.md").write_text(
+        f"# {name}\n\n"
+        f"Created with `forge-agent new {name} --template=config-driven`.\n\n"
+        f"**Template**: config-driven — {template['description']}\n\n"
+        f"{readme_extra}\n\n"
+        f"## Project Layout\n\n"
+        f"```text\n"
+        f"{name}/\n"
+        f"├── agents/          # Agent YAML definitions\n"
+        f"├── pipelines/       # Pipeline YAML definitions\n"
+        f"├── tools/           # Custom MCP tools (optional)\n"
+        f"├── configs/         # Project configuration\n"
+        f"├── run.py           # Generic pipeline runner\n"
+        f"└── pyproject.toml\n"
+        f"```\n\n"
+        f"## Installation\n\n"
+        f"### macOS / Linux\n\n"
+        f"```bash\n"
+        f"bash install.sh\n"
+        f"```\n\n"
+        f"### Windows\n\n"
+        f"```cmd\n"
+        f"install.bat\n"
+        f"```\n\n"
+        f"## Getting Started\n\n"
+        f"```bash\n"
+        f"source .venv/bin/activate        # macOS/Linux\n"
+        f"# .venv\\Scripts\\activate         # Windows\n"
+        f"python run.py --pipeline example\n"
+        f"```\n",
+        encoding="utf-8",
+    )
+
+    print(f"✓ Created {target}/")
+    print(f"  Template: config-driven ({template['description']})")
+    print(f"  Deps:     {', '.join(extra_deps)}")
+    print("\nNext steps:")
+    print(f"  cd {target}")
+    print("  bash install.sh          # macOS/Linux")
+    print("  install.bat              # Windows")
+    print("  source .venv/bin/activate")
+    print("  python run.py --pipeline example")
+    print("  # Edit agents/*.yaml and pipelines/*.yaml to customize")
+    return 0
+
+
+def _create_code_first_project(
+    target: Path, name: str, template_name: str, template: dict[str, Any]
+) -> int:
+    """Create a traditional code-first project scaffold."""
     extra_deps = template["extra_deps"]
     agents = template["agents"]
 
@@ -473,7 +745,7 @@ def run(args: argparse.Namespace) -> int:
 
     (target / "pyproject.toml").write_text(
         f"""[project]
-name = "{args.name}"
+name = "{name}"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
@@ -500,15 +772,15 @@ exclude = ["tests*", "pipelines*", "generated_agents*"]
         )
 
     # Install scripts
-    _write_install_sh(target, args.name)
-    _write_install_bat(target, args.name)
+    _write_install_sh(target, name)
+    _write_install_bat(target, name)
 
     # README
     readme_extra = template.get("readme_extra", "")
     (target / "README.md").write_text(
-        f"# {args.name}\n\n"
-        f"Created with `forge-agent new {args.name} --template={args.template}`.\n\n"
-        f"**Template**: {args.template} — {template['description']}\n\n"
+        f"# {name}\n\n"
+        f"Created with `forge-agent new {name} --template={template_name}`.\n\n"
+        f"**Template**: {template_name} — {template['description']}\n\n"
         f"{readme_extra}\n\n"
         f"## Installation\n\n"
         f"### macOS / Linux\n\n"
@@ -533,7 +805,7 @@ exclude = ["tests*", "pipelines*", "generated_agents*"]
     # Print summary
     agent_names = [a["class_name"] for a in agents]
     print(f"✓ Created {target}/")
-    print(f"  Template: {args.template} ({template['description']})")
+    print(f"  Template: {template_name} ({template['description']})")
     print(f"  Agents:   {', '.join(agent_names)}")
     if extra_deps:
         print(f"  Deps:     {', '.join(extra_deps)}")

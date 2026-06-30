@@ -1,0 +1,48 @@
+agents:
+- agent_id: trend.weibo
+  name: 微博趋势专家
+  domain: toy_trend
+  template: scraper_agent
+  tags:
+  - generated
+  - 微博
+  config:
+    platform: weibo
+    tools:
+    - weibo.hot_search
+    keyword_variable: keyword
+    mock_mode: true
+    mock_response: '{"verdict": "lean_positive", "confidence": 0.75, "risk": 0.2,
+      "evidence": ["微博: 关键词 {keyword} 热度持续上升。", "微博: 用户讨论量环比增长明显。"], "recommended_action":
+      "execute", "metrics": {}}'
+    prompt: '你是一位toy_trend趋势分析专家。请分析以下平台数据，判断关键词「{keyword}」相关的toy_trend热度趋势。
+
+
+      数据：
+
+      {data}
+
+
+      请输出 JSON：{"verdict": "lean_positive|lean_neutral|lean_negative|risk", "confidence":
+      0.0-1.0, "risk": 0.0-1.0, "evidence": ["关键发现1"], "recommended_action": "execute|watch|hold|alert",
+      "metrics": {}}'
+    output_schema:
+      verdict: str
+      confidence: float
+      risk: float
+      evidence: list[str]
+      recommended_action: str
+      metrics: dict
+    output_mapping:
+      verdict: verdict
+      confidence: confidence
+      risk: risk
+      evidence: evidence
+      recommended_action: recommended_action
+      metrics: metrics
+team:
+  team_id: generated_team
+  name: Generated Trend Team
+  mode: parallel
+  chief_id: generic.chief
+  domain: toy_trend
