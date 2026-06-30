@@ -12,8 +12,9 @@ For domain-specific agents (football, stock, etc.), prefer:
 
 from __future__ import annotations
 
+from forge_agent.builtin.agent_type_registry import AgentTypeRegistry
 from forge_agent.builtin.chief_agent import ChiefAgent
 from forge_agent.builtin.logging_agent import LoggingAgent
 from forge_agent.builtin.monitoring_agent import MonitoringAgent
 
-__all__ = ["ChiefAgent", "LoggingAgent", "MonitoringAgent"]
+__all__ = ["AgentTypeRegistry", "ChiefAgent", "LoggingAgent", "MonitoringAgent"]

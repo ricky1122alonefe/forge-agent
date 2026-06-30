@@ -52,6 +52,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Top-level commands — lazily import to avoid heavy deps at startup
     from forge_agent.cli import (
+        cmd_agent_types,
         cmd_archive,
         cmd_dashboard,
         cmd_datasets,
@@ -61,6 +62,7 @@ def main(argv: list[str] | None = None) -> int:
         cmd_generate,
         cmd_history,
         cmd_list,
+        cmd_list_projects,
         cmd_llm,
         cmd_logs,
         cmd_manifest,
@@ -70,11 +72,14 @@ def main(argv: list[str] | None = None) -> int:
         cmd_review,
         cmd_rollback,
         cmd_save,
+        cmd_tools,
         cmd_use,
     )
 
     cmd_generate.add(sub)
     cmd_list.add(sub)
+    cmd_list_projects.add(sub)
+    cmd_agent_types.add(sub)
     cmd_history.add(sub)
     cmd_use.add(sub)
     cmd_rollback.add(sub)
@@ -92,6 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     cmd_doctor.add(sub)
     cmd_dashboard.add(sub)
     cmd_review.add(sub)
+    cmd_tools.add(sub)
 
     args = parser.parse_args(argv)
 

@@ -6,6 +6,9 @@ Each template generates a domain-specific scaffold with:
     - Domain-specific README
     - Pipeline example (where applicable)
 
+Projects are created under a tenant namespace, enabling both single-tenant
+and multi-tenant deployments.
+
 Templates:
     config-driven — low-code/no-code scaffold with YAML agents and pipelines
     basic         — minimal scaffold, generic agent
@@ -21,6 +24,8 @@ import argparse
 from pathlib import Path
 from typing import Any
 
+from forge_agent.platform import LocalTenant
+
 
 def add(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("new", help="Create a new project from a template")
@@ -31,6 +36,11 @@ def add(sub: argparse._SubParsersAction) -> None:
         default="config-driven",
         choices=["config-driven", "basic", "stock", "football", "social", "office"],
         help="Template to use (default: config-driven)",
+    )
+    p.add_argument(
+        "--tenant",
+        default="default",
+        help="Tenant id for project isolation (default: default)",
     )
     p.set_defaults(func=run)
 
@@ -461,32 +471,35 @@ class ReportGeneratorAgent(BaseAgent):
 
 
 def run(args: argparse.Namespace) -> int:
-    target = args.project / args.name
-    if target.exists():
-        print(f"Error: {target} already exists.")
+    # The global --project flag acts as the tenant root directory override.
+    # When unset (cwd), we use the default ~/.forge-agent root.
+    root_dir = args.project if args.project != Path.cwd() else None
+    tenant = LocalTenant(args.tenant, root_dir=root_dir)
+
+    if tenant.project_exists(args.name):
+        print(f"Error: project {args.name!r} already exists in tenant {args.tenant!r}.")
         return 1
 
+    target = tenant.create_project(args.name)
     template = TEMPLATES[args.template]
 
     if args.template == "config-driven":
-        return _create_config_driven_project(target, args.name, template)
+        return _create_config_driven_project(args, target, template)
 
-    return _create_code_first_project(target, args.name, args.template, template)
+    return _create_code_first_project(args, target, template)
 
 
-def _create_config_driven_project(target: Path, name: str, template: dict[str, Any]) -> int:
+def _create_config_driven_project(
+    args: argparse.Namespace, target: Path, template: dict[str, Any]
+) -> int:
     """Create a low-code/no-code project scaffold."""
+    name = args.name
     extra_deps = template["extra_deps"]
 
-    # Create directory structure
-    target.mkdir(parents=True)
-    (target / "agents").mkdir()
-    (target / "pipelines").mkdir()
-    (target / "tools").mkdir()
-    (target / "configs").mkdir()
-    (target / "tests").mkdir()
-    (target / "generated_agents").mkdir()
-    (target / "generated_agents" / ".gitkeep").touch()
+    # Directory structure is created by the tenant; ensure optional dirs/files.
+    (target / "tests").mkdir(exist_ok=True)
+    (target / "generated_agents").mkdir(exist_ok=True)
+    (target / "generated_agents" / ".gitkeep").touch(exist_ok=True)
 
     # pyproject.toml
     deps_lines = ['    "forge-agent",']
@@ -596,73 +609,11 @@ team:
     (target / "run.py").write_text(
         f"""\"\"\"Generic runner for {name}.
 
-Loads agents from `agents/*.yaml`, pipelines from `pipelines/*.yaml`,
-and executes the requested pipeline via forge-agent's TeamRunner.
+Interactively create agents/pipelines, or run a pipeline directly.
 \"\"\"
 from __future__ import annotations
 
-import argparse
-import asyncio
-import logging
-from pathlib import Path
-
-import yaml
-
-from forge_agent.builtin import ChiefAgent  # noqa: F401
-from forge_agent.core import Mission, Team
-from forge_agent.core.factory import AgentFactory
-from forge_agent.core.runner import TeamRunner
-
-log = logging.getLogger(__name__)
-
-
-def _load_agents(factory: AgentFactory, agents_dir: Path) -> None:
-    for yaml_file in sorted(agents_dir.glob("*.yaml")):
-        log.info("Loading agents from %s", yaml_file)
-        factory.load_yaml(yaml_file)
-
-
-def _load_pipeline(pipeline_path: Path) -> dict:
-    return yaml.safe_load(pipeline_path.read_text(encoding="utf-8"))
-
-
-async def run_pipeline(pipeline_id: str, payload: dict) -> None:
-    factory = AgentFactory()
-    _load_agents(factory, Path("agents"))
-
-    pipeline_path = Path("pipelines") / f"{{pipeline_id}}.yaml"
-    if not pipeline_path.exists():
-        raise FileNotFoundError(f"Pipeline not found: {{pipeline_path}}")
-
-    pipeline = _load_pipeline(pipeline_path)
-    team = Team.from_dict(pipeline["team"])
-
-    mission = Mission(
-        mission_id=f"{{pipeline_id}}_run",
-        name=pipeline["name"],
-        description=pipeline.get("description", ""),
-        team=team,
-        payload=payload,
-    )
-
-    board = await TeamRunner().run(mission)
-    print(f"\\nPipeline: {{pipeline['name']}}")
-    for report in board.agents:
-        print(f"  [{{report.name}}] {{report.raw}}")
-    if board.summary:
-        print(f"Chief summary: {{board.summary}}")
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Run {name} pipeline")
-    parser.add_argument("--pipeline", "-p", default="example", help="Pipeline ID")
-    parser.add_argument("--payload", default="{{}}", help="YAML/JSON payload string")
-    args = parser.parse_args()
-
-    payload = yaml.safe_load(args.payload) or {{}}
-    asyncio.run(run_pipeline(args.pipeline, payload))
-    return 0
-
+from forge_agent.project.launcher import main
 
 if __name__ == "__main__":
     raise SystemExit(main())
@@ -679,6 +630,7 @@ if __name__ == "__main__":
     (target / "README.md").write_text(
         f"# {name}\n\n"
         f"Created with `forge-agent new {name} --template=config-driven`.\n\n"
+        f"**Tenant**: {args.tenant}\n\n"
         f"**Template**: config-driven — {template['description']}\n\n"
         f"{readme_extra}\n\n"
         f"## Project Layout\n\n"
@@ -710,6 +662,8 @@ if __name__ == "__main__":
     )
 
     print(f"✓ Created {target}/")
+    print(f"  Tenant:   {args.tenant}")
+    print(f"  Project:  {args.name}")
     print(f"  Template: config-driven ({template['description']})")
     print(f"  Deps:     {', '.join(extra_deps)}")
     print("\nNext steps:")
@@ -723,19 +677,19 @@ if __name__ == "__main__":
 
 
 def _create_code_first_project(
-    target: Path, name: str, template_name: str, template: dict[str, Any]
+    args: argparse.Namespace, target: Path, template: dict[str, Any]
 ) -> int:
     """Create a traditional code-first project scaffold."""
+    name = args.name
+    template_name = args.template
     extra_deps = template["extra_deps"]
     agents = template["agents"]
 
-    # Create directory structure
-    target.mkdir(parents=True)
-    (target / "agents").mkdir()
-    (target / "pipelines").mkdir()
-    (target / "tests").mkdir()
-    (target / "generated_agents").mkdir()
-    (target / "generated_agents" / ".gitkeep").touch()
+    # Directory structure is created by the tenant; ensure optional dirs/files.
+    (target / "agents" / "__init__.py").touch(exist_ok=True)
+    (target / "tests").mkdir(exist_ok=True)
+    (target / "generated_agents").mkdir(exist_ok=True)
+    (target / "generated_agents" / ".gitkeep").touch(exist_ok=True)
 
     # pyproject.toml
     deps_lines = ['    "forge-agent",']
@@ -780,6 +734,7 @@ exclude = ["tests*", "pipelines*", "generated_agents*"]
     (target / "README.md").write_text(
         f"# {name}\n\n"
         f"Created with `forge-agent new {name} --template={template_name}`.\n\n"
+        f"**Tenant**: {args.tenant}\n\n"
         f"**Template**: {template_name} — {template['description']}\n\n"
         f"{readme_extra}\n\n"
         f"## Installation\n\n"
@@ -805,6 +760,8 @@ exclude = ["tests*", "pipelines*", "generated_agents*"]
     # Print summary
     agent_names = [a["class_name"] for a in agents]
     print(f"✓ Created {target}/")
+    print(f"  Tenant:   {args.tenant}")
+    print(f"  Project:  {args.name}")
     print(f"  Template: {template_name} ({template['description']})")
     print(f"  Agents:   {', '.join(agent_names)}")
     if extra_deps:

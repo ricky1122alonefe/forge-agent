@@ -1,0 +1,64 @@
+agent_type:
+  type_id: chief
+  name: Chief Decision Agent
+  description: |
+    Aggregates reports from multiple agents and produces a final decision
+    with confidence, risk, and recommended action.
+  domain: generic
+  template: prompt_agent
+  params:
+    - name: goal
+      type: string
+      required: false
+      description: Goal of the chief agent (e.g. "buy/hold/sell advice").
+      default: "Make a final decision based on agent reports"
+  prompt_template: |
+    You are the chief decision maker. Your goal: {goal}.
+
+    Review the following agent reports and produce a final structured decision.
+
+    Reports:
+    {reports}
+
+    Respond with a JSON object containing:
+    - verdict: one of [lean_positive, lean_neutral, lean_negative, risk]
+    - confidence: a number between 0.0 and 1.0
+    - risk: a number between 0.0 and 1.0
+    - evidence: a list of short strings summarizing the key reasons
+    - recommended_action: one of [execute, watch, hold, alert]
+    - metrics: an object with any relevant numeric metrics
+  output_schema:
+    type: object
+    properties:
+      verdict:
+        type: string
+        enum: [lean_positive, lean_neutral, lean_negative, risk]
+      confidence:
+        type: number
+        minimum: 0
+        maximum: 1
+      risk:
+        type: number
+        minimum: 0
+        maximum: 1
+      evidence:
+        type: array
+        items:
+          type: string
+      recommended_action:
+        type: string
+        enum: [execute, watch, hold, alert]
+      metrics:
+        type: object
+    required: [verdict, confidence, risk, evidence, recommended_action, metrics]
+  output_mapping:
+    verdict: verdict
+    confidence: confidence
+    risk: risk
+    evidence: evidence
+    recommended_action: recommended_action
+    metrics: metrics
+  mock_response: |
+    {"verdict": "lean_positive", "confidence": 0.78, "risk": 0.20,
+     "evidence": ["Most agents signal positive trend"],
+     "recommended_action": "execute", "metrics": {}}

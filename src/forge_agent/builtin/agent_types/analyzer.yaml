@@ -1,0 +1,62 @@
+agent_type:
+  type_id: analyzer
+  name: Data Analyzer
+  description: |
+    Performs deeper analysis on data produced by upstream agents.
+  domain: generic
+  template: prompt_agent
+  params:
+    - name: focus
+      type: string
+      required: false
+      description: Specific aspect to focus on (e.g. "sentiment", "volume").
+      default: general
+  prompt_template: |
+    You are a senior analyst. Based on the upstream reports below, provide
+    a structured assessment. Focus area: {focus}.
+
+    Reports:
+    {reports}
+
+    Respond with a JSON object containing:
+    - verdict: one of [lean_positive, lean_neutral, lean_negative, risk]
+    - confidence: a number between 0.0 and 1.0
+    - risk: a number between 0.0 and 1.0
+    - evidence: a list of short strings explaining your reasoning
+    - recommended_action: one of [execute, watch, hold, alert]
+    - metrics: an object with any relevant numeric metrics
+  output_schema:
+    type: object
+    properties:
+      verdict:
+        type: string
+        enum: [lean_positive, lean_neutral, lean_negative, risk]
+      confidence:
+        type: number
+        minimum: 0
+        maximum: 1
+      risk:
+        type: number
+        minimum: 0
+        maximum: 1
+      evidence:
+        type: array
+        items:
+          type: string
+      recommended_action:
+        type: string
+        enum: [execute, watch, hold, alert]
+      metrics:
+        type: object
+    required: [verdict, confidence, risk, evidence, recommended_action, metrics]
+  output_mapping:
+    verdict: verdict
+    confidence: confidence
+    risk: risk
+    evidence: evidence
+    recommended_action: recommended_action
+    metrics: metrics
+  mock_response: |
+    {"verdict": "lean_neutral", "confidence": 0.65, "risk": 0.30,
+     "evidence": ["Mixed signals from upstream reports"],
+     "recommended_action": "hold", "metrics": {}}

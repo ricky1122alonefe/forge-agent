@@ -252,3 +252,40 @@ class GeneratedDirNotFoundError(ForgeError, FileNotFoundError):
     def __init__(self, path: str, *, hint: str | None = None) -> None:
         super().__init__(f"No generated_agents/ directory at {path}.", hint=hint)
         self.path = path
+
+
+# ---------------------------------------------------------------------------
+# Tenant / project errors
+# ---------------------------------------------------------------------------
+
+
+class ProjectNotFoundError(ForgeError, KeyError):
+    """Raised when a project does not exist under a tenant."""
+
+    default_hint = "Run 'forge-agent list-projects' to see available projects."
+
+    def __init__(
+        self, project_id: str, *, tenant_id: str | None = None, hint: str | None = None
+    ) -> None:
+        msg = f"Project {project_id!r} not found"
+        if tenant_id:
+            msg += f" in tenant {tenant_id!r}"
+        super().__init__(f"{msg}.", hint=hint)
+        self.project_id = project_id
+        self.tenant_id = tenant_id
+
+
+class ProjectAlreadyExistsError(ForgeError, ValueError):
+    """Raised when trying to create a project that already exists."""
+
+    default_hint = "Use a different project_id, or delete the existing project first."
+
+    def __init__(
+        self, project_id: str, *, tenant_id: str | None = None, hint: str | None = None
+    ) -> None:
+        msg = f"Project {project_id!r} already exists"
+        if tenant_id:
+            msg += f" in tenant {tenant_id!r}"
+        super().__init__(f"{msg}.", hint=hint)
+        self.project_id = project_id
+        self.tenant_id = tenant_id

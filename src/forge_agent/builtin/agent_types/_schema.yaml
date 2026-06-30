@@ -1,0 +1,56 @@
+# Meta-schema for agent type definitions.
+# Each agent type YAML must validate against this structure.
+
+agent_type:
+  type_id:
+    type: string
+    required: true
+  name:
+    type: string
+    required: true
+  description:
+    type: string
+    required: true
+  domain:
+    type: string
+    required: true
+  template:
+    type: string
+    required: true
+    enum: [prompt_agent, scraper_agent]
+  params:
+    type: list
+    required: true
+    items:
+      name:
+        type: string
+        required: true
+      type:
+        type: string
+        required: true
+      required:
+        type: boolean
+        required: true
+      description:
+        type: string
+        required: true
+      default:
+        type: any
+        required: false
+  tools:
+    type: list
+    required: false
+    items:
+      type: string
+  prompt_template:
+    type: string
+    required: true
+  output_schema:
+    type: dict
+    required: true
+  output_mapping:
+    type: dict
+    required: true
+  mock_response:
+    type: string
+    required: false
