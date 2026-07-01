@@ -233,7 +233,7 @@ forge-agent/
   - 内置工具：微博热搜、小红书搜索、得物搜索、抖音热点（placeholder 实现）
   - 验收：`forge-agent tools --tenant acme` 列出可用工具
 
-- [ ] 6.2 LLM 配置与多租户隔离
+- [x] 6.2 LLM 配置与多租户隔离
   - 文件：`platform/llm_config.py`
   - 层级：系统默认 → 租户覆盖 → 项目覆盖
   - 支持 provider：deepseek、openai、qwen 等

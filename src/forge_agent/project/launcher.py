@@ -14,6 +14,8 @@ from forge_agent.builtin import ChiefAgent  # noqa: F401
 from forge_agent.core import Mission, Team
 from forge_agent.core.factory import AgentFactory
 from forge_agent.core.runner import TeamRunner
+from forge_agent.llm.registry import get_registry
+from forge_agent.platform import LLMConfigManager, LocalTenant
 from forge_agent.project.state_store import RunRecord, StateStore, generate_run_id
 from forge_agent.project.tui import run_menu
 
@@ -30,9 +32,32 @@ def _load_pipeline(pipeline_path: Path) -> dict:
     return yaml.safe_load(pipeline_path.read_text(encoding="utf-8")) or {}
 
 
+def _detect_tenant_root(project_root: Path) -> Path | None:
+    """Detect the forge-agent root directory from a local tenant project path."""
+    if project_root.parent.parent.parent.name == "tenants":
+        return project_root.parent.parent.parent.parent
+    return None
+
+
+def _configure_llm(tenant_id: str, project_root: Path) -> None:
+    """Load the layered LLM config for this tenant/project and configure the registry."""
+    root_dir = _detect_tenant_root(project_root)
+    tenant = LocalTenant(tenant_id, root_dir=root_dir)
+    cfg = LLMConfigManager(tenant).load(project_root.name)
+    get_registry().configure(cfg)
+    log.info(
+        "LLM config loaded for tenant=%s project=%s (source=%s)",
+        tenant_id,
+        project_root.name,
+        cfg.source_path,
+    )
+
+
 async def _run_pipeline(
     project_root: Path, tenant_id: str, pipeline_id: str, payload: dict
 ) -> None:
+    _configure_llm(tenant_id, project_root)
+
     factory = AgentFactory()
     _load_agents(factory, project_root / "agents")
 

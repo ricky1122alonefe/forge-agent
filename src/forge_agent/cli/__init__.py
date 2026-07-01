@@ -12,7 +12,7 @@ Commands:
     restore     Restore generated_agents/ from a git repository
     archive     Archive an agent (mark deprecated)
     delete      Delete a specific version (DANGEROUS)
-    llm         LLM management: list / test / config
+    llm         LLM management: list / show / test / set
     new         Create a new project from a template
     logs        Show recent structured log entries
     dashboard   Start the local observability dashboard (web UI)
