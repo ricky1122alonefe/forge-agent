@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from forge_agent.platform.config_validator import ConfigValidator
 from forge_agent.platform.llm_config import LLMConfigManager, load_tenant_project_config
 from forge_agent.platform.local_tenant import LocalTenant
 from forge_agent.platform.tenant import Tenant
@@ -14,6 +15,7 @@ from forge_agent.platform.tool_registry import (
 )
 
 __all__ = [
+    "ConfigValidator",
     "LLMConfigManager",
     "LocalTenant",
     "Tenant",

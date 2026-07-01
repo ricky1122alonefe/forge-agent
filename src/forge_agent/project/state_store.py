@@ -24,6 +24,7 @@ class RunRecord:
     agent_reports: list[dict[str, Any]]
     chief_summary: dict[str, Any] | None
     metadata: dict[str, Any]
+    trace_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -36,6 +36,10 @@ class ForgeError(Exception):
         return "\n".join(parts)
 
 
+class ForgeAgentError(ForgeError):
+    """Unified public alias for :class:`ForgeError`."""
+
+
 # ---------------------------------------------------------------------------
 # Registration / lookup errors
 # ---------------------------------------------------------------------------
@@ -66,20 +70,26 @@ class DuplicateRegistrationError(ForgeError, ValueError):
         self.agent_id = agent_id
 
 
-class ToolNotRegisteredError(ForgeError, KeyError):
+class ToolError(ForgeError):
+    """Base class for tool-related problems."""
+
+    default_hint = "请检查工具名称和工具配置（tools.yaml）是否正确。"
+
+
+class ToolNotRegisteredError(ToolError, KeyError):
     """Raised when an MCP tool is not found in the gateway."""
 
-    default_hint = "Run 'forge-agent mcp list-tools' to see registered tools."
+    default_hint = "运行 `forge-agent tools` 查看可用工具。"
 
     def __init__(self, tool_name: str, *, hint: str | None = None) -> None:
         super().__init__(f"Tool {tool_name!r} not registered in gateway.", hint=hint)
         self.tool_name = tool_name
 
 
-class ToolDeniedError(ForgeError, PermissionError):
+class ToolDeniedError(ToolError, PermissionError):
     """Raised when an MCP tool call is denied by permission policy."""
 
-    default_hint = "Check your PermissionPolicy rules in the gateway configuration."
+    default_hint = "请检查 gateway 配置中的 PermissionPolicy 规则。"
 
     def __init__(self, tool_name: str, reason: str = "", *, hint: str | None = None) -> None:
         msg = f"Tool {tool_name!r} denied"
@@ -126,10 +136,52 @@ class InvalidAgentTypeError(ForgeError, ValueError):
         self.value = value
 
 
-class ProviderNotConfiguredError(ForgeError, KeyError):
+class ConfigError(ForgeError, ValueError):
+    """Base class for configuration problems."""
+
+    default_hint = "请检查配置文件（agents/、pipelines/、llm_providers.json）是否正确。"
+
+
+class ConfigValidationError(ConfigError, ValueError):
+    """Raised when project configuration fails validation."""
+
+    default_hint = "请检查 agents/ 和 pipelines/ 目录下的 YAML 配置。"
+
+    def __init__(
+        self, errors: list[str], *, path: str | None = None, hint: str | None = None
+    ) -> None:
+        self.errors = list(errors)
+        self.path = path
+        lines = ["Configuration validation failed:"]
+        if path:
+            lines.append(f"  Location: {path}")
+        for err in self.errors:
+            lines.append(f"  - {err}")
+        super().__init__("\n".join(lines), hint=hint or self.default_hint)
+
+
+class LLMError(ForgeError):
+    """Base class for LLM-related problems."""
+
+    default_hint = "请检查 LLM 配置、API Key 和网络连接。"
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        provider: str | None = None,
+        model: str | None = None,
+        hint: str | None = None,
+    ) -> None:
+        super().__init__(message, hint=hint)
+        self.provider = provider
+        self.model = model
+
+
+class ProviderNotConfiguredError(LLMError, KeyError):
     """Raised when an LLM provider is not configured."""
 
-    default_hint = "Add the provider to your forge-agent config or set the API key env var."
+    default_hint = "请使用 `forge-agent llm set` 添加该 provider，或设置对应 API Key 环境变量。"
 
     def __init__(
         self, provider_id: str, *, available: list[str] | None = None, hint: str | None = None
@@ -137,7 +189,7 @@ class ProviderNotConfiguredError(ForgeError, KeyError):
         msg = f"Provider {provider_id!r} not configured."
         if available:
             msg += f" Available: {available}"
-        super().__init__(msg, hint=hint)
+        super().__init__(msg, provider=provider_id, hint=hint)
         self.provider_id = provider_id
 
 
@@ -209,10 +261,10 @@ class DuplicateNodeError(ForgeError, ValueError):
 # ---------------------------------------------------------------------------
 
 
-class MCPToolCallError(ForgeError, RuntimeError):
+class MCPToolCallError(ToolError, RuntimeError):
     """Raised when an MCP tool call fails."""
 
-    default_hint = "Check the MCP server logs for details."
+    default_hint = "请检查 MCP 服务端日志与工具配置。"
 
     def __init__(self, tool_name: str, reason: str, *, hint: str | None = None) -> None:
         super().__init__(f"MCP tool {tool_name!r} call failed: {reason}", hint=hint)

@@ -239,12 +239,12 @@ forge-agent/
   - 支持 provider：deepseek、openai、qwen 等
   - 验收：tenant acme 用 deepseek，tenant bob 用 openai，互不影响
 
-- [ ] 6.3 YAML 配置校验
+- [x] 6.3 YAML 配置校验
   - 文件：`platform/config_validator.py`
   - 校验 agent/pipeline YAML 的 schema、必填字段、工具引用是否存在
   - 验收：引用不存在 tool 时，`python run.py` 启动即报错并给出明确提示
 
-- [ ] 6.4 错误处理与友好提示
+- [x] 6.4 错误处理与友好提示
   - 统一异常类型：`ForgeAgentError`、`ConfigError`、`ToolError`、`LLMError`
   - CLI/TUI 遇到错误时输出中文提示
   - 验收：LLM key 缺失时提示"请设置 DEEPSEEK_API_KEY"而不是抛 traceback

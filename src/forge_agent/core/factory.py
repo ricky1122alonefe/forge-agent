@@ -105,6 +105,6 @@ class AgentFactory:
 
         return [self.from_dict(cfg) for cfg in agents_config]
 
-    def load_dicts(self, configs: list[dict[str, Any]]) -> list[type[BaseAgent]]:
-        """Load agents from a list of dict configs."""
-        return [self.from_dict(cfg) for cfg in configs]
+    def list_templates(self) -> list[str]:
+        """Return names of registered agent templates."""
+        return list(self._builders)

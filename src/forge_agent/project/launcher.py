@@ -14,8 +14,9 @@ from forge_agent.builtin import ChiefAgent  # noqa: F401
 from forge_agent.core import Mission, Team
 from forge_agent.core.factory import AgentFactory
 from forge_agent.core.runner import TeamRunner
+from forge_agent.exceptions import ForgeError
 from forge_agent.llm.registry import get_registry
-from forge_agent.platform import LLMConfigManager, LocalTenant
+from forge_agent.platform import ConfigValidator, LLMConfigManager, LocalTenant
 from forge_agent.project.state_store import RunRecord, StateStore, generate_run_id
 from forge_agent.project.tui import run_menu
 
@@ -56,6 +57,8 @@ def _configure_llm(tenant_id: str, project_root: Path) -> None:
 async def _run_pipeline(
     project_root: Path, tenant_id: str, pipeline_id: str, payload: dict
 ) -> None:
+    ConfigValidator(project_root, tenant_id=tenant_id).validate(pipeline_id)
+
     _configure_llm(tenant_id, project_root)
 
     factory = AgentFactory()
@@ -128,7 +131,11 @@ def run_pipeline_cli(project_root: Path, tenant_id: str) -> int:
 
     payload_str = input("Payload (YAML/JSON, default {}): ").strip() or "{}"
     payload = yaml.safe_load(payload_str) or {}
-    asyncio.run(_run_pipeline(project_root, tenant_id, pipeline_id, payload))
+    try:
+        asyncio.run(_run_pipeline(project_root, tenant_id, pipeline_id, payload))
+    except ForgeError as exc:
+        print(exc.friendly())
+        return 1
     return 0
 
 
@@ -215,7 +222,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.pipeline:
         payload = yaml.safe_load(args.payload) or {}
-        asyncio.run(_run_pipeline(project_root, tenant_id, args.pipeline, payload))
+        try:
+            asyncio.run(_run_pipeline(project_root, tenant_id, args.pipeline, payload))
+        except ForgeError as exc:
+            print(exc.friendly())
+            return 1
         return 0
 
-    return run_menu(project_root, tenant_id)
+    try:
+        return run_menu(project_root, tenant_id)
+    except ForgeError as exc:
+        print(exc.friendly())
+        return 1

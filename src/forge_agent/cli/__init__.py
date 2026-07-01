@@ -107,11 +107,18 @@ def main(argv: list[str] | None = None) -> int:
 
     configure_logging(level="DEBUG" if args.verbose else None)
 
+    from forge_agent.exceptions import ForgeError
+
     try:
         return args.func(args)
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         return 130
+    except ForgeError as exc:
+        print(exc.friendly(), file=sys.stderr)
+        if args.verbose:
+            raise
+        return 1
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         if args.verbose:

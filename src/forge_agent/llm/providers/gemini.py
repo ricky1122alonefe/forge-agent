@@ -51,9 +51,11 @@ class GeminiClient(OpenAICompatibleClient):
             envs[0], alt_names=envs[1:], search_paths=[os.getcwd()]
         )
         if not resolved:
+            primary_env = envs[0]
             raise LLMAuthError(
                 f"API key for {self.provider_id!r} not found. Tried: {envs}",
                 provider=self.provider_id,
+                hint=f"请设置环境变量 {primary_env}，例如：export {primary_env}=your_key",
             )
         return resolved.value
 

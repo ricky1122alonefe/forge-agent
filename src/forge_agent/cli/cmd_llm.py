@@ -149,11 +149,7 @@ async def _test_async(args: argparse.Namespace) -> int:
     cfg = manager.load(project_id)
     get_registry().configure(cfg)
 
-    try:
-        response = await chat(args.message, provider=args.provider)
-    except Exception as exc:
-        print(f"❌ {args.provider}: {exc}")
-        return 1
+    response = await chat(args.message, provider=args.provider)
     print(f"✓ {args.provider} ({response.model})")
     print(f"  latency: {response.latency_ms:.0f}ms")
     print(f"  tokens:  in={response.tokens_in} out={response.tokens_out}")

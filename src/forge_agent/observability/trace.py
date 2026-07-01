@@ -106,6 +106,23 @@ class Span:
         self.error_message = message
         self.status = SpanStatus.ERROR
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Span:
+        return cls(
+            span_id=data["span_id"],
+            trace_id=data["trace_id"],
+            name=data["name"],
+            span_type=SpanType(data.get("span_type", SpanType.CUSTOM.value)),
+            parent_span_id=data.get("parent_span_id", ""),
+            start_time=data.get("start_time", ""),
+            end_time=data.get("end_time", ""),
+            duration_ms=data.get("duration_ms", 0.0),
+            status=SpanStatus(data.get("status", SpanStatus.OK.value)),
+            attributes=dict(data.get("attributes") or {}),
+            events=list(data.get("events") or []),
+            error_message=data.get("error_message", ""),
+        )
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "span_id": self.span_id,
@@ -205,6 +222,18 @@ class Trace:
             "attributes": self.attributes,
             "spans": [s.to_dict() for s in self.spans],
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Trace:
+        return cls(
+            trace_id=data["trace_id"],
+            pipeline_id=data.get("pipeline_id", ""),
+            start_time=data.get("start_time", ""),
+            end_time=data.get("end_time", ""),
+            duration_ms=data.get("duration_ms", 0.0),
+            spans=[Span.from_dict(s) for s in data.get("spans", [])],
+            attributes=dict(data.get("attributes") or {}),
+        )
 
 
 class TraceManager:

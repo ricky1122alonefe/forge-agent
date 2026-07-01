@@ -42,9 +42,13 @@ from forge_agent.core.enums import (
 )
 from forge_agent.exceptions import (
     AgentNotFoundError,
+    ConfigError,
+    ConfigValidationError,
     DuplicateRegistrationError,
+    ForgeAgentError,
     ForgeError,
     InvalidAgentTypeError,
+    LLMError,
     MCPNotConnectedError,
     MCPToolCallError,
     MissingDependencyError,
@@ -55,6 +59,7 @@ from forge_agent.exceptions import (
     PromptVariableError,
     ProviderNotConfiguredError,
     ToolDeniedError,
+    ToolError,
     ToolNotRegisteredError,
     VersionError,
     VersionNotFoundError,
@@ -65,7 +70,7 @@ from forge_agent.registry.decorators import register_agent
 from forge_agent.registry.registry import AgentRegistry, get_registry
 from forge_agent.scheduler.scheduler import Scheduler, ScheduleResult, ScheduleTask
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     "Action",
     "AgentBoard",
     "AgentContext",
@@ -78,11 +83,16 @@ __all__ = [
     "BaseAgent",
     "DuplicateRegistrationError",
     # Exceptions
+    "ConfigError",
+    "ConfigValidationError",
+    "ForgeAgentError",
     "ForgeError",
     "InvalidAgentTypeError",
+    "LLMError",
     "MCPNotConnectedError",
     "MCPToolCallError",
     "MissingDependencyError",
+    "ToolError",
     # Pipeline
     "Pipeline",
     "PipelineEngine",

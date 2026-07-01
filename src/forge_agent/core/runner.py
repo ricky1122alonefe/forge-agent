@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentBoard, AgentReport
@@ -78,6 +79,12 @@ class TeamRunner:
         payload = {**team.payload, **mission.payload}
         if team.chief_config:
             payload["chief_config"] = team.chief_config
+
+        run_id = mission.metadata.get("run_id")
+        ctx_kwargs: dict[str, Any] = {}
+        if run_id:
+            ctx_kwargs["run_id"] = run_id
+
         return AgentContext(
             scope_id=mission.mission_id,
             scope_name=mission.name,
@@ -88,6 +95,7 @@ class TeamRunner:
                 **mission.metadata,
                 "team_id": team.team_id,
             },
+            **ctx_kwargs,
         )
 
     async def _run_agents(self, team: Team, ctx: AgentContext) -> list[AgentReport]:
