@@ -1,0 +1,56 @@
+policies:
+  - id: no_guaranteed_win
+    name: 禁止承诺稳赢
+    description: 禁止输出任何保证中奖、稳赢、包中等绝对化承诺。
+    trigger: output
+    patterns:
+      - "稳赢"
+      - "包中"
+      - "必中"
+      - "100%"
+      - "内幕"
+      - "稳赚不赔"
+      - "保证.*赢"
+      - "保证.*中"
+    action: block
+    severity: high
+
+  - id: no_auto_bet
+    name: 禁止自动投注
+    description: 禁止调用任何与自动投注、代下单相关的工具。
+    trigger: tool_call
+    patterns:
+      - "bet"
+      - "wager"
+      - "投注"
+      - "下单"
+      - "purchase_ticket"
+      - "place_bet"
+    action: block
+    severity: critical
+
+  - id: no_targeting_minors
+    name: 禁止面向未成年人
+    description: 禁止在内容中把未成年人、学生作为目标受众。
+    trigger: input
+    patterns:
+      - "未成年人"
+      - "学生"
+      - "18岁以下"
+      - "青少年"
+    action: block
+    severity: critical
+
+  - id: no_fraud_schemes
+    name: 禁止诈骗/非法套利话术
+    description: 禁止输出涉及诈骗、洗钱、套利、对刷等非法行为的内容。
+    trigger: output
+    patterns:
+      - "套利"
+      - "对刷"
+      - "洗钱"
+      - "骗.*庄家"
+      - "假球"
+      - "操控比赛"
+    action: block
+    severity: critical

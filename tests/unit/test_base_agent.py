@@ -8,6 +8,11 @@ from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentReport
 from forge_agent.core.enums import Verdict
+from forge_agent.memory import (
+    FileMemoryBackend,
+    InMemoryMemoryBackend,
+    SQLiteMemoryBackend,
+)
 
 
 def _make_demo():
@@ -82,3 +87,25 @@ async def test_error_path_does_not_crash():
     r = await a.run(ctx)
     assert r.verdict.value == "risk"
     assert any("intentional" in w for w in r.warnings)
+
+
+def test_default_memory_is_in_memory():
+    demo = _make_demo()
+    agent = demo()
+    assert isinstance(agent.memory, InMemoryMemoryBackend)
+
+
+def test_memory_config_sqlite(tmp_path):
+    demo = _make_demo()
+    db_path = tmp_path / "agent_memory.db"
+    agent = demo(config={"memory": {"backend": "sqlite", "path": str(db_path)}})
+    assert isinstance(agent.memory, SQLiteMemoryBackend)
+    assert agent.memory._path == str(db_path)
+
+
+def test_memory_config_file(tmp_path):
+    demo = _make_demo()
+    file_path = tmp_path / "agent_memory.json"
+    agent = demo(config={"memory": {"backend": "file", "path": str(file_path)}})
+    assert isinstance(agent.memory, FileMemoryBackend)
+    assert agent.memory._path == file_path

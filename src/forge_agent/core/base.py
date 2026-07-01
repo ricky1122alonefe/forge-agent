@@ -42,7 +42,6 @@ from typing import Any, ClassVar
 
 from forge_agent.core.capabilities import (
     InMemoryPromptManager,
-    InMemoryStore,
     LoggerProtocol,
     MemoryProtocol,
     NoopReflector,
@@ -131,6 +130,7 @@ class BaseAgent(abc.ABC):
     memory: MemoryProtocol
     reflector: ReflectionProtocol
     prompt_manager: PromptManagerProtocol
+    constraint_engine: Any | None = None
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config: dict[str, Any] = dict(config or {})
@@ -139,9 +139,30 @@ class BaseAgent(abc.ABC):
         # ---------- Default capability wiring (override in subclasses) ----------
         self.logger = StdLogger(name=f"forge_agent.{self.agent_id or 'agent'}")
         self.searcher = NoopSearcher()
-        self.memory = InMemoryStore()
+        self.memory = self._create_memory_backend()
         self.reflector = NoopReflector()
         self.prompt_manager = InMemoryPromptManager()
+        self.constraint_engine = self._create_constraint_engine()
+
+    def _create_memory_backend(self) -> Any:
+        """Create the memory backend from ``self.config``.
+
+        Subclasses can override this to wire a custom backend. By default,
+        ``config["memory"]`` is passed to ``create_memory_backend``.
+        """
+        from forge_agent.memory import create_memory_backend
+
+        return create_memory_backend(self.config.get("memory"))
+
+    def _create_constraint_engine(self) -> Any | None:
+        """Create the constraint engine from ``self.config``.
+
+        Subclasses can override this to wire a custom engine. By default,
+        ``config["constraints"]`` is passed to ``create_constraint_engine``.
+        """
+        from forge_agent.constraints.utils import create_constraint_engine
+
+        return create_constraint_engine(self.config.get("constraints"))
 
     # ====================================================================
     # Lifecycle
@@ -230,6 +251,7 @@ class BaseAgent(abc.ABC):
                 "decide", ctx, SpanType.DECIDE, trace, observation=observation
             )
             result = await self._run_step("act", ctx, SpanType.ACT, trace, decision=decision)
+            result = await self._apply_constraints(ctx, result)
             # Post-execution hooks (best-effort — never break the run)
             try:
                 await self._run_step(
@@ -308,9 +330,62 @@ class BaseAgent(abc.ABC):
             tm.end_span(span, status="error", error_message=str(exc))
             raise
 
-    # ====================================================================
-    # The 3 contract methods — MUST be implemented
-    # ====================================================================
+    async def _apply_constraints(
+        self,
+        ctx: AgentContext,
+        result: AgentReport,
+    ) -> AgentReport:
+        """Check the agent output against the configured constraint engine.
+
+        If no engine is configured, returns ``result`` unchanged. If a policy
+        violation is found, the report is rewritten to a blocked state and the
+        violation details are attached in ``constraint_result``.
+        """
+        if self.constraint_engine is None:
+            return result
+
+        text_parts = [
+            *result.evidence,
+            *result.warnings,
+            str(result.recommended_action.value),
+        ]
+        text = " ".join(text_parts)
+
+        try:
+            check = await self.constraint_engine.check_output(
+                text,
+                metadata={
+                    "agent_id": self.agent_id,
+                    "run_id": ctx.run_id,
+                    "scope_id": ctx.scope_id,
+                    "domain": self.domain,
+                },
+            )
+        except Exception as exc:
+            self.log("warning", f"constraint check failed: {exc}")
+            return result
+
+        result.constraint_result = check.to_dict()
+
+        if not check.allowed:
+            self.log(
+                "warning",
+                f"Constraint violation(s) blocked output: "
+                f"{[v.policy_id for v in check.violations]}",
+            )
+            result.verdict = Verdict.RISK
+            result.risk = 1.0
+            result.confidence = 0.0
+            result.recommended_action = Action.WATCH
+            result.warnings.append(
+                "Output blocked by policy: "
+                + ", ".join(
+                    f"{v.policy_id} ({v.severity}) matched '{v.matched_text}'"
+                    for v in check.violations
+                )
+            )
+
+        return result
 
     @abc.abstractmethod
     async def observe(self, ctx: AgentContext) -> dict[str, Any]:

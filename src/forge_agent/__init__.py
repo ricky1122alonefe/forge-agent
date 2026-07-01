@@ -32,6 +32,13 @@ Business is generated on demand."**
 from __future__ import annotations
 
 from forge_agent.__version__ import __version__
+from forge_agent.constraints import (
+    ConstraintEngine,
+    ConstraintPolicy,
+    ConstraintResult,
+    ConstraintSeverity,
+    TriggerType,
+)
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentBoard, AgentReport
@@ -63,6 +70,13 @@ from forge_agent.exceptions import (
     ToolNotRegisteredError,
     VersionError,
     VersionNotFoundError,
+)
+from forge_agent.memory import (
+    FileMemoryBackend,
+    InMemoryMemoryBackend,
+    MemoryBackend,
+    SQLiteMemoryBackend,
+    create_memory_backend,
 )
 from forge_agent.pipeline.engine import PipelineEngine
 from forge_agent.pipeline.pipeline import Pipeline, PipelineNode
@@ -112,6 +126,18 @@ __all__ = [  # noqa: RUF022
     "Verdict",
     "VersionError",
     "VersionNotFoundError",
+    # Constraints
+    "ConstraintEngine",
+    "ConstraintPolicy",
+    "ConstraintResult",
+    "ConstraintSeverity",
+    "TriggerType",
+    # Memory
+    "MemoryBackend",
+    "InMemoryMemoryBackend",
+    "FileMemoryBackend",
+    "SQLiteMemoryBackend",
+    "create_memory_backend",
     # Version
     "__version__",
     "get_registry",

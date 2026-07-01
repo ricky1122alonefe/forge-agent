@@ -54,6 +54,7 @@ class AgentReport:
     run_id: str = ""
     timestamp: str = ""
     version: str = "0.1.0"
+    constraint_result: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to JSON-friendly dict (verdict/action become strings)."""
