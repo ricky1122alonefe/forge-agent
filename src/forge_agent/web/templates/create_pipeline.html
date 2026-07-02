@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">新建 Pipeline</h2>
+
+{% if agents %}
+<form id="pipelineForm" class="bg-white p-4 rounded shadow space-y-4">
+    <div>
+        <label class="block text-sm font-medium">Pipeline ID</label>
+        <input name="pipeline_id" type="text" class="mt-1 block w-full border rounded p-2" required placeholder="trend">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium">名称</label>
+        <input name="name" type="text" class="mt-1 block w-full border rounded p-2" required placeholder="Trend Pipeline">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium">选择 Agents</label>
+        <div class="mt-1 space-y-1">
+            {% for agent in agents %}
+            <label class="block text-sm">
+                <input type="checkbox" name="agent_ids" value="{{ agent.agent_id }}" class="mr-2">
+                {{ agent.agent_id }}
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium">Chief Agent</label>
+        <select name="chief_id" class="mt-1 block w-full border rounded p-2">
+            <option value="">无</option>
+            {% for agent in agents %}
+            <option value="{{ agent.agent_id }}">{{ agent.agent_id }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">创建</button>
+</form>
+
+<script>
+document.getElementById('pipelineForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const checked = [...form.querySelectorAll('input[name=agent_ids]:checked')].map(cb => cb.value);
+    const res = await fetch('/api/pipelines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            pipeline_id: form.pipeline_id.value,
+            name: form.name.value,
+            agent_ids: checked,
+            chief_id: form.chief_id.value || null
+        })
+    });
+    const data = await res.json();
+    if (data.success) {
+        window.location.href = '/';
+    } else {
+        alert(data.error || '创建失败');
+    }
+});
+</script>
+{% else %}
+<p class="text-gray-500">还没有 agent，<a href="/agents/new" class="text-indigo-600">先创建一个</a>。</p>
+{% endif %}
+{% endblock %}

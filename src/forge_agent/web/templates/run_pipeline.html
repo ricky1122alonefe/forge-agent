@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">运行 Pipeline: {{ pipeline_id }}</h2>
+
+<form id="runForm" class="bg-white p-4 rounded shadow space-y-4">
+    <div>
+        <label class="block text-sm font-medium">Payload (JSON)</label>
+        <textarea name="payload" rows="6" class="mt-1 block w-full border rounded p-2 font-mono text-sm">{}</textarea>
+    </div>
+
+    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">运行</button>
+</form>
+
+<div id="result" class="mt-4"></div>
+
+<script>
+document.getElementById('runForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const payloadText = e.target.payload.value;
+    let payload;
+    try {
+        payload = JSON.parse(payloadText);
+    } catch (err) {
+        alert('JSON 格式错误');
+        return;
+    }
+
+    const res = await fetch('/api/pipelines/{{ pipeline_id }}/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: payload })
+    });
+    const data = await res.json();
+    const result = document.getElementById('result');
+    if (data.success) {
+        result.innerHTML = `
+            <div class="bg-green-50 text-green-800 p-3 rounded">运行成功: ${data.run_id}</div>
+            <pre class="bg-gray-100 p-2 mt-2 text-sm overflow-auto">${JSON.stringify(data.record, null, 2)}</pre>
+        `;
+    } else {
+        result.innerHTML = `<div class="bg-red-50 text-red-800 p-3 rounded">失败: ${data.error}</div>`;
+    }
+});
+</script>
+{% endblock %}

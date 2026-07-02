@@ -56,7 +56,7 @@ def _configure_llm(tenant_id: str, project_root: Path) -> None:
 
 async def _run_pipeline(
     project_root: Path, tenant_id: str, pipeline_id: str, payload: dict
-) -> None:
+) -> RunRecord:
     ConfigValidator(project_root, tenant_id=tenant_id).validate(pipeline_id)
 
     _configure_llm(tenant_id, project_root)
@@ -80,11 +80,6 @@ async def _run_pipeline(
     )
 
     board = await TeamRunner().run(mission)
-    print(f"\nPipeline: {pipeline['name']}")
-    for report in board.agents:
-        print(f"  [{report.name}] {report.raw}")
-    if board.summary:
-        print(f"Chief summary: {board.summary}")
 
     record = RunRecord(
         run_id=generate_run_id(pipeline_id),
@@ -102,6 +97,16 @@ async def _run_pipeline(
         metadata={"agent_count": len(board.agents), "has_chief": board.summary is not None},
     )
     StateStore(project_root).save(record)
+    return record
+
+
+def _print_run(record: RunRecord) -> None:
+    """Print a run record to the console."""
+    print(f"\nPipeline: {record.pipeline_name}")
+    for report in record.agent_reports:
+        print(f"  [{report.get('name', '?')}] {report.get('raw', report)}")
+    if record.chief_summary:
+        print(f"Chief summary: {record.chief_summary}")
     print(f"Run saved: {record.run_id}")
 
 
@@ -132,10 +137,12 @@ def run_pipeline_cli(project_root: Path, tenant_id: str) -> int:
     payload_str = input("Payload (YAML/JSON, default {}): ").strip() or "{}"
     payload = yaml.safe_load(payload_str) or {}
     try:
-        asyncio.run(_run_pipeline(project_root, tenant_id, pipeline_id, payload))
+        record = asyncio.run(_run_pipeline(project_root, tenant_id, pipeline_id, payload))
     except ForgeError as exc:
         print(exc.friendly())
         return 1
+
+    _print_run(record)
     return 0
 
 
@@ -223,10 +230,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.pipeline:
         payload = yaml.safe_load(args.payload) or {}
         try:
-            asyncio.run(_run_pipeline(project_root, tenant_id, args.pipeline, payload))
+            record = asyncio.run(_run_pipeline(project_root, tenant_id, args.pipeline, payload))
         except ForgeError as exc:
             print(exc.friendly())
             return 1
+
+        _print_run(record)
         return 0
 
     try:

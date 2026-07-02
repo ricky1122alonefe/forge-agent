@@ -109,7 +109,7 @@ where = ["src"]
 include = ["forge_agent*"]
 
 [tool.setuptools.package-data]
-"forge_agent" = ["py.typed", "**/*.py.typed"]
+"forge_agent" = ["py.typed", "**/*.py.typed", "**/*.html", "**/*.yaml", "**/*.js", "**/*.css"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

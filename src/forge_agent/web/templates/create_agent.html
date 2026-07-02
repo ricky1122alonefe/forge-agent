@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">新建 Agent</h2>
+
+<form id="agentForm" class="bg-white p-4 rounded shadow space-y-4">
+    <div>
+        <label class="block text-sm font-medium">Agent 类型</label>
+        <select name="agent_type" id="typeSelect" class="mt-1 block w-full border rounded p-2" required>
+            <option value="">请选择</option>
+            {% for t in types %}
+            <option value="{{ t.type_id }}">{{ t.name }} ({{ t.type_id }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium">Agent ID</label>
+        <input name="agent_id" type="text" class="mt-1 block w-full border rounded p-2" required placeholder="weibo_scraper">
+    </div>
+
+    <div id="paramsContainer"></div>
+
+    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">创建</button>
+</form>
+
+<script>
+const types = {{ types_json | safe }};
+
+document.getElementById('typeSelect').addEventListener('change', function () {
+    const typeId = this.value;
+    const type = types.find(t => t.type_id === typeId);
+    const container = document.getElementById('paramsContainer');
+    container.innerHTML = '';
+    if (!type || !type.params) return;
+
+    type.params.forEach(p => {
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <label class="block text-sm font-medium mt-2">${p.name} ${p.description ? '(' + p.description + ')' : ''}</label>
+            <input name="params.${p.name}" type="${p.type === 'number' ? 'number' : 'text'}"
+                class="mt-1 block w-full border rounded p-2"
+                ${p.required ? 'required' : ''}
+                value="${p.default || ''}">
+        `;
+        container.appendChild(div);
+    });
+});
+
+document.getElementById('agentForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const typeId = form.agent_type.value;
+    const type = types.find(t => t.type_id === typeId);
+    const params = {};
+
+    for (const input of form.querySelectorAll('#paramsContainer input')) {
+        const name = input.name.replace('params.', '');
+        params[name] = input.type === 'number' ? parseFloat(input.value) : input.value;
+    }
+
+    const res = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_type: typeId, agent_id: form.agent_id.value, params })
+    });
+    const data = await res.json();
+    if (data.success) {
+        window.location.href = '/';
+    } else {
+        alert(data.error || '创建失败');
+    }
+});
+</script>
+{% endblock %}

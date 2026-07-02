@@ -14,6 +14,7 @@ Commands:
     delete      Delete a specific version (DANGEROUS)
     llm         LLM management: list / show / test / set
     new         Create a new project from a template
+    up          Start the self-hosted web UI (auto-initialize default tenant/project)
     logs        Show recent structured log entries
     dashboard   Start the local observability dashboard (web UI)
     review      Post-match feedback and agent evolution
@@ -73,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         cmd_rollback,
         cmd_save,
         cmd_tools,
+        cmd_up,
         cmd_use,
     )
 
@@ -91,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     cmd_delete.add(sub)
     cmd_llm.add(sub)
     cmd_new.add(sub)
+    cmd_up.add(sub)
     cmd_logs.add(sub)
     cmd_datasets.add(sub)
     cmd_mcp.add(sub)

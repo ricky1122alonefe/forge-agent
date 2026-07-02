@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">运行历史</h2>
+
+{% if runs %}
+<table class="w-full text-sm bg-white rounded shadow">
+    <thead class="bg-gray-100">
+        <tr>
+            <th class="text-left p-2">run_id</th>
+            <th class="text-left p-2">pipeline</th>
+            <th class="text-left p-2">time</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in runs %}
+        <tr class="border-b">
+            <td class="p-2"><a href="/runs/{{ r.run_id }}" class="text-indigo-600">{{ r.run_id }}</a></td>
+            <td class="p-2">{{ r.pipeline_name }}</td>
+            <td class="p-2 text-gray-500">{{ r.timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="text-gray-500">暂无运行记录</p>
+{% endif %}
+{% endblock %}

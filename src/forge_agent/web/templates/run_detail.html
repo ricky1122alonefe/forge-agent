@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">运行详情: {{ run.run_id }}</h2>
+
+<div class="bg-white p-4 rounded shadow space-y-3">
+    <p><strong>Pipeline:</strong> {{ run.pipeline_name }}</p>
+    <p><strong>Time:</strong> {{ run.timestamp }}</p>
+
+    <div>
+        <p class="font-bold text-sm">Payload</p>
+        <pre class="bg-gray-100 p-2 text-sm overflow-auto">{{ payload_json }}</pre>
+    </div>
+
+    <div>
+        <p class="font-bold text-sm">Agent Reports</p>
+        <pre class="bg-gray-100 p-2 text-sm overflow-auto">{{ reports_json }}</pre>
+    </div>
+
+    {% if run.chief_summary %}
+    <div>
+        <p class="font-bold text-sm">Chief Summary</p>
+        <pre class="bg-gray-100 p-2 text-sm overflow-auto">{{ chief_json }}</pre>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
