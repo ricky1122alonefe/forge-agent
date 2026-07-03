@@ -10,7 +10,6 @@ from pathlib import Path
 
 import yaml
 
-from forge_agent.builtin import ChiefAgent  # noqa: F401
 from forge_agent.core import Mission, Team
 from forge_agent.core.factory import AgentFactory
 from forge_agent.core.runner import TeamRunner
@@ -21,6 +20,20 @@ from forge_agent.project.state_store import RunRecord, StateStore, generate_run_
 from forge_agent.project.tui import run_menu
 
 log = logging.getLogger(__name__)
+
+
+def _ensure_builtin_agents() -> None:
+    """Ensure built-in agents (e.g. generic.chief) are registered before a run."""
+    from forge_agent.builtin.chief_agent import ChiefAgent
+    from forge_agent.registry.registry import get_registry
+
+    registry = get_registry()
+    if "generic.chief" not in registry:
+        registry.register(
+            ChiefAgent,
+            domain=ChiefAgent.domain,
+            tags=["chief", "aggregator"],
+        )
 
 
 def _load_agents(factory: AgentFactory, agents_dir: Path) -> None:
@@ -35,31 +48,49 @@ def _load_pipeline(pipeline_path: Path) -> dict:
 
 def _detect_tenant_root(project_root: Path) -> Path | None:
     """Detect the forge-agent root directory from a local tenant project path."""
-    if project_root.parent.parent.parent.name == "tenants":
-        return project_root.parent.parent.parent.parent
+    try:
+        if project_root.parent.parent.parent.name == "tenants":
+            return project_root.parent.parent.parent.parent
+    except IndexError:
+        pass
     return None
 
 
-def _configure_llm(tenant_id: str, project_root: Path) -> None:
-    """Load the layered LLM config for this tenant/project and configure the registry."""
+def resolve_local_tenant(tenant_id: str, project_root: Path) -> LocalTenant:
+    """Build a LocalTenant for a project, inferring storage root from path layout."""
     root_dir = _detect_tenant_root(project_root)
-    tenant = LocalTenant(tenant_id, root_dir=root_dir)
+    return LocalTenant(tenant_id, root_dir=root_dir)
+
+
+def _configure_llm(tenant: LocalTenant, project_root: Path) -> None:
+    """Load the layered LLM config for this tenant/project and configure the registry."""
     cfg = LLMConfigManager(tenant).load(project_root.name)
     get_registry().configure(cfg)
     log.info(
         "LLM config loaded for tenant=%s project=%s (source=%s)",
-        tenant_id,
+        tenant.tenant_id,
         project_root.name,
         cfg.source_path,
     )
 
 
 async def _run_pipeline(
-    project_root: Path, tenant_id: str, pipeline_id: str, payload: dict
+    project_root: Path,
+    tenant_id: str,
+    pipeline_id: str,
+    payload: dict,
+    *,
+    tenant: LocalTenant | None = None,
 ) -> RunRecord:
-    ConfigValidator(project_root, tenant_id=tenant_id).validate(pipeline_id)
+    _ensure_builtin_agents()
+    local_tenant = tenant or resolve_local_tenant(tenant_id, project_root)
+    ConfigValidator(
+        project_root,
+        tenant_id=local_tenant.tenant_id,
+        root_dir=local_tenant.root_dir,
+    ).validate(pipeline_id)
 
-    _configure_llm(tenant_id, project_root)
+    _configure_llm(local_tenant, project_root)
 
     factory = AgentFactory()
     _load_agents(factory, project_root / "agents")

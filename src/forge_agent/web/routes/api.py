@@ -205,7 +205,13 @@ async def run_pipeline(pipeline_id: str, payload: RunPayload, request: Request) 
         raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id!r} not found")
 
     try:
-        record = await _run_pipeline(project_root, tenant_id, pipeline_id, payload.payload)
+        record = await _run_pipeline(
+            project_root,
+            tenant_id,
+            pipeline_id,
+            payload.payload,
+            tenant=request.app.state.tenant,
+        )
     except Exception as exc:
         return {"success": False, "error": str(exc)}
 

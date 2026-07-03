@@ -101,42 +101,46 @@ pip install -e ".[all]"
 
 ## Quick Start
 
-### 1. 创建项目
+### 方式 A：Web UI（推荐，零代码）
 
 ```bash
-forge-agent new my-project --template basic
-cd my-project
-pip install -e .
+# 1. 安装并启动
+bash scripts/install.sh
+forge-agent up
+# → 浏览器打开 http://localhost:8787
+
+# 2. 在 Web 里操作（全程不写代码）
+#    - 点击「+ Agent」→ 选 scraper → 填 keyword / platform / tool → 创建
+#    - 再建 1～2 个 Agent
+#    - 点击「+ Pipeline」→ 勾选 Agents → Chief 保持 generic.chief → 创建
+#    - 进入 Pipeline → 运行 → payload: {"keyword": "labubu"}
+#    - 在「运行历史」查看各 Agent 报告和 Chief 汇总
+
+# 默认 mock 模式，无需 API Key 即可跑通
 ```
 
-可选模板：`basic`、`stock`、`football`、`social`、`office`
+### 方式 B：CLI 创建项目
 
-### 2. 配置 LLM
+```bash
+forge-agent new my-project --template config-driven --tenant acme
+forge-agent up --tenant-id acme --project-id my-project
+```
+
+可选模板：`config-driven`（低代码 YAML）、`basic`、`stock`、`football`、`social`、`office`
+
+### 配置 LLM（可选，关闭 mock 时需要）
 
 ```bash
 forge-agent llm list          # 查看可用 provider
 forge-agent llm test deepseek # 测试连通性
 ```
 
-### 3. 生成 Agent
+### 高级：代码生成 Agent
 
 ```bash
 forge-agent generate "帮我写一个爬取豆瓣电影Top250的爬虫"
-```
-
-### 4. 管理 Agent
-
-```bash
-forge-agent list                    # 查看所有 Agent
-forge-agent history <agent_id>      # 版本历史
-forge-agent use <agent_id> --latest # 切换版本
-forge-agent rollback <agent_id>     # 回滚
-```
-
-### 5. 启动 Dashboard
-
-```bash
-forge-agent dashboard  # http://localhost:8787
+forge-agent list
+forge-agent dashboard         # 查看已生成的 Agent
 ```
 
 ### Python API 示例
