@@ -3,42 +3,105 @@
 {% block content %}
 <div class="max-w-4xl mx-auto">
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-bold">运行详情: {{ run.run_id }}</h2>
-        <a href="/runs" class="text-sm text-gray-600 hover:text-indigo-600">← 返回历史</a>
+        <h2 class="text-2xl font-bold">运行详情</h2>
+        <a href="{{ pu('/runs') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回历史</a>
     </div>
 
-    <div class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-5">
+    {% include "partials/mock_notice.html" %}
+
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+                <p class="text-gray-500 text-xs">运行 ID</p>
+                <p class="font-mono text-sm">{{ run.run_id }}</p>
+            </div>
             <div>
                 <p class="text-gray-500 text-xs">Pipeline</p>
                 <p class="font-medium">{{ run.pipeline_name }}</p>
             </div>
             <div>
-                <p class="text-gray-500 text-xs">Time</p>
+                <p class="text-gray-500 text-xs">时间</p>
                 <p class="font-medium">{{ run.timestamp }}</p>
             </div>
-            <div>
-                <p class="text-gray-500 text-xs">Agents</p>
-                <p class="font-medium">{{ run.metadata.agent_count }} {{ 'with chief' if run.metadata.has_chief else '' }}</p>
+        </div>
+
+        <div>
+            <p class="font-bold text-sm mb-2 text-gray-700">输入参数</p>
+            <div class="flex flex-wrap gap-2">
+                {% for key, value in run.payload.items() %}
+                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">{{ key }}: {{ value }}</span>
+                {% else %}
+                <span class="text-xs text-gray-400">无</span>
+                {% endfor %}
             </div>
         </div>
 
         <div>
-            <p class="font-bold text-sm mb-2 text-gray-700">Payload</p>
-            <pre class="bg-gray-50 border border-gray-100 p-3 text-sm overflow-auto rounded-md">{{ payload_json }}</pre>
+            <p class="font-bold text-sm mb-3 text-gray-700">Agent 报告 ({{ agent_reports|length }})</p>
+            <div class="space-y-3">
+                {% for report in agent_reports %}
+                {% set verdict = report.get('verdict') or (report.get('raw', {}).get('decision', {}).get('verdict')) %}
+                <div class="border border-gray-100 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="font-medium">{{ report.get('name') or report.get('agent_id') }}</p>
+                        {% if verdict %}
+                        <span class="text-xs px-2 py-1 rounded-full
+                            {% if 'positive' in verdict %}bg-green-100 text-green-800
+                            {% elif 'negative' in verdict %}bg-yellow-100 text-yellow-800
+                            {% elif 'risk' in verdict %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-700{% endif %}">{{ verdict }}</span>
+                        {% endif %}
+                    </div>
+                    {% if report.get('confidence') is not none %}
+                    <p class="text-xs text-gray-500 mb-2">置信度 {{ (report.confidence * 100)|round(0)|int }}% · 风险 {{ (report.risk * 100)|round(0)|int }}%</p>
+                    {% endif %}
+                    {% if report.get('evidence') %}
+                    <ul class="text-sm text-gray-700 list-disc list-inside space-y-1">
+                        {% for ev in report.evidence %}
+                        <li>{{ ev }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
         </div>
 
-        <div>
-            <p class="font-bold text-sm mb-2 text-gray-700">Agent Reports</p>
-            <pre class="bg-gray-50 border border-gray-100 p-3 text-sm overflow-auto rounded-md max-h-96">{{ reports_json }}</pre>
-        </div>
-
-        {% if run.chief_summary %}
-        <div>
-            <p class="font-bold text-sm mb-2 text-gray-700">Chief Summary</p>
-            <pre class="bg-gray-50 border border-gray-100 p-3 text-sm overflow-auto rounded-md max-h-96">{{ chief_json }}</pre>
+        {% if chief_report %}
+        <div class="border border-indigo-100 bg-indigo-50 rounded-lg p-4">
+            <p class="font-bold text-sm text-indigo-900 mb-2">Chief 汇总决策</p>
+            <div class="flex items-center gap-2 mb-2">
+                {% if chief_report.get('verdict') %}
+                <span class="text-xs px-2 py-1 rounded-full
+                    {% if 'positive' in chief_report.verdict %}bg-green-100 text-green-800
+                    {% elif 'negative' in chief_report.verdict %}bg-yellow-100 text-yellow-800
+                    {% elif 'risk' in chief_report.verdict %}bg-red-100 text-red-800
+                    {% else %}bg-gray-100 text-gray-700{% endif %}">{{ chief_report.verdict }}</span>
+                {% endif %}
+                {% if chief_report.get('recommended_action') %}
+                <span class="text-xs text-indigo-800">建议: {{ chief_report.recommended_action }}</span>
+                {% endif %}
+            </div>
+            {% if chief_report.get('confidence') is not none %}
+            <p class="text-xs text-indigo-800 mb-2">置信度 {{ (chief_report.confidence * 100)|round(0)|int }}% · 风险 {{ (chief_report.risk * 100)|round(0)|int }}%</p>
+            {% endif %}
+            {% if chief_report.get('evidence') %}
+            <ul class="text-sm text-indigo-900 list-disc list-inside space-y-1">
+                {% for ev in chief_report.evidence %}
+                <li>{{ ev }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
         </div>
         {% endif %}
+
+        <details class="text-sm">
+            <summary class="cursor-pointer text-gray-500 hover:text-gray-700">查看原始 JSON</summary>
+            <pre class="mt-2 bg-gray-50 border border-gray-100 p-3 text-xs overflow-auto rounded-md max-h-64">{{ reports_json }}</pre>
+            {% if run.chief_summary %}
+            <pre class="mt-2 bg-gray-50 border border-gray-100 p-3 text-xs overflow-auto rounded-md max-h-64">{{ chief_json }}</pre>
+            {% endif %}
+        </details>
     </div>
 </div>
 {% endblock %}

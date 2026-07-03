@@ -18,6 +18,7 @@ from forge_agent.llm.registry import get_registry
 from forge_agent.platform import ConfigValidator, LLMConfigManager, LocalTenant
 from forge_agent.project.state_store import RunRecord, StateStore, generate_run_id
 from forge_agent.project.tui import run_menu
+from forge_agent.web.data import infer_run_mock_mode
 
 log = logging.getLogger(__name__)
 
@@ -125,7 +126,16 @@ async def _run_pipeline(
             for report in board.agents
         ],
         chief_summary=dict(board.summary) if board.summary else None,
-        metadata={"agent_count": len(board.agents), "has_chief": board.summary is not None},
+        metadata={
+            "agent_count": len(board.agents),
+            "has_chief": board.summary is not None,
+            "mock_mode": infer_run_mock_mode(
+                [
+                    report.model_dump() if hasattr(report, "model_dump") else dict(report.__dict__)
+                    for report in board.agents
+                ]
+            ),
+        },
     )
     StateStore(project_root).save(record)
     return record

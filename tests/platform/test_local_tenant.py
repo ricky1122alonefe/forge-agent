@@ -118,6 +118,19 @@ class TestLocalTenant:
         assert tenant_b.list_projects() == ["trend_demo"]
         assert tenant_a.get_project_path("trend_demo") != tenant_b.get_project_path("trend_demo")
 
+    def test_list_tenant_ids(self, temp_root: Path) -> None:
+        LocalTenant("acme", root_dir=temp_root).create_project("demo")
+        LocalTenant("bob", root_dir=temp_root).create_project("lab")
+
+        assert LocalTenant.list_tenant_ids(temp_root) == ["acme", "bob"]
+
+    def test_resolve_data_root_from_env(
+        self, temp_root: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("FORGE_AGENT_DATA_DIR", str(temp_root))
+        tenant = LocalTenant("acme")
+        assert tenant.root_dir == temp_root.resolve()
+
     def teardown_method(self) -> None:
         # Best-effort cleanup of the default test root if it was created.
         default = LocalTenant.DEFAULT_ROOT

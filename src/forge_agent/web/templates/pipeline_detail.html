@@ -4,7 +4,7 @@
 <div class="max-w-3xl mx-auto">
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold">Pipeline: {{ pipeline_id }}</h2>
-        <a href="/" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
+        <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
     </div>
 
     <form id="editForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4">
@@ -19,8 +19,8 @@
         <div class="flex items-center justify-between pt-2">
             <div class="space-x-3">
                 <button type="submit" id="saveBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium">保存</button>
-                <a href="/pipelines/{{ pipeline_id }}/run" class="text-sm text-indigo-600 hover:text-indigo-800">运行 →</a>
-                <a href="/" class="text-sm text-gray-600 hover:text-gray-800">取消</a>
+                <a href="{{ pu('/pipelines/' ~ pipeline_id ~ '/run') }}" class="text-sm text-indigo-600 hover:text-indigo-800">运行 →</a>
+                <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-gray-800">取消</a>
             </div>
             <button type="button" onclick="deletePipeline()" class="text-sm text-red-600 hover:text-red-800">删除此 Pipeline</button>
         </div>
@@ -39,7 +39,7 @@ document.getElementById('editForm').addEventListener('submit', async function (e
     btn.textContent = '保存中...';
 
     try {
-        await apiPut(`/api/pipelines/{{ pipeline_id }}`, { yaml: document.getElementById('yaml').value });
+        await apiPut(`/pipelines/{{ pipeline_id }}`, { yaml: document.getElementById('yaml').value });
         successBox.textContent = '保存成功';
         successBox.classList.remove('hidden');
         showToast('Pipeline 已保存', 'success');
@@ -55,9 +55,9 @@ document.getElementById('editForm').addEventListener('submit', async function (e
 async function deletePipeline() {
     if (!confirm('确定删除此 pipeline？')) return;
     try {
-        await apiDelete(`/api/pipelines/{{ pipeline_id }}`);
+        await apiDelete(`/pipelines/{{ pipeline_id }}`);
         showToast('Pipeline 已删除', 'success');
-        setTimeout(() => window.location.href = '/', 500);
+        setTimeout(() => window.location.href = '{{ pu('/') }}', 500);
     } catch (err) { showToast('删除失败: ' + err.message, 'error'); }
 }
 </script>

@@ -1,0 +1,8 @@
+{% if show_mock_notice %}
+<div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    <p class="font-medium">演示模式 · 无需 API Key</p>
+    <p class="mt-1 text-amber-800 text-xs leading-relaxed">
+        {{ mock_notice_text or "当前结果为预设 Mock 数据，未调用真实 LLM 或抓取工具。适合本地走通流程；需要真实分析时，在 Agent 编辑页关闭 Mock 并配置 API Key。" }}
+    </p>
+</div>
+{% endif %}

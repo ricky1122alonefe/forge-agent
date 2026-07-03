@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,25 @@ class LocalTenant(Tenant):
 
     DEFAULT_ROOT = Path.home() / ".forge-agent"
 
+    @classmethod
+    def resolve_data_root(cls, root_dir: Path | None = None) -> Path:
+        """Resolve the forge-agent data root from env or explicit path."""
+        if root_dir is not None:
+            return root_dir.expanduser().resolve()
+        env_root = os.environ.get("FORGE_AGENT_DATA_DIR")
+        if env_root:
+            return Path(env_root).expanduser().resolve()
+        return cls.DEFAULT_ROOT
+
+    @classmethod
+    def list_tenant_ids(cls, data_root: Path | None = None) -> list[str]:
+        """List tenant ids stored under a data root."""
+        root = cls.resolve_data_root(data_root)
+        tenants_dir = root / "tenants"
+        if not tenants_dir.exists():
+            return []
+        return sorted(path.name for path in tenants_dir.iterdir() if path.is_dir())
+
     def __init__(
         self,
         tenant_id: str,
@@ -42,7 +62,7 @@ class LocalTenant(Tenant):
         **kwargs: Any,
     ) -> None:
         super().__init__(tenant_id, **kwargs)
-        self.root_dir = (root_dir or self.DEFAULT_ROOT).expanduser().resolve()
+        self.root_dir = self.resolve_data_root(root_dir)
         self.tenant_dir = self.root_dir / "tenants" / tenant_id
         self.projects_dir = self.tenant_dir / "projects"
         self.shared_dir = self.tenant_dir / "shared"

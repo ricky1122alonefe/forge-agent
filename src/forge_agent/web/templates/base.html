@@ -9,13 +9,17 @@
         .toast { position: fixed; top: 1rem; right: 1rem; z-index: 50; min-width: 16rem; }
         .fade-in { animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-0.5rem); } to { opacity: 1; transform: translateY(0); } }
+        .verdict-positive { @apply bg-green-100 text-green-800; }
+        .verdict-neutral { @apply bg-gray-100 text-gray-700; }
+        .verdict-negative { @apply bg-yellow-100 text-yellow-800; }
+        .verdict-risk { @apply bg-red-100 text-red-800; }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-gray-50 text-gray-900">
     <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/" class="flex items-center space-x-3">
+            <a href="{{ pu('/') }}" class="flex items-center space-x-3">
                 <span class="text-2xl">⚡</span>
                 <div>
                     <h1 class="text-lg font-bold leading-tight">forge-agent</h1>
@@ -23,10 +27,11 @@
                 </div>
             </a>
             <nav class="space-x-4 text-sm">
-                <a href="/" class="text-gray-600 hover:text-indigo-600">首页</a>
-                <a href="/agents/new" class="text-gray-600 hover:text-indigo-600">新建 Agent</a>
-                <a href="/pipelines/new" class="text-gray-600 hover:text-indigo-600">新建 Pipeline</a>
-                <a href="/runs" class="text-gray-600 hover:text-indigo-600">运行历史</a>
+                <a href="{{ pu('/') }}" class="text-gray-600 hover:text-indigo-600">工作台</a>
+                <a href="{{ pu('/agents/new') }}" class="text-gray-600 hover:text-indigo-600">新建 Agent</a>
+                <a href="{{ pu('/pipelines/new') }}" class="text-gray-600 hover:text-indigo-600">新建 Pipeline</a>
+                <a href="{{ pu('/runs') }}" class="text-gray-600 hover:text-indigo-600">运行历史</a>
+                <a href="{{ tenant_hub_url }}" class="text-gray-500 hover:text-indigo-600">切换项目</a>
             </nav>
         </div>
     </header>
@@ -35,6 +40,7 @@
     </main>
     <div id="toastContainer" class="toast"></div>
     <script>
+    const API_BASE = '{{ api_prefix }}';
     function showToast(message, type = 'info') {
         const container = document.getElementById('toastContainer');
         const el = document.createElement('div');
@@ -44,20 +50,31 @@
         container.appendChild(el);
         setTimeout(() => el.remove(), 3500);
     }
-    async function apiDelete(url) {
-        const res = await fetch(url, { method: 'DELETE' });
+    function apiUrl(path) {
+        if (path.startsWith('http')) return path;
+        return API_BASE + (path.startsWith('/') ? path : '/' + path);
+    }
+    async function apiDelete(path) {
+        const res = await fetch(apiUrl(path), { method: 'DELETE' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
     }
-    async function apiPut(url, body) {
-        const res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    async function apiPut(path, body) {
+        const res = await fetch(apiUrl(path), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.detail || `HTTP ${res.status}`); }
         return res.json();
     }
-    async function apiPost(url, body) {
-        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    async function apiPost(path, body) {
+        const res = await fetch(apiUrl(path), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
         return data;
+    }
+    function verdictBadgeClass(verdict) {
+        if (!verdict) return 'bg-gray-100 text-gray-700';
+        if (verdict.includes('positive')) return 'bg-green-100 text-green-800';
+        if (verdict.includes('negative')) return 'bg-yellow-100 text-yellow-800';
+        if (verdict.includes('risk')) return 'bg-red-100 text-red-800';
+        return 'bg-gray-100 text-gray-700';
     }
     </script>
     {% block extra_js %}{% endblock %}

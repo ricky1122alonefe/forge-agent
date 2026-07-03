@@ -39,6 +39,11 @@ def add(sub: argparse._SubParsersAction) -> None:
         help="Project id to use (default: default)",
     )
     p.add_argument(
+        "--data-dir",
+        default=None,
+        help="Data directory (default: FORGE_AGENT_DATA_DIR or ~/.forge-agent)",
+    )
+    p.add_argument(
         "--no-browser",
         action="store_true",
         help="Don't auto-open browser",
@@ -57,16 +62,27 @@ def run(args: argparse.Namespace) -> int:
         )
         return 1
 
+    from pathlib import Path
+
     from forge_agent.platform import LocalTenant
     from forge_agent.web.app import create_app
+    from forge_agent.web.context import project_url, resolve_data_root
 
-    tenant = LocalTenant(args.tenant_id)
-    project_root = tenant.ensure_project(args.project_id)
+    data_root = resolve_data_root(Path(args.data_dir) if args.data_dir else None)
+    tenant = LocalTenant(args.tenant_id, root_dir=data_root)
+    tenant.ensure_project(args.project_id)
 
-    app = create_app(tenant=tenant, project_root=project_root)
+    app = create_app(
+        data_root=data_root,
+        default_tenant_id=args.tenant_id,
+        default_project_id=args.project_id,
+    )
+
+    workspace_url = project_url(args.tenant_id, args.project_id, "/")
 
     print("⚡ forge-agent is up")
-    print(f"  → URL:     http://{args.host}:{args.port}")
+    print(f"  → URL:     http://{args.host}:{args.port}{workspace_url}")
+    print(f"  → Data:    {data_root}")
     print(f"  → Tenant:  {args.tenant_id}")
     print(f"  → Project: {args.project_id}")
     print("  → Press Ctrl+C to stop")
@@ -76,7 +92,7 @@ def run(args: argparse.Namespace) -> int:
 
         def _open_browser() -> None:
             time.sleep(1.0)
-            url = f"http://{args.host}:{args.port}"
+            url = f"http://{args.host}:{args.port}{workspace_url}"
             with contextlib.suppress(Exception):
                 webbrowser.open(url)
 

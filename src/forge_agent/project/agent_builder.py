@@ -58,8 +58,11 @@ def build_agent(
     if mock_response:
         config["mock_response"] = _render_template(mock_response.strip(), params)
 
-    # Collect declared variables so the runner knows how to map payload fields.
-    config["variables"] = {p["name"]: p["name"] for p in type_def.get("params", [])}
+    # Only expose runtime payload keys. platform/tool are fixed at agent creation time.
+    runtime_keys = {"keyword"}
+    config["variables"] = {
+        p["name"]: p["name"] for p in type_def.get("params", []) if p["name"] in runtime_keys
+    }
 
     return {
         "agent_id": agent_id,

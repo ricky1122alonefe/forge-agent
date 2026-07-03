@@ -1,4 +1,4 @@
-# Multi-stage build for forge-agent dashboard
+# Multi-stage build for forge-agent web UI
 FROM python:3.11-slim as builder
 
 # Set working directory
@@ -51,5 +51,5 @@ EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8787/api/health')"
 
-# Default command: run dashboard
-CMD ["python", "-m", "forge_agent", "dashboard", "--host", "0.0.0.0", "--port", "8787"]
+# Default command: run Agent/Pipeline web UI
+CMD ["python", "-m", "forge_agent", "up", "--host", "0.0.0.0", "--no-browser", "--port", "8787"]

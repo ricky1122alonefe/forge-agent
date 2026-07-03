@@ -1,15 +1,14 @@
 version: '3.8'
 
 services:
-  dashboard:
+  forge-agent:
     build: .
     ports:
       - "8787:8787"
     volumes:
-      - ./generated_agents:/app/generated_agents:ro
       - forge-data:/data
     environment:
-      - FORGE_AGENT_AUTH_ENABLED=false
+      - FORGE_AGENT_DATA_DIR=/data
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     healthcheck:
@@ -19,20 +18,20 @@ services:
       retries: 3
       start_period: 5s
 
-  # Optional: with authentication
-  dashboard-auth:
+  # Legacy observability dashboard for generated_agents/
+  dashboard:
     build: .
+    command: ["python", "-m", "forge_agent", "dashboard", "--host", "0.0.0.0", "--port", "8787"]
     ports:
       - "8788:8787"
     volumes:
       - ./generated_agents:/app/generated_agents:ro
-      - forge-data:/data
     environment:
-      - FORGE_AGENT_AUTH_ENABLED=true
-      - FORGE_AGENT_API_KEY=${FORGE_AGENT_API_KEY:-changeme}
+      - FORGE_AGENT_AUTH_ENABLED=false
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
     profiles:
-      - auth
+      - legacy-dashboard
 
 volumes:
   forge-data:

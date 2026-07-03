@@ -3,7 +3,7 @@
 {% block content %}
 <div class="flex items-center justify-between mb-6">
     <h2 class="text-2xl font-bold">运行历史</h2>
-    <a href="/" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
+    <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
 </div>
 
 {% if runs %}
@@ -11,20 +11,28 @@
     <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-600">
             <tr>
-                <th class="text-left p-3 font-medium">run_id</th>
-                <th class="text-left p-3 font-medium">pipeline</th>
-                <th class="text-left p-3 font-medium">agents</th>
-                <th class="text-left p-3 font-medium">chief</th>
-                <th class="text-left p-3 font-medium">time</th>
+                <th class="text-left p-3 font-medium">运行 ID</th>
+                <th class="text-left p-3 font-medium">Pipeline</th>
+                <th class="text-left p-3 font-medium">Agent 数</th>
+                <th class="text-left p-3 font-medium">Chief 汇总</th>
+                <th class="text-left p-3 font-medium">模式</th>
+                <th class="text-left p-3 font-medium">时间</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
             {% for r in runs %}
             <tr class="hover:bg-gray-50">
-                <td class="p-3"><a href="/runs/{{ r.run_id }}" class="text-indigo-600 hover:underline font-mono">{{ r.run_id }}</a></td>
+                <td class="p-3"><a href="{{ pu('/runs/' ~ r.run_id) }}" class="text-indigo-600 hover:underline font-mono">{{ r.run_id }}</a></td>
                 <td class="p-3">{{ r.pipeline_name }}</td>
                 <td class="p-3 text-gray-500">{{ r.metadata.agent_count }}</td>
                 <td class="p-3"><span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-100 text-green-700' if r.metadata.has_chief else 'bg-gray-100 text-gray-600' }}">{{ '是' if r.metadata.has_chief else '否' }}</span></td>
+                <td class="p-3">
+                    {% if r.is_mock %}
+                    <span class="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800">演示</span>
+                    {% else %}
+                    <span class="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-800">真实</span>
+                    {% endif %}
+                </td>
                 <td class="p-3 text-gray-500">{{ r.timestamp }}</td>
             </tr>
             {% endfor %}
@@ -34,7 +42,7 @@
 {% else %}
 <div class="bg-white p-8 rounded-lg shadow border border-gray-100 text-center">
     <p class="text-gray-500">暂无运行记录</p>
-    <a href="/" class="text-sm text-indigo-600 hover:underline mt-2 inline-block">去运行一个 Pipeline</a>
+    <a href="{{ pu('/') }}" class="text-sm text-indigo-600 hover:underline mt-2 inline-block">去运行一个 Pipeline</a>
 </div>
 {% endif %}
 {% endblock %}

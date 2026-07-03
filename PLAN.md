@@ -121,17 +121,15 @@ team:
 
 | 缺口 | 影响 |
 |------|------|
-| 运行时使用错误 tenant 根目录 | 非标准路径项目 LLM 配置写 `~/.forge-agent` 失败 |
-| 集成测试未全绿 | P0 验收未闭环 |
-| Web 无多项目/多租户切换 | 部署多人用时需 P2 |
-| 无登录鉴权 | 公网部署需 P2 |
-| Agent 类型名暴露给用户 | 体验待 P1 优化 |
+| Web 无多项目/多租户切换 | 部署多人用时需 Phase 2 |
+| 无登录鉴权 | 公网部署需 Phase 2 |
+| 手动验收未做 | 需本地 `forge-agent up` 走一遍黄金路径 |
 
 ---
 
 ## 四、执行阶段
 
-### Phase 0 — 跑通主路径（当前，1～2 天）
+### Phase 0 — 跑通主路径 ✅
 
 **目标**：`forge-agent up` → 建 Agent → 建 Pipeline → 运行 → 看历史，全程 mock。
 
@@ -165,16 +163,16 @@ forge-agent up
 
 **目标**：让「自建 Agent → 组装 Pipeline」更好用，UI 语言统一。
 
-| ID | 任务 | 验收 |
-|----|------|------|
-| P1.1 | UI 文案：Agent / Pipeline / 运行，少提 scraper/generate | 页面无内部术语 |
-| P1.2 | 空项目引导：无 Agent 时引导先建 Agent，再建 Pipeline | 首页/workflow 清晰 |
-| P1.3 | Agent 创建：类型改名为「模板」（数据抓取 / 分析 / 自定义） | 表单更易懂 |
-| P1.4 | Agent 编辑页：可视化改 prompt / tools / mock 开关 | 不需手改 YAML |
-| P1.5 | Pipeline 创建：展示已选 Agent 摘要；Chief 说明 | 非技术人员能理解 |
-| P1.6 | 运行页：根据 Agent variables 动态生成 payload 表单 | 默认不用写 JSON |
-| P1.7 | 结果页：结构化展示 verdict / evidence / Chief 决策 | 非 JSON _dump |
-| P1.8 | Agent 模板库：提供 2～3 个可「从模板创建」的预设 Agent | 加速冷启动 |
+| ID | 任务 | 验收 | 状态 |
+|----|------|------|------|
+| P1.1 | UI 文案：Agent / Pipeline / 运行 | 导航与页面统一中文术语 | ✅ |
+| P1.2 | 空项目引导 | 首页三步引导 + 预设快捷入口 | ✅ |
+| P1.3 | Agent 模板标签 | scraper→数据抓取 等 | ✅ |
+| P1.4 | Agent 快捷编辑 | mock / prompt / tools | ✅ |
+| P1.5 | Pipeline 已选摘要 + Chief 说明 | 创建页实时摘要 | ✅ |
+| P1.6 | 动态 payload 表单 | 按 Agent variables 生成 | ✅ |
+| P1.7 | 结构化结果页 | verdict / evidence / Chief | ✅ |
+| P1.8 | Agent 预设库 | 微博/小红书/得物一键创建 | ✅ |
 
 ---
 
@@ -184,12 +182,12 @@ forge-agent up
 
 | ID | 任务 | 验收 |
 |----|------|------|
-| P2.1 | Web 路由 `/t/{tenant}/p/{project}/...` | 一套 up 服务多租户 |
-| P2.2 | Web 内新建/切换/列出 Project | 无需 CLI `forge-agent new` |
-| P2.3 | 用户注册 → 自动创建 tenant | 新用户有独立命名空间 |
-| P2.4 | 登录 + Session；只能访问自己 tenant | 跨 tenant 返回 403 |
-| P2.5 | docker-compose volume 持久化数据 | 重启不丢 Agent/Pipeline |
-| P2.6 | 部署文档：环境变量、端口、数据目录 | 外人能独立部署 |
+| P2.1 | Web 路由 `/t/{tenant}/p/{project}/...` | 一套 up 服务多租户 | ✅ |
+| P2.2 | Web 内新建/切换/列出 Project | 无需 CLI `forge-agent new` | ✅ |
+| P2.3 | 用户注册 → 自动创建 tenant | 新用户有独立命名空间 | ⬜ |
+| P2.4 | 登录 + Session；只能访问自己 tenant | 跨 tenant 返回 403 | ⬜ |
+| P2.5 | docker-compose volume 持久化数据 | 重启不丢 Agent/Pipeline | ✅ |
+| P2.6 | 部署文档：环境变量、端口、数据目录 | 外人能独立部署 | ⬜ |
 
 ---
 
@@ -219,18 +217,18 @@ forge-agent up
 ## 五、执行顺序总览
 
 ```text
-Phase 0  跑通（Agent → Pipeline → Run）     ← 现在
+Phase 0  跑通 ✅（待手动验收）
     │
-Phase 1  体验（UI、引导、结果展示）
+Phase 1  体验 ✅
     │
-Phase 2  部署（多租户、登录、Project CRUD）
+Phase 2  部署（多租户、登录、Project CRUD）  ← 进行中（P2.1/P2.2/P2.5 已完成）
     │
 Phase 3  可观测 + 真实数据（按需）
     │
 Phase 4  生态（未来）
 ```
 
-**当前 focus**：Phase 0 剩余 P0.3、P0.4、P0.6。
+**当前 focus**：Phase 2 多租户路由与 Project 管理已完成；下一步 P2.3/P2.4 登录鉴权。
 
 ---
 
@@ -256,9 +254,9 @@ forge-agent new myproj --template config-driven --tenant acme
 
 | Phase | 进度 | 状态 |
 |-------|------|------|
-| Phase 0 跑通 | 5/6 | 🟡 进行中 |
-| Phase 1 体验 | 0/8 | ⬜ |
-| Phase 2 部署 | 0/6 | ⬜ |
+| Phase 0 跑通 | 6/6 | ✅ 完成 |
+| Phase 1 体验 | 8/8 | ✅ 完成 |
+| Phase 2 部署 | 3/6 | 🟡 进行中 |
 | Phase 3 可观测 | 0/5 | ⬜ |
 | Phase 4 生态 | — | ⬜ 未规划细节 |
 

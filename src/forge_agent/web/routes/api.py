@@ -3,34 +3,27 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import yaml
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from forge_agent.builtin import AgentTypeRegistry
 from forge_agent.project.agent_builder import build_agent_yaml, build_pipeline_yaml
 from forge_agent.project.launcher import _run_pipeline
+from forge_agent.web.context import ProjectContext, get_project_context
+from forge_agent.web.data import collect_payload_fields, get_agent_config
+from forge_agent.web.presets import AGENT_PRESETS, get_preset
 
 router = APIRouter(prefix="/api")
-
-
-@router.get("/health")
-async def health(request: Request) -> dict[str, Any]:
-    """Health check and basic tenant/project info."""
-    return {
-        "status": "ok",
-        "tenant_id": request.app.state.tenant.tenant_id,
-        "project_root": str(request.app.state.project_root),
-    }
+Ctx = Annotated[ProjectContext, Depends(get_project_context)]
 
 
 @router.get("/agent-types")
-async def get_agent_types(request: Request) -> dict[str, Any]:
+async def get_agent_types(ctx: Ctx) -> dict[str, Any]:
     """List available agent types."""
-    tenant = request.app.state.tenant
-    registry = AgentTypeRegistry(tenant_shared_dir=tenant.get_shared_path())
+    registry = AgentTypeRegistry(tenant_shared_dir=ctx.tenant.get_shared_path())
     return {"types": registry.list()}
 
 
@@ -49,20 +42,18 @@ def _pipeline_path(project_root: Path, pipeline_id: str) -> Path:
 
 
 @router.post("/agents")
-async def create_agent(payload: CreateAgentPayload, request: Request) -> dict[str, Any]:
+async def create_agent(payload: CreateAgentPayload, ctx: Ctx) -> dict[str, Any]:
     """Create a new agent YAML file from a selected agent type."""
-    project_root: Path = request.app.state.project_root
-    tenant = request.app.state.tenant
-    registry = AgentTypeRegistry(tenant_shared_dir=tenant.get_shared_path())
+    registry = AgentTypeRegistry(tenant_shared_dir=ctx.tenant.get_shared_path())
 
     try:
         type_def = registry.get(payload.agent_type)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    agents_dir = project_root / "agents"
+    agents_dir = ctx.project_root / "agents"
     agents_dir.mkdir(exist_ok=True)
-    target = _agent_path(project_root, payload.agent_id)
+    target = _agent_path(ctx.project_root, payload.agent_id)
     if target.exists():
         raise HTTPException(status_code=409, detail=f"Agent {payload.agent_id!r} already exists")
 
@@ -71,14 +62,117 @@ async def create_agent(payload: CreateAgentPayload, request: Request) -> dict[st
     return {"success": True, "path": str(target), "agent_id": payload.agent_id}
 
 
+@router.get("/agent-presets")
+async def list_agent_presets() -> dict[str, Any]:
+    """List one-click agent presets for the web UI."""
+    return {"presets": AGENT_PRESETS}
+
+
+class CreateAgentFromPresetPayload(BaseModel):
+    preset_id: str
+    agent_id: str | None = None
+
+
+@router.post("/agents/from-preset")
+async def create_agent_from_preset(
+    payload: CreateAgentFromPresetPayload, ctx: Ctx
+) -> dict[str, Any]:
+    """Create an agent from a built-in preset."""
+    preset = get_preset(payload.preset_id)
+    if preset is None:
+        raise HTTPException(status_code=404, detail=f"Preset {payload.preset_id!r} not found")
+
+    agent_id = payload.agent_id or preset["default_agent_id"]
+    create_payload = CreateAgentPayload(
+        agent_type=preset["agent_type"],
+        agent_id=agent_id,
+        params=preset.get("params", {}),
+    )
+    return await create_agent(create_payload, ctx)
+
+
 @router.get("/agents/{agent_id}")
-async def get_agent(agent_id: str, request: Request) -> dict[str, Any]:
+async def get_agent(agent_id: str, ctx: Ctx) -> dict[str, Any]:
     """Return the raw YAML content of an agent."""
-    project_root: Path = request.app.state.project_root
-    target = _agent_path(project_root, agent_id)
+    target = _agent_path(ctx.project_root, agent_id)
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
     return {"agent_id": agent_id, "yaml": target.read_text(encoding="utf-8")}
+
+
+@router.get("/agents/{agent_id}/config")
+async def get_agent_config_api(agent_id: str, ctx: Ctx) -> dict[str, Any]:
+    """Return structured config fields for an agent."""
+    target = _agent_path(ctx.project_root, agent_id)
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
+    return get_agent_config(ctx.project_root, agent_id)
+
+
+class UpdateAgentConfigPayload(BaseModel):
+    mock_mode: bool | None = None
+    prompt: str | None = None
+    tools: list[str] | None = None
+
+
+def _merge_agent_config_yaml(
+    agent_id: str, yaml_text: str, updates: UpdateAgentConfigPayload
+) -> str:
+    data = yaml.safe_load(yaml_text) or {}
+    agents = data.get("agents", []) if isinstance(data, dict) else data
+    if not isinstance(agents, list):
+        raise ValueError("Agent YAML must contain an 'agents' list")
+
+    target_agent: dict[str, Any] | None = None
+    for agent in agents:
+        if isinstance(agent, dict) and agent.get("agent_id") == agent_id:
+            target_agent = agent
+            break
+    if target_agent is None:
+        raise ValueError(f"Agent {agent_id!r} not found in YAML")
+
+    config = target_agent.setdefault("config", {})
+    if not isinstance(config, dict):
+        raise ValueError("Agent config must be a mapping")
+
+    if updates.mock_mode is not None:
+        config["mock_mode"] = updates.mock_mode
+    if updates.prompt is not None:
+        config["prompt"] = updates.prompt
+    if updates.tools is not None:
+        config["tools"] = updates.tools
+
+    return yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
+
+
+@router.put("/agents/{agent_id}/config")
+async def update_agent_config(
+    agent_id: str, payload: UpdateAgentConfigPayload, ctx: Ctx
+) -> dict[str, Any]:
+    """Update selected agent config fields without hand-editing YAML."""
+    target = _agent_path(ctx.project_root, agent_id)
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
+
+    try:
+        merged = _merge_agent_config_yaml(agent_id, target.read_text(encoding="utf-8"), payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    target.write_text(merged, encoding="utf-8")
+    return {
+        "success": True,
+        "agent_id": agent_id,
+        "config": get_agent_config(ctx.project_root, agent_id),
+    }
+
+
+@router.get("/pipelines/{pipeline_id}/payload-fields")
+async def get_pipeline_payload_fields(pipeline_id: str, ctx: Ctx) -> dict[str, Any]:
+    """Return suggested payload form fields for a pipeline run."""
+    if not _pipeline_path(ctx.project_root, pipeline_id).exists():
+        raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id!r} not found")
+    return {"fields": collect_payload_fields(ctx.project_root, pipeline_id)}
 
 
 class UpdateAgentPayload(BaseModel):
@@ -86,16 +180,13 @@ class UpdateAgentPayload(BaseModel):
 
 
 @router.put("/agents/{agent_id}")
-async def update_agent(
-    agent_id: str, payload: UpdateAgentPayload, request: Request
-) -> dict[str, Any]:
+async def update_agent(agent_id: str, payload: UpdateAgentPayload, ctx: Ctx) -> dict[str, Any]:
     """Overwrite an agent YAML file."""
-    project_root: Path = request.app.state.project_root
-    target = _agent_path(project_root, agent_id)
+    target = _agent_path(ctx.project_root, agent_id)
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
     try:
-        yaml.safe_load(payload.yaml)  # validate yaml syntax
+        yaml.safe_load(payload.yaml)
     except yaml.YAMLError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid YAML: {exc}") from exc
     target.write_text(payload.yaml, encoding="utf-8")
@@ -103,10 +194,9 @@ async def update_agent(
 
 
 @router.delete("/agents/{agent_id}")
-async def delete_agent(agent_id: str, request: Request) -> Response:
+async def delete_agent(agent_id: str, ctx: Ctx) -> Response:
     """Delete an agent YAML file."""
-    project_root: Path = request.app.state.project_root
-    target = _agent_path(project_root, agent_id)
+    target = _agent_path(ctx.project_root, agent_id)
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
     target.unlink()
@@ -123,15 +213,14 @@ class CreatePipelinePayload(BaseModel):
 
 
 @router.post("/pipelines")
-async def create_pipeline(payload: CreatePipelinePayload, request: Request) -> dict[str, Any]:
+async def create_pipeline(payload: CreatePipelinePayload, ctx: Ctx) -> dict[str, Any]:
     """Create a new pipeline YAML file."""
-    project_root: Path = request.app.state.project_root
     if not payload.agent_ids:
         raise HTTPException(status_code=400, detail="At least one agent must be selected")
 
-    pipelines_dir = project_root / "pipelines"
+    pipelines_dir = ctx.project_root / "pipelines"
     pipelines_dir.mkdir(exist_ok=True)
-    target = _pipeline_path(project_root, payload.pipeline_id)
+    target = _pipeline_path(ctx.project_root, payload.pipeline_id)
     if target.exists():
         raise HTTPException(
             status_code=409, detail=f"Pipeline {payload.pipeline_id!r} already exists"
@@ -150,10 +239,9 @@ async def create_pipeline(payload: CreatePipelinePayload, request: Request) -> d
 
 
 @router.get("/pipelines/{pipeline_id}")
-async def get_pipeline(pipeline_id: str, request: Request) -> dict[str, Any]:
+async def get_pipeline(pipeline_id: str, ctx: Ctx) -> dict[str, Any]:
     """Return the raw YAML content of a pipeline."""
-    project_root: Path = request.app.state.project_root
-    target = _pipeline_path(project_root, pipeline_id)
+    target = _pipeline_path(ctx.project_root, pipeline_id)
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id!r} not found")
     return {"pipeline_id": pipeline_id, "yaml": target.read_text(encoding="utf-8")}
@@ -165,15 +253,14 @@ class UpdatePipelinePayload(BaseModel):
 
 @router.put("/pipelines/{pipeline_id}")
 async def update_pipeline(
-    pipeline_id: str, payload: UpdatePipelinePayload, request: Request
+    pipeline_id: str, payload: UpdatePipelinePayload, ctx: Ctx
 ) -> dict[str, Any]:
     """Overwrite a pipeline YAML file."""
-    project_root: Path = request.app.state.project_root
-    target = _pipeline_path(project_root, pipeline_id)
+    target = _pipeline_path(ctx.project_root, pipeline_id)
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id!r} not found")
     try:
-        yaml.safe_load(payload.yaml)  # validate yaml syntax
+        yaml.safe_load(payload.yaml)
     except yaml.YAMLError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid YAML: {exc}") from exc
     target.write_text(payload.yaml, encoding="utf-8")
@@ -181,10 +268,9 @@ async def update_pipeline(
 
 
 @router.delete("/pipelines/{pipeline_id}")
-async def delete_pipeline(pipeline_id: str, request: Request) -> Response:
+async def delete_pipeline(pipeline_id: str, ctx: Ctx) -> Response:
     """Delete a pipeline YAML file."""
-    project_root: Path = request.app.state.project_root
-    target = _pipeline_path(project_root, pipeline_id)
+    target = _pipeline_path(ctx.project_root, pipeline_id)
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id!r} not found")
     target.unlink()
@@ -196,21 +282,19 @@ class RunPayload(BaseModel):
 
 
 @router.post("/pipelines/{pipeline_id}/run")
-async def run_pipeline(pipeline_id: str, payload: RunPayload, request: Request) -> dict[str, Any]:
+async def run_pipeline(pipeline_id: str, payload: RunPayload, ctx: Ctx) -> dict[str, Any]:
     """Run a pipeline and return the resulting run record."""
-    project_root: Path = request.app.state.project_root
-    tenant_id: str = request.app.state.tenant.tenant_id
-    pipeline_path = _pipeline_path(project_root, pipeline_id)
+    pipeline_path = _pipeline_path(ctx.project_root, pipeline_id)
     if not pipeline_path.exists():
         raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id!r} not found")
 
     try:
         record = await _run_pipeline(
-            project_root,
-            tenant_id,
+            ctx.project_root,
+            ctx.tenant_id,
             pipeline_id,
             payload.payload,
-            tenant=request.app.state.tenant,
+            tenant=ctx.tenant,
         )
     except Exception as exc:
         return {"success": False, "error": str(exc)}
