@@ -22,8 +22,8 @@ def add(sub: argparse._SubParsersAction) -> None:
         "--port",
         "-p",
         type=int,
-        default=8765,
-        help="Bind port (default: 8765)",
+        default=8787,
+        help="Bind port (default: 8787)",
     )
     p.add_argument(
         "--reload",

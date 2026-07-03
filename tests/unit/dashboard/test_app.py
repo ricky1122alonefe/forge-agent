@@ -52,7 +52,7 @@ def project_root(tmp_path: Path) -> Path:
 @pytest.fixture
 def app(project_root: Path):
     """Create a test FastAPI application."""
-    return create_app(project_root=project_root, host="127.0.0.1", port=8765)
+    return create_app(project_root=project_root, host="127.0.0.1", port=8787)
 
 
 @pytest.fixture

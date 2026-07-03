@@ -5,15 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}forge-agent{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .toast { position: fixed; top: 1rem; right: 1rem; z-index: 50; min-width: 16rem; }
+        .fade-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-0.5rem); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-gray-50 text-gray-900">
-    <header class="bg-white border-b border-gray-200">
-        <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="/" class="flex items-center space-x-3">
                 <span class="text-2xl">⚡</span>
-                <h1 class="text-xl font-bold">forge-agent</h1>
-                <span class="text-sm text-gray-500">{{ tenant_id }} / {{ project_id }}</span>
-            </div>
+                <div>
+                    <h1 class="text-lg font-bold leading-tight">forge-agent</h1>
+                    <span class="text-xs text-gray-500">{{ tenant_id }} / {{ project_id }}</span>
+                </div>
+            </a>
             <nav class="space-x-4 text-sm">
                 <a href="/" class="text-gray-600 hover:text-indigo-600">首页</a>
                 <a href="/agents/new" class="text-gray-600 hover:text-indigo-600">新建 Agent</a>
@@ -22,8 +30,36 @@
             </nav>
         </div>
     </header>
-    <main class="max-w-5xl mx-auto px-4 py-8">
+    <main class="max-w-6xl mx-auto px-4 py-8">
         {% block content %}{% endblock %}
     </main>
+    <div id="toastContainer" class="toast"></div>
+    <script>
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const el = document.createElement('div');
+        const colors = { info: 'bg-white border-indigo-200', success: 'bg-green-50 border-green-200 text-green-800', error: 'bg-red-50 border-red-200 text-red-800' };
+        el.className = `fade-in rounded shadow border p-3 mb-2 text-sm ${colors[type] || colors.info}`;
+        el.textContent = message;
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 3500);
+    }
+    async function apiDelete(url) {
+        const res = await fetch(url, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    }
+    async function apiPut(url, body) {
+        const res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.detail || `HTTP ${res.status}`); }
+        return res.json();
+    }
+    async function apiPost(url, body) {
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        return data;
+    }
+    </script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,57 +1,77 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="text-2xl font-bold mb-4">新建 Agent</h2>
-
-<form id="agentForm" class="bg-white p-4 rounded shadow space-y-4">
-    <div>
-        <label class="block text-sm font-medium">Agent 类型</label>
-        <select name="agent_type" id="typeSelect" class="mt-1 block w-full border rounded p-2" required>
-            <option value="">请选择</option>
-            {% for t in types %}
-            <option value="{{ t.type_id }}">{{ t.name }} ({{ t.type_id }})</option>
-            {% endfor %}
-        </select>
+<div class="max-w-2xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">{% if edit_mode %}编辑 Agent{% else %}新建 Agent{% endif %}</h2>
+        <a href="/" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
     </div>
 
-    <div>
-        <label class="block text-sm font-medium">Agent ID</label>
-        <input name="agent_id" type="text" class="mt-1 block w-full border rounded p-2" required placeholder="weibo_scraper">
-    </div>
+    <form id="agentForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Agent 类型</label>
+            <select name="agent_type" id="typeSelect" class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                <option value="">请选择</option>
+                {% for t in types %}
+                <option value="{{ t.type_id }}">{{ t.name }} ({{ t.type_id }})</option>
+                {% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-gray-500" id="typeDescription"></p>
+        </div>
 
-    <div id="paramsContainer"></div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Agent ID</label>
+            <input name="agent_id" id="agentId" type="text" class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" required placeholder="例如 weibo_scraper" pattern="[a-zA-Z0-9_.\-]+">
+            <p class="mt-1 text-xs text-gray-500">只支持字母、数字、下划线、点、中划线</p>
+        </div>
 
-    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">创建</button>
-</form>
+        <div id="paramsContainer" class="space-y-3"></div>
+
+        <div id="error" class="hidden text-sm text-red-600 bg-red-50 p-3 rounded"></div>
+
+        <div class="flex items-center space-x-3 pt-2">
+            <button type="submit" id="submitBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium">创建</button>
+            <a href="/" class="text-sm text-gray-600 hover:text-gray-800">取消</a>
+        </div>
+    </form>
+</div>
 
 <script>
 const types = {{ types_json | safe }};
+const typeSelect = document.getElementById('typeSelect');
+const typeDescription = document.getElementById('typeDescription');
+const paramsContainer = document.getElementById('paramsContainer');
+const errorBox = document.getElementById('error');
 
-document.getElementById('typeSelect').addEventListener('change', function () {
-    const typeId = this.value;
-    const type = types.find(t => t.type_id === typeId);
-    const container = document.getElementById('paramsContainer');
-    container.innerHTML = '';
+typeSelect.addEventListener('change', function () {
+    const type = types.find(t => t.type_id === this.value);
+    typeDescription.textContent = type ? (type.description || '') : '';
+    paramsContainer.innerHTML = '';
     if (!type || !type.params) return;
 
     type.params.forEach(p => {
-        const div = document.createElement('div');
-        div.innerHTML = `
-            <label class="block text-sm font-medium mt-2">${p.name} ${p.description ? '(' + p.description + ')' : ''}</label>
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+            <label class="block text-sm font-medium text-gray-700">${p.name} ${p.required ? '<span class="text-red-500">*</span>' : ''}</label>
+            <p class="text-xs text-gray-500 mb-1">${p.description || ''}</p>
             <input name="params.${p.name}" type="${p.type === 'number' ? 'number' : 'text'}"
-                class="mt-1 block w-full border rounded p-2"
+                class="block w-full border border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500"
                 ${p.required ? 'required' : ''}
                 value="${p.default || ''}">
         `;
-        container.appendChild(div);
+        paramsContainer.appendChild(wrapper);
     });
 });
 
 document.getElementById('agentForm').addEventListener('submit', async function (e) {
     e.preventDefault();
+    errorBox.classList.add('hidden');
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = '创建中...';
+
     const form = e.target;
     const typeId = form.agent_type.value;
-    const type = types.find(t => t.type_id === typeId);
     const params = {};
 
     for (const input of form.querySelectorAll('#paramsContainer input')) {
@@ -59,16 +79,15 @@ document.getElementById('agentForm').addEventListener('submit', async function (
         params[name] = input.type === 'number' ? parseFloat(input.value) : input.value;
     }
 
-    const res = await fetch('/api/agents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent_type: typeId, agent_id: form.agent_id.value, params })
-    });
-    const data = await res.json();
-    if (data.success) {
-        window.location.href = '/';
-    } else {
-        alert(data.error || '创建失败');
+    try {
+        await apiPost('/api/agents', { agent_type: typeId, agent_id: form.agent_id.value.trim(), params });
+        showToast('Agent 创建成功', 'success');
+        setTimeout(() => window.location.href = '/', 500);
+    } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = '创建';
     }
 });
 </script>

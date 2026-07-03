@@ -36,7 +36,7 @@ class TestAddCommand:
         assert args.host == "127.0.0.1"
 
     def test_add_sets_default_port(self):
-        """Should set default port to 8765."""
+        """Should set default port to 8787."""
         import argparse
 
         parser = argparse.ArgumentParser()
@@ -44,7 +44,7 @@ class TestAddCommand:
         add(sub)
 
         args = parser.parse_args(["dashboard"])
-        assert args.port == 8765
+        assert args.port == 8787
 
     def test_add_accepts_custom_host(self):
         """Should accept custom host."""
@@ -101,7 +101,7 @@ class TestRunCommand:
         args = argparse.Namespace(
             project=Path("/tmp"),
             host="127.0.0.1",
-            port=8765,
+            port=8787,
             reload=False,
             no_browser=True,
         )
@@ -145,7 +145,7 @@ class TestRunCommand:
         args = argparse.Namespace(
             project=Path("/tmp"),
             host="127.0.0.1",
-            port=8765,
+            port=8787,
             reload=True,
             no_browser=True,
         )
@@ -161,7 +161,7 @@ class TestRunCommand:
         mock_uvicorn.run.assert_called_once()
         call_kwargs = mock_uvicorn.run.call_args[1]
         assert call_kwargs["host"] == "127.0.0.1"
-        assert call_kwargs["port"] == 8765
+        assert call_kwargs["port"] == 8787
         assert call_kwargs["reload"] is True
 
     def test_run_returns_zero_on_success(self):
@@ -171,7 +171,7 @@ class TestRunCommand:
         args = argparse.Namespace(
             project=Path("/tmp"),
             host="127.0.0.1",
-            port=8765,
+            port=8787,
             reload=False,
             no_browser=True,
         )

@@ -4,7 +4,7 @@ services:
   dashboard:
     build: .
     ports:
-      - "8765:8765"
+      - "8787:8787"
     volumes:
       - ./generated_agents:/app/generated_agents:ro
       - forge-data:/data
@@ -13,7 +13,7 @@ services:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/api/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8787/api/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -23,7 +23,7 @@ services:
   dashboard-auth:
     build: .
     ports:
-      - "8766:8765"
+      - "8788:8787"
     volumes:
       - ./generated_agents:/app/generated_agents:ro
       - forge-data:/data

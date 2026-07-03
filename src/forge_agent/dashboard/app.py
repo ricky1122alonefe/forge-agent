@@ -24,7 +24,7 @@ from forge_agent.dashboard.routes.ws import router as ws_router
 def create_app(
     project_root: Path,
     host: str = "127.0.0.1",
-    port: int = 8765,
+    port: int = 8787,
     auth_config: AuthConfig | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
@@ -32,7 +32,7 @@ def create_app(
     Args:
         project_root: Root directory of the forge-agent project
         host: Bind host (default: 127.0.0.1)
-        port: Bind port (default: 8765)
+        port: Bind port (default: 8787)
         auth_config: Optional authentication configuration
 
     Returns:

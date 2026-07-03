@@ -95,7 +95,7 @@ bash scripts/smoke_test.sh
 
 # 启动 Dashboard
 forge-agent dashboard
-# → http://localhost:8765
+# → http://localhost:8787
 
 # 跑所有测试
 pytest

@@ -1,69 +1,113 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="text-2xl font-bold mb-4">新建 Pipeline</h2>
-
-{% if agents %}
-<form id="pipelineForm" class="bg-white p-4 rounded shadow space-y-4">
-    <div>
-        <label class="block text-sm font-medium">Pipeline ID</label>
-        <input name="pipeline_id" type="text" class="mt-1 block w-full border rounded p-2" required placeholder="trend">
+<div class="max-w-2xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">{% if edit_mode %}编辑 Pipeline{% else %}新建 Pipeline{% endif %}</h2>
+        <a href="/" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
     </div>
 
-    <div>
-        <label class="block text-sm font-medium">名称</label>
-        <input name="name" type="text" class="mt-1 block w-full border rounded p-2" required placeholder="Trend Pipeline">
-    </div>
-
-    <div>
-        <label class="block text-sm font-medium">选择 Agents</label>
-        <div class="mt-1 space-y-1">
-            {% for agent in agents %}
-            <label class="block text-sm">
-                <input type="checkbox" name="agent_ids" value="{{ agent.agent_id }}" class="mr-2">
-                {{ agent.agent_id }}
-            </label>
-            {% endfor %}
+    {% if agents %}
+    <form id="pipelineForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Pipeline ID</label>
+                <input name="pipeline_id" id="pipelineId" type="text" class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" required placeholder="例如 trend" pattern="[a-zA-Z0-9_.\-]+">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">名称</label>
+                <input name="name" type="text" class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" required placeholder="Trend Pipeline">
+            </div>
         </div>
-    </div>
 
-    <div>
-        <label class="block text-sm font-medium">Chief Agent</label>
-        <select name="chief_id" class="mt-1 block w-full border rounded p-2">
-            <option value="">无</option>
-            {% for agent in agents %}
-            <option value="{{ agent.agent_id }}">{{ agent.agent_id }}</option>
-            {% endfor %}
-        </select>
-    </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">描述</label>
+            <input name="description" type="text" class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="可选">
+        </div>
 
-    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">创建</button>
-</form>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">执行模式</label>
+            <select name="mode" class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="parallel">并行 (parallel)</option>
+                <option value="sequential">串行 (sequential)</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500">并行同时执行所有 agent，串行按顺序执行</p>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">选择 Agents</label>
+            <p class="text-xs text-gray-500 mb-2">至少选择一个</p>
+            <div class="mt-1 space-y-2 border border-gray-200 rounded-md p-3 max-h-60 overflow-y-auto">
+                {% for agent in agents %}
+                <label class="flex items-center text-sm hover:bg-gray-50 p-1 rounded cursor-pointer">
+                    <input type="checkbox" name="agent_ids" value="{{ agent.agent_id }}" class="mr-2 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                    <span>{{ agent.agent_id }} <span class="text-gray-400">({{ agent.name }})</span></span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Chief Agent</label>
+            <select name="chief_id" class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">无</option>
+                {% for agent in agents %}
+                <option value="{{ agent.agent_id }}">{{ agent.agent_id }}</option>
+                {% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-gray-500">Chief 负责聚合多个 agent 的结果</p>
+        </div>
+
+        <div id="error" class="hidden text-sm text-red-600 bg-red-50 p-3 rounded"></div>
+
+        <div class="flex items-center space-x-3 pt-2">
+            <button type="submit" id="submitBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium">创建</button>
+            <a href="/" class="text-sm text-gray-600 hover:text-gray-800">取消</a>
+        </div>
+    </form>
+    {% else %}
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100 text-center">
+        <p class="text-gray-500 mb-3">还没有 agent，<a href="/agents/new" class="text-indigo-600 hover:underline">先创建一个</a>。</p>
+    </div>
+    {% endif %}
+</div>
 
 <script>
 document.getElementById('pipelineForm').addEventListener('submit', async function (e) {
     e.preventDefault();
+    const errorBox = document.getElementById('error');
+    errorBox.classList.add('hidden');
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = '创建中...';
+
     const form = e.target;
     const checked = [...form.querySelectorAll('input[name=agent_ids]:checked')].map(cb => cb.value);
-    const res = await fetch('/api/pipelines', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            pipeline_id: form.pipeline_id.value,
+    if (checked.length === 0) {
+        errorBox.textContent = '请至少选择一个 agent';
+        errorBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = '创建';
+        return;
+    }
+
+    try {
+        await apiPost('/api/pipelines', {
+            pipeline_id: form.pipeline_id.value.trim(),
             name: form.name.value,
             agent_ids: checked,
-            chief_id: form.chief_id.value || null
-        })
-    });
-    const data = await res.json();
-    if (data.success) {
-        window.location.href = '/';
-    } else {
-        alert(data.error || '创建失败');
+            chief_id: form.chief_id.value || null,
+            mode: form.mode.value,
+            description: form.description.value
+        });
+        showToast('Pipeline 创建成功', 'success');
+        setTimeout(() => window.location.href = '/', 500);
+    } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = '创建';
     }
 });
 </script>
-{% else %}
-<p class="text-gray-500">还没有 agent，<a href="/agents/new" class="text-indigo-600">先创建一个</a>。</p>
-{% endif %}
 {% endblock %}

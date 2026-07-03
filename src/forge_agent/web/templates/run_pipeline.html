@@ -1,45 +1,79 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="text-2xl font-bold mb-4">运行 Pipeline: {{ pipeline_id }}</h2>
-
-<form id="runForm" class="bg-white p-4 rounded shadow space-y-4">
-    <div>
-        <label class="block text-sm font-medium">Payload (JSON)</label>
-        <textarea name="payload" rows="6" class="mt-1 block w-full border rounded p-2 font-mono text-sm">{}</textarea>
+<div class="max-w-3xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">运行 Pipeline: {{ pipeline_id }}</h2>
+        <a href="/" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
     </div>
 
-    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">运行</button>
-</form>
+    <form id="runForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Payload (JSON)</label>
+            <p class="text-xs text-gray-500 mb-2">传递给 pipeline 中所有 agent 的输入数据</p>
+            <textarea name="payload" id="payload" rows="8" class="block w-full border border-gray-300 rounded-md p-3 font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500">{}</textarea>
+        </div>
 
-<div id="result" class="mt-4"></div>
+        <div id="error" class="hidden text-sm text-red-600 bg-red-50 p-3 rounded"></div>
+
+        <div class="flex items-center space-x-3 pt-2">
+            <button type="submit" id="submitBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium">运行</button>
+            <a href="/" class="text-sm text-gray-600 hover:text-gray-800">取消</a>
+        </div>
+    </form>
+
+    <div id="result" class="mt-6 hidden">
+        <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold">运行结果</h3>
+            <a id="detailLink" href="#" class="text-sm text-indigo-600 hover:underline">查看详情 →</a>
+        </div>
+        <div id="resultBody"></div>
+    </div>
+</div>
 
 <script>
 document.getElementById('runForm').addEventListener('submit', async function (e) {
     e.preventDefault();
-    const payloadText = e.target.payload.value;
+    const errorBox = document.getElementById('error');
+    const resultBox = document.getElementById('result');
+    const resultBody = document.getElementById('resultBody');
+    errorBox.classList.add('hidden');
+    resultBox.classList.add('hidden');
+
+    const payloadText = document.getElementById('payload').value;
     let payload;
     try {
         payload = JSON.parse(payloadText);
     } catch (err) {
-        alert('JSON 格式错误');
+        errorBox.textContent = 'JSON 格式错误: ' + err.message;
+        errorBox.classList.remove('hidden');
         return;
     }
 
-    const res = await fetch('/api/pipelines/{{ pipeline_id }}/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: payload })
-    });
-    const data = await res.json();
-    const result = document.getElementById('result');
-    if (data.success) {
-        result.innerHTML = `
-            <div class="bg-green-50 text-green-800 p-3 rounded">运行成功: ${data.run_id}</div>
-            <pre class="bg-gray-100 p-2 mt-2 text-sm overflow-auto">${JSON.stringify(data.record, null, 2)}</pre>
-        `;
-    } else {
-        result.innerHTML = `<div class="bg-red-50 text-red-800 p-3 rounded">失败: ${data.error}</div>`;
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = '运行中...';
+
+    try {
+        const data = await apiPost('/api/pipelines/{{ pipeline_id }}/run', { payload: payload });
+        if (data.success) {
+            showToast('Pipeline 运行成功', 'success');
+            document.getElementById('detailLink').href = '/runs/' + data.run_id;
+            resultBody.innerHTML = `
+                <div class="bg-green-50 text-green-800 p-3 rounded-md text-sm mb-3">运行成功: <span class="font-mono">${data.run_id}</span></div>
+                <pre class="bg-gray-100 p-3 rounded-md text-sm overflow-auto max-h-96">${JSON.stringify(data.record, null, 2)}</pre>
+            `;
+        } else {
+            showToast('Pipeline 运行失败', 'error');
+            resultBody.innerHTML = `<div class="bg-red-50 text-red-800 p-3 rounded-md text-sm">失败: ${data.error}</div>`;
+        }
+        resultBox.classList.remove('hidden');
+    } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '运行';
     }
 });
 </script>

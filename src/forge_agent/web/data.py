@@ -45,6 +45,7 @@ def list_pipelines(project_root: Path) -> list[dict[str, Any]]:
                 "description": data.get("description", ""),
                 "agent_ids": team.get("agent_ids", []),
                 "chief_id": team.get("chief_id"),
+                "mode": team.get("mode", "parallel"),
             }
         )
     return pipelines

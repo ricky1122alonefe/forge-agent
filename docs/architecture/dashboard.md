@@ -26,7 +26,7 @@
 ### 解决目标
 
 **一个本地 web 面板**：
-- 跑 `forge-agent dashboard` → 浏览器开 `http://localhost:8765`
+- 跑 `forge-agent dashboard` → 浏览器开 `http://localhost:8787`
 - 看 agent 列表 / 状态 / 历史 run / 实时日志
 - 不需要 Docker / 不需要 Node / 不需要单独数据库
 
@@ -250,12 +250,12 @@ forge-agent dashboard
 
 # 输出:
 #   forge-agent Dashboard
-#   → URL: http://localhost:8765
+#   → URL: http://localhost:8787
 #   → Project: /path/to/your-project
 #   → Press Ctrl+C to stop
 
 # 3. 打开浏览器
-open http://localhost:8765
+open http://localhost:8787
 ```
 
 ---

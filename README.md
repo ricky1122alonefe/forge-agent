@@ -136,7 +136,7 @@ forge-agent rollback <agent_id>     # 回滚
 ### 5. 启动 Dashboard
 
 ```bash
-forge-agent dashboard  # http://localhost:8765
+forge-agent dashboard  # http://localhost:8787
 ```
 
 ### Python API 示例

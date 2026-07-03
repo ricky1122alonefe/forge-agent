@@ -1,28 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="text-2xl font-bold mb-4">运行历史</h2>
+<div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold">运行历史</h2>
+    <a href="/" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
+</div>
 
 {% if runs %}
-<table class="w-full text-sm bg-white rounded shadow">
-    <thead class="bg-gray-100">
-        <tr>
-            <th class="text-left p-2">run_id</th>
-            <th class="text-left p-2">pipeline</th>
-            <th class="text-left p-2">time</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for r in runs %}
-        <tr class="border-b">
-            <td class="p-2"><a href="/runs/{{ r.run_id }}" class="text-indigo-600">{{ r.run_id }}</a></td>
-            <td class="p-2">{{ r.pipeline_name }}</td>
-            <td class="p-2 text-gray-500">{{ r.timestamp }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600">
+            <tr>
+                <th class="text-left p-3 font-medium">run_id</th>
+                <th class="text-left p-3 font-medium">pipeline</th>
+                <th class="text-left p-3 font-medium">agents</th>
+                <th class="text-left p-3 font-medium">chief</th>
+                <th class="text-left p-3 font-medium">time</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for r in runs %}
+            <tr class="hover:bg-gray-50">
+                <td class="p-3"><a href="/runs/{{ r.run_id }}" class="text-indigo-600 hover:underline font-mono">{{ r.run_id }}</a></td>
+                <td class="p-3">{{ r.pipeline_name }}</td>
+                <td class="p-3 text-gray-500">{{ r.metadata.agent_count }}</td>
+                <td class="p-3"><span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-100 text-green-700' if r.metadata.has_chief else 'bg-gray-100 text-gray-600' }}">{{ '是' if r.metadata.has_chief else '否' }}</span></td>
+                <td class="p-3 text-gray-500">{{ r.timestamp }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% else %}
-<p class="text-gray-500">暂无运行记录</p>
+<div class="bg-white p-8 rounded-lg shadow border border-gray-100 text-center">
+    <p class="text-gray-500">暂无运行记录</p>
+    <a href="/" class="text-sm text-indigo-600 hover:underline mt-2 inline-block">去运行一个 Pipeline</a>
+</div>
 {% endif %}
 {% endblock %}

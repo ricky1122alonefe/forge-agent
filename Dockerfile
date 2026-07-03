@@ -45,11 +45,11 @@ ENV PYTHONPATH=/app/src \
     FORGE_AGENT_DATA_DIR=/data
 
 # Expose dashboard port
-EXPOSE 8765
+EXPOSE 8787
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/api/health')"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8787/api/health')"
 
 # Default command: run dashboard
-CMD ["python", "-m", "forge_agent", "dashboard", "--host", "0.0.0.0", "--port", "8765"]
+CMD ["python", "-m", "forge_agent", "dashboard", "--host", "0.0.0.0", "--port", "8787"]

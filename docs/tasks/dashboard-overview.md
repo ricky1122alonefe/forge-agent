@@ -57,7 +57,7 @@ Phase 0 / Phase 1 推进中
 
 - [ ] `pip install "forge-agent[dashboard]"` 干净通过
 - [ ] `forge-agent dashboard` 命令可启动
-- [ ] 浏览器访问 `http://localhost:8765` 看到 agent 列表
+- [ ] 浏览器访问 `http://localhost:8787` 看到 agent 列表
 - [ ] 列表展示 agent_id / version / active 状态 / 描述
 - [ ] UI 干净（Tailwind 风格）
 - [ ] 关闭后无残留进程
@@ -115,7 +115,7 @@ all = [
 - [x] 技术栈：FastAPI + Jinja2 + HTMX（你已选）
 - [x] 范围：MVP 起步，架构完整
 - [ ] 数据持久化：MVP 用 JSON / 升级用 SQLite？
-- [ ] 默认端口：8765 / 8000 / 其他？
+- [ ] 默认端口：8787 / 8000 / 其他？
 
 ---
 

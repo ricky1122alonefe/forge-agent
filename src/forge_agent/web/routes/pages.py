@@ -58,9 +58,28 @@ async def create_agent_page(request: Request) -> HTMLResponse:
         {
             "types": registry.list(),
             "types_json": json.dumps(registry.list(), ensure_ascii=False),
+            "edit_mode": False,
         }
     )
     return templates.TemplateResponse(request=request, name="create_agent.html", context=context)
+
+
+@router.get("/agents/{agent_id}", response_class=HTMLResponse)
+async def agent_detail_page(agent_id: str, request: Request) -> HTMLResponse:
+    """View / edit agent page."""
+    templates = _get_templates()
+    project_root: Path = request.app.state.project_root
+    agent_file = project_root / "agents" / f"{agent_id}.yaml"
+    if not agent_file.exists():
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
+    context = _base_context(request)
+    context.update(
+        {
+            "agent_id": agent_id,
+            "yaml": agent_file.read_text(encoding="utf-8"),
+        }
+    )
+    return templates.TemplateResponse(request=request, name="agent_detail.html", context=context)
 
 
 @router.get("/pipelines/new", response_class=HTMLResponse)
@@ -69,8 +88,26 @@ async def create_pipeline_page(request: Request) -> HTMLResponse:
     templates = _get_templates()
     project_root: Path = request.app.state.project_root
     context = _base_context(request)
-    context.update({"agents": list_agents(project_root)})
+    context.update({"agents": list_agents(project_root), "edit_mode": False})
     return templates.TemplateResponse(request=request, name="create_pipeline.html", context=context)
+
+
+@router.get("/pipelines/{pipeline_id}", response_class=HTMLResponse)
+async def pipeline_detail_page(pipeline_id: str, request: Request) -> HTMLResponse:
+    """View / edit pipeline page."""
+    templates = _get_templates()
+    project_root: Path = request.app.state.project_root
+    pipeline_file = project_root / "pipelines" / f"{pipeline_id}.yaml"
+    if not pipeline_file.exists():
+        raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id!r} not found")
+    context = _base_context(request)
+    context.update(
+        {
+            "pipeline_id": pipeline_id,
+            "yaml": pipeline_file.read_text(encoding="utf-8"),
+        }
+    )
+    return templates.TemplateResponse(request=request, name="pipeline_detail.html", context=context)
 
 
 @router.get("/pipelines/{pipeline_id}/run", response_class=HTMLResponse)
