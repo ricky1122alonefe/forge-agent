@@ -137,7 +137,11 @@ document.getElementById('runForm').addEventListener('submit', async function (e)
             }
 
             const chief = data.record.chief_summary && data.record.chief_summary.chief_report;
-            let html = `<div class="bg-green-50 text-green-800 p-3 rounded-md text-sm mb-3">运行成功: <span class="font-mono">${data.run_id}</span></div>`;
+            let html = `<div class="bg-green-50 text-green-800 p-3 rounded-md text-sm mb-3">运行成功: <span class="font-mono">${data.run_id}</span>`;
+            if (data.record.metadata && data.record.metadata.duration_ms != null) {
+                html += ` · 耗时 ${Math.round(data.record.metadata.duration_ms)} ms`;
+            }
+            html += `</div>`;
             html += '<div class="space-y-3">';
             for (const report of data.record.agent_reports || []) {
                 const verdict = report.verdict || (report.raw && report.raw.decision && report.raw.decision.verdict) || 'unknown';

@@ -16,6 +16,7 @@
                 <th class="text-left p-3 font-medium">Agent 数</th>
                 <th class="text-left p-3 font-medium">Chief 汇总</th>
                 <th class="text-left p-3 font-medium">模式</th>
+                <th class="text-left p-3 font-medium">耗时</th>
                 <th class="text-left p-3 font-medium">时间</th>
             </tr>
         </thead>
@@ -31,6 +32,13 @@
                     <span class="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800">演示</span>
                     {% else %}
                     <span class="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-800">真实</span>
+                    {% endif %}
+                </td>
+                <td class="p-3 text-gray-500">
+                    {% if r.metadata.duration_ms is defined and r.metadata.duration_ms is not none %}
+                    {{ "%.0f"|format(r.metadata.duration_ms) }} ms
+                    {% else %}
+                    —
                     {% endif %}
                 </td>
                 <td class="p-3 text-gray-500">{{ r.timestamp }}</td>

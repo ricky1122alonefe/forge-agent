@@ -219,3 +219,44 @@ def summarize_pipeline_mock_mode(project_root: Path, pipeline_id: str) -> dict[s
         "step_count": len(steps),
         "mock_count": mock_count,
     }
+
+
+def load_run_trace(project_root: Path, trace_id: str) -> dict[str, Any] | None:
+    """Load a persisted trace JSON for a run, if available."""
+    if not trace_id:
+        return None
+    from forge_agent.observability.persistence import TraceStore
+
+    trace = TraceStore(project_root / "logs").get(trace_id)
+    if trace is None:
+        return None
+    return trace.to_dict()
+
+
+def format_trace_timeline(trace_data: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Build a simplified span timeline for the web run detail page."""
+    if not trace_data:
+        return []
+
+    steps: list[dict[str, Any]] = []
+    for span in trace_data.get("spans", []):
+        if not isinstance(span, dict):
+            continue
+        span_type = span.get("span_type", "")
+        name = span.get("name", "")
+        if span_type not in {"agent", "pipeline"} and not name.endswith(".run"):
+            continue
+        label = name
+        if span_type == "agent" or name.endswith(".run"):
+            agent_id = span.get("attributes", {}).get("agent_id")
+            if agent_id:
+                label = agent_id
+        steps.append(
+            {
+                "name": label,
+                "span_type": span_type,
+                "duration_ms": span.get("duration_ms", 0.0),
+                "status": span.get("status", "ok"),
+            }
+        )
+    return steps

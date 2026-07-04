@@ -23,7 +23,33 @@
                 <p class="text-gray-500 text-xs">时间</p>
                 <p class="font-medium">{{ run.timestamp }}</p>
             </div>
+            {% if duration_ms is not none %}
+            <div>
+                <p class="text-gray-500 text-xs">总耗时</p>
+                <p class="font-medium">{{ "%.0f"|format(duration_ms) }} ms</p>
+            </div>
+            {% endif %}
+            {% if trace_id %}
+            <div>
+                <p class="text-gray-500 text-xs">Trace ID</p>
+                <p class="font-mono text-xs">{{ trace_id }}</p>
+            </div>
+            {% endif %}
         </div>
+
+        {% if trace_timeline %}
+        <div>
+            <p class="font-bold text-sm mb-3 text-gray-700">执行时间线</p>
+            <div class="space-y-2">
+                {% for step in trace_timeline %}
+                <div class="flex items-center justify-between border border-gray-100 rounded-md px-3 py-2 text-sm">
+                    <span>{{ step.name }}</span>
+                    <span class="text-xs text-gray-500">{{ "%.1f"|format(step.duration_ms) }} ms · {{ step.status }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
 
         <div>
             <p class="font-bold text-sm mb-2 text-gray-700">输入参数</p>

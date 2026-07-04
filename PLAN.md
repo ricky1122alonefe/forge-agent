@@ -195,8 +195,8 @@ forge-agent up
 
 | ID | 任务 | 验收 |
 |----|------|------|
-| P3.1 | 每次 Run 写入 trace_id + logs | `logs/{trace_id}.json` |
-| P3.2 | Web 运行详情展示 Trace | 各 Agent 耗时、输入输出 |
+| P3.1 | 每次 Run 写入 trace_id + logs | `logs/{trace_id}.json` | ✅ |
+| P3.2 | Web 运行详情展示 Trace | 各 Agent 耗时、输入输出 | ✅ |
 | P3.3 | 租户级 LLM 配置 UI | Web 填 API Key |
 | P3.4 | 工具层：scraper_agent + 真实/降级 mock 工具 | 可切换真实数据 |
 | P3.5 | E2E：注册 → 建 Agent → 建 Pipeline → 运行 | CI 全绿 |
@@ -228,7 +228,7 @@ Phase 3  可观测 + 真实数据（按需）
 Phase 4  生态（未来）
 ```
 
-**当前 focus**：Phase 2 多租户路由与 Project 管理已完成；下一步 P2.3/P2.4 登录鉴权。
+**当前 focus**：本地体验 + 运行可观测（P3.1/P3.2）；登录鉴权（P2.3/P2.4）本地按需跳过。
 
 ---
 
@@ -256,8 +256,8 @@ forge-agent new myproj --template config-driven --tenant acme
 |-------|------|------|
 | Phase 0 跑通 | 6/6 | ✅ 完成 |
 | Phase 1 体验 | 8/8 | ✅ 完成 |
-| Phase 2 部署 | 3/6 | 🟡 进行中 |
-| Phase 3 可观测 | 0/5 | ⬜ |
+| Phase 2 部署 | 3/6 | 🟡 本地跳过登录 |
+| Phase 3 可观测 | 2/5 | 🟡 进行中 |
 | Phase 4 生态 | — | ⬜ 未规划细节 |
 
 ---
@@ -270,6 +270,12 @@ forge-agent new myproj --template config-driven --tenant acme
 - **不做为主路径**：generate 写代码、Intent 自动生成、Skill 市场
 - **Agent 类型**：降为「创建模板」，不对用户强调 scraper/analyzer/chief
 - **Chief**：内置 `generic.chief`，Pipeline 默认选中
+
+### 2026-07-04 — 本地优先策略
+
+- 登录注册（P2.3/P2.4）本地单机使用暂不实现
+- 真实 LLM（P3.3/P3.4）按需；默认 Mock 演示
+- 优先打磨本地 UI：Mock 提示、运行进度、Trace 时间线
 
 ### 2026-07-03 — 执行策略
 

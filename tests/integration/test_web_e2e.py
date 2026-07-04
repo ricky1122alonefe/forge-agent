@@ -157,6 +157,10 @@ class TestWebGoldenPath:
         assert data["record"]["chief_summary"] is not None
         assert data["record"]["metadata"]["has_chief"] is True
         assert data["record"]["metadata"]["mock_mode"] is True
+        assert data["record"]["trace_id"]
+        assert data["record"]["metadata"]["duration_ms"] is not None
+        trace_path = project_root / "logs" / f"{data['record']['trace_id']}.json"
+        assert trace_path.exists(), f"missing trace log: {trace_path}"
 
         records = StateStore(project_root).list()
         assert len(records) >= 1

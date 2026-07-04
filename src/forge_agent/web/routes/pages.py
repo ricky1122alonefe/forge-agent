@@ -16,11 +16,13 @@ from forge_agent.web.context import ProjectContext, base_context, get_project_co
 from forge_agent.web.data import (
     collect_payload_fields,
     extract_chief_report,
+    format_trace_timeline,
     get_agent_config,
     get_pipeline_run_plan,
     infer_run_mock_mode,
     list_agents,
     list_pipelines,
+    load_run_trace,
     summarize_pipeline_mock_mode,
     summarize_project_mock_mode,
 )
@@ -183,6 +185,8 @@ async def run_detail_page(run_id: str, request: Request, ctx: Ctx) -> HTMLRespon
     run_mock = record.metadata.get("mock_mode")
     if run_mock is None:
         run_mock = infer_run_mock_mode(record.agent_reports)
+    trace_data = load_run_trace(ctx.project_root, record.trace_id)
+    trace_timeline = format_trace_timeline(trace_data)
     context = base_context(request, ctx)
     context.update(
         {
@@ -194,6 +198,9 @@ async def run_detail_page(run_id: str, request: Request, ctx: Ctx) -> HTMLRespon
             "chief_json": json.dumps(record.chief_summary, ensure_ascii=False, indent=2),
             "show_mock_notice": bool(run_mock),
             "run_mock_mode": bool(run_mock),
+            "trace_id": record.trace_id,
+            "duration_ms": record.metadata.get("duration_ms"),
+            "trace_timeline": trace_timeline,
         }
     )
     return templates.TemplateResponse(request=request, name="run_detail.html", context=context)

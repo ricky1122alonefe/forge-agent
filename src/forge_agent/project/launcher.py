@@ -103,38 +103,73 @@ async def _run_pipeline(
     pipeline = _load_pipeline(pipeline_path)
     team = Team.from_dict(pipeline["team"])
 
+    run_id = generate_run_id(pipeline_id)
     mission = Mission(
         mission_id=f"{pipeline_id}_run",
         name=pipeline["name"],
         description=pipeline.get("description", ""),
         team=team,
         payload=payload,
+        metadata={"run_id": run_id},
     )
 
-    board = await TeamRunner().run(mission)
+    from forge_agent.observability.persistence import TraceStore
+    from forge_agent.observability.trace import SpanType, get_trace_manager
+
+    tm = get_trace_manager()
+    trace = tm.start_trace(
+        pipeline_id=pipeline_id,
+        run_id=run_id,
+        tenant_id=tenant_id,
+        project_id=project_root.name,
+    )
+    team_span = tm.start_span(
+        name=f"team.{pipeline_id}",
+        span_type=SpanType.PIPELINE,
+        trace=trace,
+        attributes={"mode": team.mode, "agent_count": len(team.agent_ids)},
+    )
+
+    try:
+        board = await TeamRunner().run(mission)
+        tm.end_span(team_span, status="ok")
+    except Exception:
+        tm.end_span(team_span, status="error", error_message="pipeline run failed")
+        ended_trace = tm.end_trace(trace.trace_id)
+        if ended_trace is not None:
+            logs_dir = project_root / "logs"
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            TraceStore(logs_dir).save(ended_trace)
+        raise
+
+    ended_trace = tm.end_trace(trace.trace_id)
+    duration_ms = ended_trace.duration_ms if ended_trace is not None else 0.0
+    if ended_trace is not None:
+        logs_dir = project_root / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        TraceStore(logs_dir).save(ended_trace)
+
+    agent_reports = [
+        report.model_dump() if hasattr(report, "model_dump") else dict(report.__dict__)
+        for report in board.agents
+    ]
 
     record = RunRecord(
-        run_id=generate_run_id(pipeline_id),
+        run_id=run_id,
         timestamp=datetime.now(timezone.utc).isoformat(),
         pipeline_id=pipeline_id,
         pipeline_name=pipeline["name"],
         tenant_id=tenant_id,
         project_id=project_root.name,
         payload=payload,
-        agent_reports=[
-            report.model_dump() if hasattr(report, "model_dump") else dict(report.__dict__)
-            for report in board.agents
-        ],
+        agent_reports=agent_reports,
         chief_summary=dict(board.summary) if board.summary else None,
+        trace_id=trace.trace_id,
         metadata={
             "agent_count": len(board.agents),
             "has_chief": board.summary is not None,
-            "mock_mode": infer_run_mock_mode(
-                [
-                    report.model_dump() if hasattr(report, "model_dump") else dict(report.__dict__)
-                    for report in board.agents
-                ]
-            ),
+            "mock_mode": infer_run_mock_mode(agent_reports),
+            "duration_ms": duration_ms,
         },
     )
     StateStore(project_root).save(record)

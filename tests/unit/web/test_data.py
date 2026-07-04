@@ -10,6 +10,7 @@ from forge_agent.project.agent_builder import build_agent_yaml, build_pipeline_y
 from forge_agent.web.data import (
     collect_payload_fields,
     extract_chief_report,
+    format_trace_timeline,
     get_agent_config,
     get_pipeline_run_plan,
     infer_run_mock_mode,
@@ -144,3 +145,33 @@ class TestWebDataHelpers:
         assert infer_run_mock_mode(reports) is True
         reports.append({"raw": {"decision": {"config": {"mock_mode": False}}}})
         assert infer_run_mock_mode(reports) is False
+
+    def test_format_trace_timeline(self) -> None:
+        trace = {
+            "spans": [
+                {
+                    "name": "team.trend",
+                    "span_type": "pipeline",
+                    "duration_ms": 12.5,
+                    "status": "ok",
+                },
+                {
+                    "name": "weibo_scraper.run",
+                    "span_type": "agent",
+                    "duration_ms": 4.2,
+                    "status": "ok",
+                    "attributes": {"agent_id": "weibo_scraper"},
+                },
+                {
+                    "name": "weibo_scraper.decide",
+                    "span_type": "decide",
+                    "duration_ms": 1.0,
+                    "status": "ok",
+                },
+            ]
+        }
+        timeline = format_trace_timeline(trace)
+        names = [step["name"] for step in timeline]
+        assert "team.trend" in names
+        assert "weibo_scraper" in names
+        assert "weibo_scraper.decide" not in names
