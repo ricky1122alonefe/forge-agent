@@ -101,22 +101,43 @@ pip install -e ".[all]"
 
 ## Quick Start
 
-### 方式 A：Web UI（推荐，零代码）
+### 方式 A：Web UI（推荐，30 秒上手）
 
 ```bash
-# 1. 安装并启动
 bash scripts/install.sh
 forge-agent up
-# → 浏览器打开 http://localhost:8787
+# → http://localhost:8787/t/default/p/default/
+```
 
-# 2. 在 Web 里操作（全程不写代码）
-#    - 点击「+ Agent」→ 选 scraper → 填 keyword / platform / tool → 创建
-#    - 再建 1～2 个 Agent
-#    - 点击「+ Pipeline」→ 勾选 Agents → Chief 保持 generic.chief → 创建
-#    - 进入 Pipeline → 运行 → payload: {"keyword": "labubu"}
-#    - 在「运行历史」查看各 Agent 报告和 Chief 汇总
+在浏览器里：
 
-# 默认 mock 模式，无需 API Key 即可跑通
+1. 点击 **「三平台趋势 Demo」**（或「双平台趋势 Demo」）— 自动创建 Agent + Pipeline
+2. 填写关键词（默认 `labubu`）→ **运行**
+3. 查看 **运行历史** / **运行详情**（含 Mock 提示、执行时间线）
+
+全程 **Mock 模式**，无需 API Key、不产生 LLM 费用。
+
+手动创建也可以：`+ Agent` → `+ Pipeline` → 运行（只需填关键词）。
+
+### 多项目 / 数据目录
+
+```bash
+# 切换租户或项目
+forge-agent up --tenant-id acme --project-id lab
+
+# 自定义数据目录（Docker 默认 /data）
+export FORGE_AGENT_DATA_DIR=~/.forge-agent
+forge-agent up --data-dir ~/.forge-agent
+```
+
+Web 内通过导航 **「切换项目」** 可新建/进入其他 Project。
+
+### Docker 本地部署
+
+```bash
+docker compose up -d
+# → http://localhost:8787/t/default/p/default/
+# 数据持久化在 forge-data volume（FORGE_AGENT_DATA_DIR=/data）
 ```
 
 ### 方式 B：CLI 创建项目

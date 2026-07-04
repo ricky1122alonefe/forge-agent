@@ -175,6 +175,49 @@ class TestWebGoldenPath:
         assert "labubu" in response.text
 
     @pytest.mark.asyncio
+    async def test_create_all_platform_pipeline_preset(
+        self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
+    ) -> None:
+        _, project_root = web_project
+        response = await client.post(
+            f"{project_base}/api/pipelines/from-preset",
+            json={"preset_id": "all_platform_trend"},
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["pipeline_id"] == "all_trend"
+        assert len(data["agent_ids"]) == 3
+        assert (project_root / "pipelines" / "all_trend.yaml").exists()
+
+    @pytest.mark.asyncio
+    async def test_create_pipeline_from_preset(
+        self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
+    ) -> None:
+        _, project_root = web_project
+        response = await client.post(
+            f"{project_base}/api/pipelines/from-preset",
+            json={"preset_id": "multi_platform_trend"},
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["success"] is True
+        assert data["pipeline_id"] == "trend"
+        assert set(data["agent_ids"]) == {"weibo_analyst", "xhs_analyst"}
+        assert (project_root / "agents" / "weibo_analyst.yaml").exists()
+        assert (project_root / "agents" / "xhs_analyst.yaml").exists()
+        assert (project_root / "pipelines" / "trend.yaml").exists()
+        assert data["run_url"].endswith("/pipelines/trend/run")
+
+        # Idempotent: second call reuses existing resources
+        response2 = await client.post(
+            f"{project_base}/api/pipelines/from-preset",
+            json={"preset_id": "multi_platform_trend"},
+        )
+        assert response2.status_code == 200
+        assert response2.json()["pipeline_created"] is False
+        assert response2.json()["agents_created"] == []
+
+    @pytest.mark.asyncio
     async def test_create_agent_from_preset(
         self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
     ) -> None:

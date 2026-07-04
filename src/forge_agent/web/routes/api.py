@@ -12,9 +12,14 @@ from pydantic import BaseModel, Field
 from forge_agent.builtin import AgentTypeRegistry
 from forge_agent.project.agent_builder import build_agent_yaml, build_pipeline_yaml
 from forge_agent.project.launcher import _run_pipeline
-from forge_agent.web.context import ProjectContext, get_project_context
+from forge_agent.web.context import ProjectContext, get_project_context, project_url
 from forge_agent.web.data import collect_payload_fields, get_agent_config
-from forge_agent.web.presets import AGENT_PRESETS, get_preset
+from forge_agent.web.presets import (
+    AGENT_PRESETS,
+    PIPELINE_PRESETS,
+    get_pipeline_preset,
+    get_preset,
+)
 
 router = APIRouter(prefix="/api")
 Ctx = Annotated[ProjectContext, Depends(get_project_context)]
@@ -89,6 +94,90 @@ async def create_agent_from_preset(
         params=preset.get("params", {}),
     )
     return await create_agent(create_payload, ctx)
+
+
+async def _ensure_agent_from_preset(preset_id: str, ctx: Ctx) -> tuple[str, bool]:
+    """Create an agent from preset if missing. Returns (agent_id, was_created)."""
+    preset = get_preset(preset_id)
+    if preset is None:
+        raise HTTPException(status_code=404, detail=f"Agent preset {preset_id!r} not found")
+
+    agent_id = preset["default_agent_id"]
+    if _agent_path(ctx.project_root, agent_id).exists():
+        return agent_id, False
+
+    await create_agent(
+        CreateAgentPayload(
+            agent_type=preset["agent_type"],
+            agent_id=agent_id,
+            params=preset.get("params", {}),
+        ),
+        ctx,
+    )
+    return agent_id, True
+
+
+@router.get("/pipeline-presets")
+async def list_pipeline_presets() -> dict[str, Any]:
+    """List one-click pipeline presets for the web UI."""
+    return {"presets": PIPELINE_PRESETS}
+
+
+class CreatePipelineFromPresetPayload(BaseModel):
+    preset_id: str
+
+
+@router.post("/pipelines/from-preset")
+async def create_pipeline_from_preset(
+    payload: CreatePipelineFromPresetPayload, ctx: Ctx
+) -> dict[str, Any]:
+    """Create agents (if needed) and a pipeline from a built-in preset."""
+    preset = get_pipeline_preset(payload.preset_id)
+    if preset is None:
+        raise HTTPException(
+            status_code=404, detail=f"Pipeline preset {payload.preset_id!r} not found"
+        )
+
+    agents_created: list[str] = []
+    agent_ids: list[str] = []
+    for agent_preset_id in preset.get("agent_presets", []):
+        agent_id, created = await _ensure_agent_from_preset(agent_preset_id, ctx)
+        agent_ids.append(agent_id)
+        if created:
+            agents_created.append(agent_id)
+
+    if not agent_ids:
+        raise HTTPException(status_code=400, detail="Pipeline preset has no valid agents")
+
+    pipeline_id = preset["pipeline_id"]
+    target = _pipeline_path(ctx.project_root, pipeline_id)
+    pipeline_created = False
+    if not target.exists():
+        pipelines_dir = ctx.project_root / "pipelines"
+        pipelines_dir.mkdir(exist_ok=True)
+        yaml_text = build_pipeline_yaml(
+            pipeline_id,
+            preset["pipeline_name"],
+            agent_ids,
+            chief_id=preset.get("chief_id"),
+            mode=preset.get("mode", "parallel"),
+            description=preset.get("pipeline_description", preset.get("description", "")),
+        )
+        target.write_text(yaml_text, encoding="utf-8")
+        pipeline_created = True
+
+    run_url = project_url(ctx.tenant_id, ctx.project_id, f"/pipelines/{pipeline_id}/run")
+    return {
+        "success": True,
+        "preset_id": payload.preset_id,
+        "pipeline_id": pipeline_id,
+        "pipeline_name": preset["pipeline_name"],
+        "agent_ids": agent_ids,
+        "agents_created": agents_created,
+        "pipeline_created": pipeline_created,
+        "run_url": run_url,
+        "workspace_url": project_url(ctx.tenant_id, ctx.project_id, "/"),
+    }
 
 
 @router.get("/agents/{agent_id}")

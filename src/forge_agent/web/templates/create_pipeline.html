@@ -7,6 +7,21 @@
         <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
     </div>
 
+    {% if pipeline_presets %}
+    <div class="mb-6 bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+        <h3 class="font-bold text-sm text-indigo-900 mb-2">从模板快速创建</h3>
+        <p class="text-xs text-indigo-800 mb-3">自动补齐缺失的 Agent，并创建 Pipeline（Mock 演示，无需 API Key）</p>
+        <div class="space-y-2">
+            {% for preset in pipeline_presets %}
+            <button type="button" onclick="addPipelinePreset('{{ preset.preset_id }}')" class="w-full text-left bg-white border border-indigo-200 rounded-md p-3 hover:border-indigo-400 hover:bg-indigo-100/50">
+                <p class="text-sm font-medium text-indigo-900">{{ preset.name }}</p>
+                <p class="text-xs text-indigo-700 mt-1">{{ preset.description }}</p>
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     {% if agents %}
     <form id="pipelineForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -70,14 +85,29 @@
         </div>
     </form>
     {% else %}
-    <div class="bg-white p-6 rounded-lg shadow border border-gray-100 text-center">
-        <p class="text-gray-500 mb-3">还没有 Agent，无法创建 Pipeline</p>
-        <a href="{{ pu('/agents/new') }}" class="text-sm text-indigo-600 hover:underline">先去创建 Agent</a>
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100 text-center space-y-3">
+        <p class="text-gray-500">还没有 Agent — 可直接用上方模板一键创建 Demo</p>
+        <a href="{{ pu('/agents/new') }}" class="text-sm text-indigo-600 hover:underline inline-block">或手动创建 Agent</a>
     </div>
     {% endif %}
 </div>
 
 <script>
+async function addPipelinePreset(presetId) {
+    try {
+        const data = await apiPost('/pipelines/from-preset', { preset_id: presetId });
+        showToast('Pipeline 模板已应用', 'success');
+        setTimeout(() => { window.location.href = data.run_url; }, 600);
+    } catch (err) {
+        const errorBox = document.getElementById('error');
+        if (errorBox) {
+            errorBox.textContent = err.message;
+            errorBox.classList.remove('hidden');
+        } else {
+            showToast('创建失败: ' + err.message, 'error');
+        }
+    }
+}
 function updateSelectedSummary() {
     const checked = [...document.querySelectorAll('.agent-checkbox:checked')].map(cb => cb.value);
     const box = document.getElementById('selectedSummary');

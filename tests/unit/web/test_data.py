@@ -17,7 +17,12 @@ from forge_agent.web.data import (
     list_agents,
     summarize_project_mock_mode,
 )
-from forge_agent.web.presets import get_preset, template_label
+from forge_agent.web.presets import (
+    agent_ids_for_pipeline_preset,
+    get_pipeline_preset,
+    get_preset,
+    template_label,
+)
 
 
 def _write_agent(project: Path, agent_id: str, variables: dict | None = None) -> None:
@@ -109,6 +114,25 @@ class TestWebDataHelpers:
         preset = get_preset("weibo_trend")
         assert preset is not None
         assert preset["agent_type"] == "scraper"
+
+    def test_get_pipeline_preset(self) -> None:
+        preset = get_pipeline_preset("multi_platform_trend")
+        assert preset is not None
+        assert preset["pipeline_id"] == "trend"
+
+    def test_agent_ids_for_pipeline_preset(self) -> None:
+        preset = get_pipeline_preset("multi_platform_trend")
+        assert preset is not None
+        ids = agent_ids_for_pipeline_preset(preset)
+        assert ids == ["weibo_analyst", "xhs_analyst"]
+
+        all_preset = get_pipeline_preset("all_platform_trend")
+        assert all_preset is not None
+        assert agent_ids_for_pipeline_preset(all_preset) == [
+            "weibo_analyst",
+            "xhs_analyst",
+            "dewu_analyst",
+        ]
 
     def test_list_agents(self, tmp_path: Path) -> None:
         project = tmp_path / "demo"

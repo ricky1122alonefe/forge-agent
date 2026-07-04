@@ -26,7 +26,7 @@ from forge_agent.web.data import (
     summarize_pipeline_mock_mode,
     summarize_project_mock_mode,
 )
-from forge_agent.web.presets import AGENT_PRESETS, template_label
+from forge_agent.web.presets import AGENT_PRESETS, PIPELINE_PRESETS, template_label
 
 router = APIRouter()
 Ctx = Annotated[ProjectContext, Depends(get_project_context)]
@@ -42,6 +42,8 @@ async def index(request: Request, ctx: Ctx) -> HTMLResponse:
     """Home page: overview of agents, pipelines, and recent runs."""
     templates = _get_templates()
     project_root = ctx.project_root
+    agents = list_agents(project_root)
+    pipelines = list_pipelines(project_root)
     runs = StateStore(project_root).list()[:10]
     mock_summary = summarize_project_mock_mode(project_root)
     context = base_context(request, ctx)
@@ -52,12 +54,15 @@ async def index(request: Request, ctx: Ctx) -> HTMLResponse:
                     **agent,
                     "mock_mode": get_agent_config(project_root, agent["agent_id"])["mock_mode"],
                 }
-                for agent in list_agents(project_root)
+                for agent in agents
             ],
-            "pipelines": list_pipelines(project_root),
+            "pipelines": pipelines,
             "runs": [r.to_dict() for r in runs],
-            "is_empty_project": not list_agents(project_root) and not list_pipelines(project_root),
+            "is_empty_project": not agents and not pipelines,
+            "needs_pipeline": bool(agents) and not pipelines,
+            "needs_first_run": bool(pipelines) and not runs,
             "agent_presets": AGENT_PRESETS,
+            "pipeline_presets": PIPELINE_PRESETS,
             "mock_summary": mock_summary,
             "show_mock_notice": mock_summary["any_mock"],
         }
@@ -110,7 +115,13 @@ async def create_pipeline_page(request: Request, ctx: Ctx) -> HTMLResponse:
     """Create pipeline form."""
     templates = _get_templates()
     context = base_context(request, ctx)
-    context.update({"agents": list_agents(ctx.project_root), "edit_mode": False})
+    context.update(
+        {
+            "agents": list_agents(ctx.project_root),
+            "edit_mode": False,
+            "pipeline_presets": PIPELINE_PRESETS,
+        }
+    )
     return templates.TemplateResponse(request=request, name="create_pipeline.html", context=context)
 
 

@@ -1,0 +1,17 @@
+{% if pipeline_presets %}
+<div class="mb-6 {% if compact %}bg-amber-50 border-amber-100{% else %}bg-indigo-50 border-indigo-100{% endif %} border rounded-lg p-5">
+    <h3 class="font-bold {% if compact %}text-amber-900{% else %}text-indigo-900{% endif %} mb-2">
+        {% if compact %}下一步：组装 Pipeline{% else %}最快上手{% endif %}
+    </h3>
+    <p class="text-xs {% if compact %}text-amber-800{% else %}text-indigo-800{% endif %} mb-3">
+        一键创建 Demo Pipeline（自动补齐 Agent，Mock 免费，无需 API Key）
+    </p>
+    <div class="flex flex-wrap gap-2">
+        {% for preset in pipeline_presets %}
+        <button type="button" onclick="addPipelinePreset('{{ preset.preset_id }}', true)" class="text-xs px-3 py-1.5 rounded {% if compact %}bg-amber-600 text-white hover:bg-amber-700{% else %}bg-indigo-600 text-white hover:bg-indigo-700{% endif %}">
+            ⚡ {{ preset.name }}
+        </button>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

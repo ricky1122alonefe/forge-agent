@@ -65,3 +65,59 @@ def get_preset(preset_id: str) -> dict[str, Any] | None:
         if preset["preset_id"] == preset_id:
             return preset
     return None
+
+
+# One-click pipeline presets — creates agents (if missing) + pipeline.
+PIPELINE_PRESETS: list[dict[str, Any]] = [
+    {
+        "preset_id": "all_platform_trend",
+        "name": "三平台趋势 Demo",
+        "description": "微博 + 小红书 + 得物并行分析，Chief 汇总（Mock）",
+        "pipeline_id": "all_trend",
+        "pipeline_name": "三平台趋势分析",
+        "pipeline_description": "微博、小红书、得物并行抓取分析",
+        "agent_presets": ["weibo_trend", "xhs_trend", "dewu_trend"],
+        "chief_id": "generic.chief",
+        "mode": "parallel",
+    },
+    {
+        "preset_id": "multi_platform_trend",
+        "name": "双平台趋势 Demo",
+        "description": "微博 + 小红书并行分析，Chief 汇总决策（Mock，无需 API Key）",
+        "pipeline_id": "trend",
+        "pipeline_name": "双平台趋势分析",
+        "pipeline_description": "微博与小红书并行抓取分析",
+        "agent_presets": ["weibo_trend", "xhs_trend"],
+        "chief_id": "generic.chief",
+        "mode": "parallel",
+    },
+    {
+        "preset_id": "weibo_trend_pipeline",
+        "name": "微博趋势 Demo",
+        "description": "单平台微博趋势分析 Pipeline",
+        "pipeline_id": "weibo_trend",
+        "pipeline_name": "微博趋势分析",
+        "pipeline_description": "微博热搜趋势分析",
+        "agent_presets": ["weibo_trend"],
+        "chief_id": "generic.chief",
+        "mode": "parallel",
+    },
+]
+
+
+def get_pipeline_preset(preset_id: str) -> dict[str, Any] | None:
+    for preset in PIPELINE_PRESETS:
+        if preset["preset_id"] == preset_id:
+            return preset
+    return None
+
+
+def agent_ids_for_pipeline_preset(preset: dict[str, Any]) -> list[str]:
+    """Resolve default agent ids referenced by a pipeline preset."""
+    agent_ids: list[str] = []
+    for preset_id in preset.get("agent_presets", []):
+        agent_preset = get_preset(preset_id)
+        if agent_preset is None:
+            continue
+        agent_ids.append(agent_preset["default_agent_id"])
+    return agent_ids

@@ -187,7 +187,7 @@ forge-agent up
 | P2.3 | 用户注册 → 自动创建 tenant | 新用户有独立命名空间 | ⬜ |
 | P2.4 | 登录 + Session；只能访问自己 tenant | 跨 tenant 返回 403 | ⬜ |
 | P2.5 | docker-compose volume 持久化数据 | 重启不丢 Agent/Pipeline | ✅ |
-| P2.6 | 部署文档：环境变量、端口、数据目录 | 外人能独立部署 | ⬜ |
+| P2.6 | 部署文档：环境变量、端口、数据目录 | 外人能独立部署 | ✅ |
 
 ---
 
@@ -208,7 +208,7 @@ forge-agent up
 | 方向 | 内容 |
 |------|------|
 | Agent 模板市场 | 分享/导入整套 Agent 配置 |
-| Pipeline 模板 | 一键导入「趋势分析」等预设 Pipeline |
+| Pipeline 模板 | 一键导入「趋势分析」等预设 Pipeline | 🟡 基础版已做 |
 | DBTenant + 配额 | 企业 SaaS |
 | 自然语言建 Pipeline | architect 作为高级入口 |
 
@@ -228,7 +228,7 @@ Phase 3  可观测 + 真实数据（按需）
 Phase 4  生态（未来）
 ```
 
-**当前 focus**：本地体验 + 运行可观测（P3.1/P3.2）；登录鉴权（P2.3/P2.4）本地按需跳过。
+**当前 focus**：Pipeline 模板 +  onboarding 引导；登录鉴权按需。
 
 ---
 
@@ -256,7 +256,7 @@ forge-agent new myproj --template config-driven --tenant acme
 |-------|------|------|
 | Phase 0 跑通 | 6/6 | ✅ 完成 |
 | Phase 1 体验 | 8/8 | ✅ 完成 |
-| Phase 2 部署 | 3/6 | 🟡 本地跳过登录 |
+| Phase 2 部署 | 4/6 | 🟡 本地跳过登录 |
 | Phase 3 可观测 | 2/5 | 🟡 进行中 |
 | Phase 4 生态 | — | ⬜ 未规划细节 |
 
