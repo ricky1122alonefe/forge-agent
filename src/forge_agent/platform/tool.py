@@ -23,6 +23,8 @@ class Tool:
     handler: ToolCallable
     params: dict[str, Any] = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)
+    platforms: list[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
 
     async def call(self, **kwargs: Any) -> Any:
         """Invoke the tool handler."""

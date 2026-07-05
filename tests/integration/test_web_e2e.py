@@ -562,3 +562,71 @@ class TestWebGoldenPath:
         assert data["success"] is True
         assert data["smoke"]["success"] is True
         assert (project_root / "agents" / f"{spec['agent_id']}.yaml").exists()
+
+    @pytest.mark.asyncio
+    async def test_a31_generate_agent_page(
+        self, client: httpx.AsyncClient, project_base: str
+    ) -> None:
+        """AGENT_PLAN A3.1: Web generate Agent page."""
+        response = await client.get(f"{project_base}/agents/generate")
+        assert response.status_code == 200
+        assert "生成 Agent" in response.text
+        assert "agent-spec/plan" in response.text or "/api/agent-spec/plan" in response.text
+
+    @pytest.mark.asyncio
+    async def test_a32_agent_smoke_endpoint(
+        self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
+    ) -> None:
+        """AGENT_PLAN A3.2: POST /agents/{id}/smoke updates maturity."""
+        _, project_root = web_project
+
+        response = await client.post(
+            f"{project_base}/api/agent-spec/apply",
+            json={
+                "requirement": "搜索 AI 行业动态并分析",
+                "keyword": "AI",
+                "run_smoke": False,
+            },
+        )
+        assert response.status_code == 200, response.text
+        agent_id = response.json()["agent_id"]
+
+        response = await client.post(f"{project_base}/api/agents/{agent_id}/smoke")
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["success"] is True
+        assert data["smoke"]["success"] is True
+        assert data["maturity"]["stage"] == "verified"
+
+        agent_yaml = (project_root / "agents" / f"{agent_id}.yaml").read_text(encoding="utf-8")
+        assert "smoke_verified" in agent_yaml
+
+    @pytest.mark.asyncio
+    async def test_a33_bundle_includes_mock_cases(
+        self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
+    ) -> None:
+        """AGENT_PLAN A3.3: bundle export preserves mock_cases metadata."""
+        response = await client.post(
+            f"{project_base}/api/agent-spec/apply",
+            json={"requirement": "搜索 AI 行业动态并分析", "keyword": "AI"},
+        )
+        assert response.status_code == 200, response.text
+        agent_id = response.json()["agent_id"]
+
+        response = await client.get(f"{project_base}/api/agents/{agent_id}/export")
+        assert response.status_code == 200, response.text
+        bundle = response.json()
+        assert bundle["mock_cases_count"] >= 1
+        assert bundle["agents"][0].get("mock_cases")
+
+    @pytest.mark.asyncio
+    async def test_a43_agent_spec_coverage_api(
+        self, client: httpx.AsyncClient, project_base: str
+    ) -> None:
+        """AGENT_PLAN A4.3: coverage API reports matrix stats."""
+        response = await client.get(f"{project_base}/api/agent-spec/coverage")
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 20
+        assert data["routing_pass"] >= 18
+        assert data["target_met"] is True

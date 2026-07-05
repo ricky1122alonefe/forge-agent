@@ -6,12 +6,15 @@
 <div class="max-w-3xl mx-auto">
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold">智能创建 Pipeline</h2>
-        <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
+        <div class="flex items-center gap-3 text-sm">
+            <a href="{{ pu('/agents/generate') }}" class="text-indigo-600 hover:text-indigo-800">✨ 只生成 Agent</a>
+            <a href="{{ pu('/') }}" class="text-gray-600 hover:text-indigo-600">← 返回工作台</a>
+        </div>
     </div>
 
     <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-        <p class="font-medium">用自然语言描述你想分析什么</p>
-        <p class="text-xs text-indigo-800 mt-1">默认使用规则规划 + Mock，无需 API Key。示例：分析 labubu 在微博和小红书的热度趋势</p>
+        <p class="font-medium">用自然语言描述 Pipeline 需求</p>
+        <p class="text-xs text-indigo-800 mt-1">基于 AgentSpec 内核自动规划 Agent + Pipeline。默认规则规划 + Mock，无需 API Key。单 Agent 场景可前往「生成 Agent」页。</p>
     </div>
 
     <form id="architectForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4 mb-6">
@@ -39,7 +42,7 @@
     </form>
 
     <div id="previewBox" class="hidden bg-white p-6 rounded-lg shadow border border-gray-100">
-        <h3 class="font-bold text-sm mb-3">规划预览</h3>
+        <h3 class="font-bold text-sm mb-3">AgentSpec 规划预览</h3>
         <p class="text-xs text-gray-500 mb-3">规划器：<span id="plannerLabel">-</span> · 关键词：<span id="keywordLabel">-</span></p>
         <ul id="agentList" class="text-sm space-y-2 mb-4"></ul>
         <p id="newTools" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded p-2"></p>
@@ -66,14 +69,17 @@ async function buildPayload() {
 function renderPreview(plan) {
     lastPlan = plan;
     document.getElementById('previewBox').classList.remove('hidden');
-    document.getElementById('plannerLabel').textContent = plan.planner || 'rule';
+    document.getElementById('plannerLabel').textContent = plan.planner || 'agent_spec';
     document.getElementById('keywordLabel').textContent = plan.keyword;
     const list = document.getElementById('agentList');
     list.innerHTML = '';
     (plan.agents || []).forEach(a => {
         const li = document.createElement('li');
         li.className = 'flex justify-between border-b border-gray-50 pb-2';
-        li.innerHTML = `<span>${a.name} <code class="text-xs text-gray-500">${a.agent_id}</code></span><span class="text-xs text-gray-500">${(a.config.tools||[]).join(', ')}</span>`;
+        const meta = a._meta || {};
+        const primitive = meta.primitive || a.primitive || '-';
+        const profile = meta.schema_profile || a.schema_profile || '-';
+        li.innerHTML = `<span>${a.name} <code class="text-xs text-gray-500">${a.agent_id}</code><br><span class="text-[10px] text-indigo-600">${primitive} · ${profile}</span></span><span class="text-xs text-gray-500">${(a.config.tools||[]).join(', ')}</span>`;
         list.appendChild(li);
     });
     const nt = document.getElementById('newTools');

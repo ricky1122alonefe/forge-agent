@@ -7,6 +7,24 @@
         <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
     </div>
 
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-3 mb-6">
+        <h3 class="font-bold text-sm text-gray-700">成熟度</h3>
+        <div class="flex items-center gap-1 mb-2">
+            {% for stage in maturity.stages %}
+            <div class="flex-1 text-center">
+                <div class="h-2 rounded-full {% if loop.index0 <= maturity.stage_index %}bg-indigo-500{% else %}bg-gray-200{% endif %}"></div>
+                <p class="text-[10px] mt-1 {% if loop.index0 == maturity.stage_index %}text-indigo-700 font-medium{% else %}text-gray-400{% endif %}">{{ stage.label }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        <p class="text-xs text-gray-600">当前：<span class="font-medium">{{ maturity.label }}</span> — {{ maturity.hint }}</p>
+        <p class="text-xs text-indigo-700 bg-indigo-50 rounded px-2 py-1">下一步：{{ maturity.next_step }}</p>
+        <div>
+            <button type="button" id="smokeBtn" class="text-xs border border-gray-300 rounded px-3 py-1 hover:bg-gray-50">运行 Mock Smoke</button>
+            <span id="smokeStatus" class="text-xs text-gray-500 ml-2"></span>
+        </div>
+    </div>
+
     <form id="quickForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4 mb-6">
         <h3 class="font-bold text-sm text-gray-700">快捷编辑</h3>
 
@@ -57,6 +75,20 @@
 </div>
 
 <script>
+document.getElementById('smokeBtn').addEventListener('click', async () => {
+    const status = document.getElementById('smokeStatus');
+    status.textContent = '运行中…';
+    try {
+        const data = await apiPost('/agents/{{ agent_id }}/smoke', {});
+        status.textContent = data.smoke.success ? 'Smoke 通过' : 'Smoke 失败';
+        status.className = 'text-xs ml-2 ' + (data.smoke.success ? 'text-green-600' : 'text-red-600');
+        if (data.smoke.success) setTimeout(() => location.reload(), 600);
+    } catch (err) {
+        status.textContent = err.message;
+        status.className = 'text-xs ml-2 text-red-600';
+    }
+});
+
 document.getElementById('quickForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     const errorBox = document.getElementById('quickError');

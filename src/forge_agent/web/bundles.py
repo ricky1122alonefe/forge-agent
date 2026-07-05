@@ -32,6 +32,7 @@ def export_agent_bundle(project_root: Path, agent_id: str) -> dict[str, Any]:
         "description": f"Agent export: {agent_id}",
         "agents": [agent],
         "pipeline": None,
+        "mock_cases_count": len(agent.get("mock_cases") or []),
     }
 
 

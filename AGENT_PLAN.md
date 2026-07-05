@@ -135,35 +135,46 @@ agents:
 
 ---
 
+### Phase 4 — 类型扩展与 LLM 增强
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A4.1 | `reasoner` agent_type + schema_profile 参数 | Registry 可生成 |
+| A4.2 | Web LLM planner 接入 `generate_spec` / architect | 有 Key 时 llm_assisted |
+| A4.3 | 场景矩阵覆盖率报告 API | `/agent-spec/coverage` ≥18/20 |
+| A4.4 | architect UI 对齐 AgentSpec | 显示原语/Schema + 跳转生成页 |
+
+---
+
 ## 六、场景矩阵（20 条，Phase 2 出口）
 
 ### 抓取 / 搜索（8）
-- [ ] 社媒关键词 trend（微博）
-- [ ] 多平台 trend（微博+小红书）
-- [ ] 竞品价格监控
-- [ ] 新闻摘要
-- [ ] API 拉数分析
-- [ ] 网页内容抽取
-- [ ] 搜索问答
-- [ ] RSS/Feed 摘要
+- [x] 社媒关键词 trend（微博） — S01
+- [x] 多平台 trend（微博+小红书） — S02
+- [x] 竞品价格监控 — S03
+- [x] 新闻摘要 — S04
+- [x] API 拉数分析 — S05
+- [x] 网页内容抽取 — S06
+- [x] 搜索问答 — S07
+- [x] RSS/Feed 摘要 — S08
 
 ### 分析 / 推理（7）
-- [ ] 情感分类
-- [ ] 风险评级
-- [ ] 长文摘要
-- [ ] 实体抽取
-- [ ] 表格对比
-- [ ] 报告润色
-- [ ] 多文档综合（Synthesizer）
+- [x] 情感分类 — S09
+- [x] 风险评级 — S10
+- [x] 长文摘要 — S11
+- [x] 实体抽取 — S12
+- [x] 表格对比 — S13
+- [x] 报告润色 — S14
+- [x] 多文档综合（Synthesizer） — S15
 
 ### 监控 / 动作（5）
-- [ ] 阈值告警
-- [ ] 同比异常
-- [ ] 规则黑白名单
-- [ ] 条件 execute/watch/hold
-- [ ] 结构化建议输出
+- [x] 阈值告警 — S16
+- [x] 同比异常 — S17
+- [x] 规则黑白名单 — S18
+- [x] 条件 execute/watch/hold — S19
+- [x] 结构化建议输出 — S20
 
-Phase 1 完成前 3 条；Phase 2 完成 ≥18 条。
+Phase 2 出口：**20/20 Mock smoke 全绿**（`tests/scenarios/test_scenario_matrix.py`）
 
 ---
 
@@ -203,10 +214,11 @@ AgentSpecGenerator ──► AgentSpec (validate)
 | Phase | 进度 | 状态 |
 |-------|------|------|
 | Phase 1 内核 + 数据流 | 6/6 | ✅ |
-| Phase 2 五原语 + 矩阵 | 0/5 | ⬜ |
-| Phase 3 产品化 | 0/4 | ⬜ |
+| Phase 2 五原语 + 矩阵 | 5/5 | ✅ |
+| Phase 3 产品化 | 4/4 | ✅ |
+| Phase 4 类型 + LLM | 4/4 | ✅ |
 
-**当前 focus**：Phase 2 — 扩展场景矩阵至 20 条（≥18 绿）
+**当前 focus**：Phase 4 已完成 — Agent 类型扩展、LLM planner、覆盖率报告、architect UI
 
 ---
 

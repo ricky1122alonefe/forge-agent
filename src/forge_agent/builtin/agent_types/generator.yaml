@@ -1,0 +1,47 @@
+agent_type:
+  type_id: generator
+  name: Content Generator
+  description: |
+    Generates structured text content (reports, summaries, rewrites) from input context.
+  domain: generic
+  template: prompt_agent
+  params:
+    - name: topic
+      type: string
+      required: true
+      description: Topic or source text subject.
+    - name: format
+      type: string
+      required: false
+      description: Output format (markdown, bullet, email).
+      default: markdown
+  prompt_template: |
+    You are a professional writer. Topic/context: {topic}. Target format: {format}.
+
+    Respond with JSON containing:
+    - content: the generated text
+    - format: output format label
+    - summary: one-line summary
+    - recommended_action: one of [execute, watch, hold, alert]
+  output_schema:
+    type: object
+    properties:
+      content:
+        type: string
+      format:
+        type: string
+      summary:
+        type: string
+      recommended_action:
+        type: string
+        enum: [execute, watch, hold, alert]
+    required: [content, summary, recommended_action]
+  output_mapping:
+    verdict: format
+    confidence: confidence
+    evidence: summary
+    recommended_action: recommended_action
+    metrics: metrics
+  mock_response: |
+    {"content": "Mock generated content for {topic}", "format": "markdown",
+     "summary": "Mock summary", "recommended_action": "watch"}

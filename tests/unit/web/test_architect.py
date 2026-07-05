@@ -21,7 +21,7 @@ class TestArchitect:
         assert len(plan["agents"]) == 2
         ids = {a["agent_id"] for a in plan["agents"]}
         assert "weibo_analyst" in ids
-        assert "xhs_analyst" in ids
+        assert "xiaohongshu_analyst" in ids
 
     def test_apply_plan_writes_files(self, tmp_path: Path) -> None:
         tenant = LocalTenant("acme", root_dir=tmp_path / "data")
@@ -39,5 +39,5 @@ class TestArchitect:
         from forge_agent.web.architect import generate_plan
 
         plan = await generate_plan("分析 labubu 在得物的趋势", use_llm=False)
-        assert plan["planner"] == "rule"
+        assert plan["planner"] == "agent_spec"
         assert any(a["agent_id"] == "dewu_analyst" for a in plan["agents"])

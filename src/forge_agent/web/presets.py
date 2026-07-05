@@ -10,6 +10,8 @@ AGENT_TEMPLATE_LABELS: dict[str, str] = {
     "search": "搜索分析",
     "analyzer": "数据分析",
     "synthesizer": "报告汇总",
+    "monitor": "指标监控",
+    "generator": "内容生成",
     "chief": "决策汇总",
 }
 

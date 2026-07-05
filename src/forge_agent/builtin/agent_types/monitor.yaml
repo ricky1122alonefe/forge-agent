@@ -1,0 +1,56 @@
+agent_type:
+  type_id: monitor
+  name: Metric Monitor
+  description: |
+    Watches numeric metrics against thresholds and emits structured alerts.
+  domain: generic
+  template: prompt_agent
+  params:
+    - name: metric_name
+      type: string
+      required: true
+      description: Name of the metric to watch.
+    - name: threshold
+      type: number
+      required: false
+      description: Alert threshold.
+      default: 100
+  prompt_template: |
+    You are a monitoring agent. Metric: {metric_name}.
+    Current value: {current_value}. Threshold: {threshold}.
+
+    Respond with JSON containing:
+    - alert: boolean
+    - severity: one of [info, warning, critical]
+    - threshold: number
+    - current_value: number
+    - message: string
+    - recommended_action: one of [execute, watch, hold, alert]
+  output_schema:
+    type: object
+    properties:
+      alert:
+        type: boolean
+      severity:
+        type: string
+        enum: [info, warning, critical]
+      threshold:
+        type: number
+      current_value:
+        type: number
+      message:
+        type: string
+      recommended_action:
+        type: string
+        enum: [execute, watch, hold, alert]
+    required: [alert, severity, message, recommended_action]
+  output_mapping:
+    verdict: severity
+    confidence: current_value
+    risk: threshold
+    evidence: message
+    recommended_action: recommended_action
+    metrics: metrics
+  mock_response: |
+    {"alert": false, "severity": "info", "threshold": 100, "current_value": 42,
+     "message": "Metric within normal range (Mock)", "recommended_action": "watch"}

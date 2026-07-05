@@ -107,5 +107,12 @@ def synthesizer_mock_response() -> str:
     return analysis_mock_response("汇总")
 
 
+def generate_mock_response() -> str:
+    return (
+        '{"content": "Mock 生成内容", "format": "markdown", "summary": "Mock 摘要", '
+        '"recommended_action": "watch"}'
+    )
+
+
 def search_mock_response() -> str:
     return analysis_mock_response("搜索")

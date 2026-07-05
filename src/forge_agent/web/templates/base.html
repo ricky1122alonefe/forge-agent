@@ -29,6 +29,7 @@
             <nav class="space-x-4 text-sm">
                 <a href="{{ pu('/') }}" class="text-gray-600 hover:text-indigo-600">工作台</a>
                 <a href="{{ pu('/agents/new') }}" class="text-gray-600 hover:text-indigo-600">新建 Agent</a>
+                <a href="{{ pu('/agents/generate') }}" class="text-indigo-600 hover:text-indigo-800 font-medium">生成 Agent</a>
                 <a href="{{ pu('/pipelines/new') }}" class="text-gray-600 hover:text-indigo-600">新建 Pipeline</a>
                 <a href="{{ pu('/runs') }}" class="text-gray-600 hover:text-indigo-600">运行历史</a>
                 <a href="{{ pu('/settings/llm') }}" class="text-gray-500 hover:text-indigo-600">LLM 设置</a>
@@ -70,6 +71,12 @@
         const res = await fetch(apiUrl(path), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.detail || `HTTP ${res.status}`); }
         return res.json();
+    }
+    async function apiGet(path) {
+        const res = await fetch(apiUrl(path));
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        return data;
     }
     async function apiPost(path, body) {
         const res = await fetch(apiUrl(path), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

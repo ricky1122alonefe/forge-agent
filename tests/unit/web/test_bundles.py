@@ -48,6 +48,16 @@ def project_root(tmp_path: Path) -> Path:
 
 
 class TestBundles:
+    def test_export_agent_includes_mock_cases_count(self, project_root: Path) -> None:
+        from forge_agent.agent_spec.generator import generate_spec_rule_based
+        from forge_agent.agent_spec.writer import apply_spec
+
+        spec = generate_spec_rule_based("搜索 AI 行业动态", keyword="AI")
+        apply_spec(project_root, spec, overwrite=True)
+        bundle = export_agent_bundle(project_root, spec.agent_id)
+        assert bundle["mock_cases_count"] >= 1
+        assert bundle["agents"][0].get("mock_cases")
+
     def test_export_and_import_agent(self, project_root: Path, tmp_path: Path) -> None:
         bundle = export_agent_bundle(project_root, "weibo_analyst")
         assert bundle["kind"] == "forge_agent_bundle"

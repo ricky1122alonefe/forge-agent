@@ -9,7 +9,16 @@ import yaml
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
-from forge_agent.agent_spec import AgentSpec, apply_spec, generate_spec, smoke_run_spec
+from forge_agent.agent_spec import (
+    AgentSpec,
+    agent_dict_to_spec,
+    apply_spec,
+    generate_spec,
+    list_tool_catalog,
+    mark_smoke_verified,
+    smoke_run_spec,
+)
+from forge_agent.agent_spec.coverage import compute_scenario_coverage
 from forge_agent.builtin import AgentTypeRegistry
 from forge_agent.project.agent_builder import build_agent_yaml, build_pipeline_yaml
 from forge_agent.project.launcher import _run_pipeline
@@ -24,6 +33,8 @@ from forge_agent.web.bundles import (
 )
 from forge_agent.web.context import ProjectContext, get_project_context, project_url
 from forge_agent.web.data import collect_payload_fields, get_agent_config
+from forge_agent.web.data import get_agent as load_agent_dict
+from forge_agent.web.llm_runtime import resolve_llm_chat
 from forge_agent.web.llm_settings import (
     get_llm_settings_view,
     load_env_files,
@@ -269,6 +280,28 @@ async def update_agent_config(
         "success": True,
         "agent_id": agent_id,
         "config": get_agent_config(ctx.project_root, agent_id),
+    }
+
+
+@router.post("/agents/{agent_id}/smoke")
+async def agent_smoke_test(agent_id: str, ctx: Ctx) -> dict[str, Any]:
+    """Run mock_cases smoke test on an existing agent (A3.2)."""
+    from forge_agent.agent_spec.maturity import compute_maturity
+
+    agent = load_agent_dict(ctx.project_root, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
+    spec = agent_dict_to_spec(agent)
+    if not spec.mock_cases:
+        raise HTTPException(status_code=400, detail="Agent has no mock_cases defined")
+    smoke = await smoke_run_spec(spec)
+    if smoke.get("success"):
+        mark_smoke_verified(ctx.project_root, agent_id)
+    updated = load_agent_dict(ctx.project_root, agent_id) or agent
+    return {
+        "success": bool(smoke.get("success")),
+        "smoke": smoke,
+        "maturity": compute_maturity(updated),
     }
 
 
@@ -587,13 +620,15 @@ class ArchitectPlanPayload(BaseModel):
 
 
 @router.post("/architect/plan")
-async def architect_plan(payload: ArchitectPlanPayload) -> dict[str, Any]:
+async def architect_plan(payload: ArchitectPlanPayload, ctx: Ctx) -> dict[str, Any]:
     """Generate a pipeline plan from natural language (P4.4)."""
     try:
+        llm_chat = resolve_llm_chat(ctx.tenant, ctx.project_root) if payload.use_llm else None
         return await generate_plan(
             payload.requirement,
             keyword=payload.keyword,
             use_llm=payload.use_llm,
+            llm_chat=llm_chat,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -615,10 +650,12 @@ async def architect_apply(payload: ArchitectApplyPayload, ctx: Ctx) -> dict[str,
         if payload.plan is not None:
             plan = payload.plan
         else:
+            llm_chat = resolve_llm_chat(ctx.tenant, ctx.project_root) if payload.use_llm else None
             plan = await generate_plan(
                 payload.requirement,
                 keyword=payload.keyword,
                 use_llm=payload.use_llm,
+                llm_chat=llm_chat,
             )
         result = apply_plan(
             ctx.project_root,
@@ -646,15 +683,17 @@ class AgentSpecPlanPayload(BaseModel):
 
 
 @router.post("/agent-spec/plan")
-async def agent_spec_plan(payload: AgentSpecPlanPayload) -> dict[str, Any]:
+async def agent_spec_plan(payload: AgentSpecPlanPayload, ctx: Ctx) -> dict[str, Any]:
     """Generate an AgentSpec preview from natural language (AGENT_PLAN A1.5)."""
     try:
+        llm_chat = resolve_llm_chat(ctx.tenant, ctx.project_root) if payload.use_llm else None
         spec = await generate_spec(
             payload.requirement,
             agent_id=payload.agent_id,
             keyword=payload.keyword,
             focus=payload.focus,
             use_llm=payload.use_llm,
+            llm_chat=llm_chat,
         )
         return spec.to_dict()
     except ValueError as exc:
@@ -679,18 +718,24 @@ async def agent_spec_apply(payload: AgentSpecApplyPayload, ctx: Ctx) -> dict[str
         if payload.spec is not None:
             spec = AgentSpec.from_dict(payload.spec)
         else:
+            llm_chat = resolve_llm_chat(ctx.tenant, ctx.project_root) if payload.use_llm else None
             spec = await generate_spec(
                 payload.requirement,
                 agent_id=payload.agent_id,
                 keyword=payload.keyword,
                 focus=payload.focus,
                 use_llm=payload.use_llm,
+                llm_chat=llm_chat,
             )
         result = apply_spec(ctx.project_root, spec, overwrite=payload.overwrite)
+        smoke_ok = False
         if payload.run_smoke and spec.mock_cases:
             smoke = await smoke_run_spec(spec)
             result["smoke"] = smoke
-            if not smoke.get("success"):
+            smoke_ok = bool(smoke.get("success"))
+            if smoke_ok:
+                mark_smoke_verified(ctx.project_root, spec.agent_id)
+            else:
                 result["success"] = False
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -699,3 +744,15 @@ async def agent_spec_apply(payload: AgentSpecApplyPayload, ctx: Ctx) -> dict[str
         **result,
         "agent_url": project_url(ctx.tenant_id, ctx.project_id, f"/agents/{result['agent_id']}"),
     }
+
+
+@router.get("/agent-spec/tools")
+async def agent_spec_tool_catalog() -> dict[str, Any]:
+    """List tool metadata for AgentSpec generation (A2.2)."""
+    return {"tools": list_tool_catalog()}
+
+
+@router.get("/agent-spec/coverage")
+async def agent_spec_coverage() -> dict[str, Any]:
+    """Return 20-scenario routing coverage stats (A4.3)."""
+    return compute_scenario_coverage()

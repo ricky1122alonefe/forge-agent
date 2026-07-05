@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from forge_agent.agent_spec.maturity import compute_maturity
 from forge_agent.builtin import AgentTypeRegistry
 from forge_agent.project.state_store import StateStore
 from forge_agent.web.bundles import build_market_catalog
@@ -18,6 +19,7 @@ from forge_agent.web.data import (
     collect_payload_fields,
     extract_chief_report,
     format_trace_timeline,
+    get_agent,
     get_agent_config,
     get_pipeline_run_plan,
     infer_run_mock_mode,
@@ -94,6 +96,26 @@ async def create_agent_page(request: Request, ctx: Ctx) -> HTMLResponse:
     return templates.TemplateResponse(request=request, name="create_agent.html", context=context)
 
 
+@router.get("/agents/generate", response_class=HTMLResponse)
+async def generate_agent_page(request: Request, ctx: Ctx) -> HTMLResponse:
+    """Natural-language Agent generator (AGENT_PLAN A3.1)."""
+    templates = _get_templates()
+    context = base_context(request, ctx)
+    context.update(
+        {
+            "examples": [
+                "分析 labubu 在微博的热度趋势",
+                "搜索 AI 行业动态并给出趋势判断",
+                "汇总上游多份 Agent 报告并给出综合结论",
+                "当库存低于阈值 100 时告警",
+                "润色并改写营销报告",
+                "对用户评论做情感分类",
+            ],
+        }
+    )
+    return templates.TemplateResponse(request=request, name="generate_agent.html", context=context)
+
+
 @router.get("/agents/{agent_id}", response_class=HTMLResponse)
 async def agent_detail_page(agent_id: str, request: Request, ctx: Ctx) -> HTMLResponse:
     """View / edit agent page."""
@@ -101,12 +123,14 @@ async def agent_detail_page(agent_id: str, request: Request, ctx: Ctx) -> HTMLRe
     agent_file = ctx.project_root / "agents" / f"{agent_id}.yaml"
     if not agent_file.exists():
         raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
+    agent = get_agent(ctx.project_root, agent_id) or {}
     context = base_context(request, ctx)
     context.update(
         {
             "agent_id": agent_id,
             "yaml": agent_file.read_text(encoding="utf-8"),
             "agent_config": get_agent_config(ctx.project_root, agent_id),
+            "maturity": compute_maturity(agent),
         }
     )
     return templates.TemplateResponse(request=request, name="agent_detail.html", context=context)

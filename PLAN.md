@@ -228,7 +228,7 @@ Phase 3  可观测 + 真实数据  ← Phase 3 基本完成（P3.4 ✅）
 Phase 4  生态（模板市场 + 智能创建）  ← P4.1/P4.2/P4.4 ✅
 ```
 
-**当前 focus**：**Agent Generator** — 见 [`AGENT_PLAN.md`](AGENT_PLAN.md) Phase 1（A1.1–A1.6）。Pipeline / 市场 / P4.3 冻结。
+**当前 focus**：**Agent Generator Phase 2 ✅** — 见 [`AGENT_PLAN.md`](AGENT_PLAN.md) Phase 3。Pipeline / 市场 / P4.3 冻结。
 
 ---
 
