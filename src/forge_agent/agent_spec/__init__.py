@@ -1,5 +1,6 @@
 """AgentSpec — generate, validate, and write reusable Agent assets."""
 
+from forge_agent.agent_spec.compose import ComposePlan, apply_compose_plan, compose_from_requirement
 from forge_agent.agent_spec.from_type import generate_from_agent_type
 from forge_agent.agent_spec.generator import (
     detect_primitive,
@@ -31,11 +32,14 @@ __all__ = [
     "SCENARIO_MATRIX",
     "AgentPrimitive",
     "AgentSpec",
+    "ComposePlan",
     "MockCase",
     "ScenarioCase",
     "SchemaProfile",
     "agent_dict_to_spec",
+    "apply_compose_plan",
     "apply_spec",
+    "compose_from_requirement",
     "detect_primitive",
     "detect_schema_profile",
     "extract_keyword",

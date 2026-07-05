@@ -59,6 +59,7 @@ class AgentSpec:
     tags: list[str] = field(default_factory=lambda: ["generated"])
     config: dict[str, Any] = field(default_factory=dict)
     mock_cases: list[MockCase] = field(default_factory=list)
+    capabilities: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -74,6 +75,7 @@ class AgentSpec:
             "tags": self.tags,
             "config": self.config,
             "mock_cases": [c.to_dict() for c in self.mock_cases],
+            "capabilities": dict(self.capabilities),
         }
 
     @classmethod
@@ -98,4 +100,5 @@ class AgentSpec:
             tags=list(data.get("tags", ["generated"])),
             config=dict(data.get("config", {})),
             mock_cases=cases,
+            capabilities=dict(data.get("capabilities", {})),
         )

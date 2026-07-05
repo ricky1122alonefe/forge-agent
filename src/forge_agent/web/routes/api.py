@@ -18,6 +18,7 @@ from forge_agent.agent_spec import (
     mark_smoke_verified,
     smoke_run_spec,
 )
+from forge_agent.agent_spec.compose import apply_compose_plan, compose_from_requirement
 from forge_agent.agent_spec.coverage import compute_scenario_coverage
 from forge_agent.agent_spec.from_type import generate_from_agent_type
 from forge_agent.agent_spec.versioning import validate_agent_asset
@@ -939,3 +940,58 @@ async def agent_spec_tool_catalog() -> dict[str, Any]:
 async def agent_spec_coverage() -> dict[str, Any]:
     """Return 20-scenario routing coverage stats (A4.3)."""
     return compute_scenario_coverage()
+
+
+class AgentSpecComposePayload(BaseModel):
+    requirement: str = Field(min_length=4, max_length=2000)
+    keyword: str | None = None
+    pipeline_id: str | None = None
+    focus: str | None = None
+    apply: bool = False
+    overwrite: bool = False
+    run_smoke: bool = True
+
+
+@router.post("/agent-spec/compose")
+async def agent_spec_compose(payload: AgentSpecComposePayload, ctx: Ctx) -> dict[str, Any]:
+    """Decompose a requirement into multiple wired agents + pipeline (A9.2/A9.3)."""
+    try:
+        plan = compose_from_requirement(
+            payload.requirement,
+            keyword=payload.keyword,
+            pipeline_id=payload.pipeline_id,
+            focus=payload.focus,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if not payload.apply:
+        return plan.to_dict()
+
+    if plan.wiring_errors:
+        raise HTTPException(status_code=400, detail="; ".join(plan.wiring_errors))
+
+    try:
+        applied = apply_compose_plan(ctx.project_root, plan, overwrite=payload.overwrite)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    smokes: list[dict[str, Any]] = []
+    if payload.run_smoke:
+        for spec in plan.specs:
+            if not spec.mock_cases:
+                continue
+            smoke = await smoke_run_spec(spec)
+            smokes.append({"agent_id": spec.agent_id, **smoke})
+            if smoke.get("success"):
+                mark_smoke_verified(ctx.project_root, spec.agent_id)
+
+    pid = plan.pipeline_id
+    return {
+        **plan.to_dict(),
+        **applied,
+        "applied": True,
+        "smokes": smokes,
+        "pipeline_url": project_url(ctx.tenant_id, ctx.project_id, f"/pipelines/{pid}"),
+        "run_url": project_url(ctx.tenant_id, ctx.project_id, f"/pipelines/{pid}/run"),
+    }

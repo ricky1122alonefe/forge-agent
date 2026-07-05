@@ -48,6 +48,8 @@ def validate_agent_type_def(type_def: dict[str, Any]) -> None:
         raise ValueError("output_schema must be a mapping")
     if not isinstance(type_def.get("output_mapping"), dict):
         raise ValueError("output_mapping must be a mapping")
+    if "capabilities" in type_def and not isinstance(type_def["capabilities"], dict):
+        raise ValueError("capabilities must be a mapping when provided")
 
 
 def re_safe_type_id(type_id: str) -> bool:

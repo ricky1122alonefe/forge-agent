@@ -107,7 +107,7 @@ async def generate_agent_page(request: Request, ctx: Ctx) -> HTMLResponse:
             "examples": [
                 "分析 labubu 在微博的热度趋势",
                 "搜索 AI 行业动态并给出趋势判断",
-                "汇总上游多份 Agent 报告并给出综合结论",
+                "抓微博和小红书 labubu 热度，再汇总成一份报告",
                 "当库存低于阈值 100 时告警",
                 "润色并改写营销报告",
                 "对用户评论做情感分类",

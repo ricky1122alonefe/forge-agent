@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from forge_agent.agent_spec.capabilities import merge_type_capabilities
 from forge_agent.agent_spec.generator import _default_mock_cases, _primitive_from_type_id
 from forge_agent.agent_spec.models import AgentSpec, SchemaProfile
 from forge_agent.project.agent_builder import build_agent
@@ -24,7 +25,7 @@ def generate_from_agent_type(
     profile = _schema_profile_from_params(type_id, params)
     mock_cases = _default_mock_cases(primitive, params, profile)
 
-    return AgentSpec(
+    spec = AgentSpec(
         agent_id=agent_id,
         name=str(agent.get("name", agent_id)),
         domain=str(agent.get("domain", "generic")),
@@ -38,6 +39,7 @@ def generate_from_agent_type(
         config=dict(agent.get("config", {})),
         mock_cases=mock_cases,
     )
+    return merge_type_capabilities(spec, type_def.get("capabilities"))
 
 
 def _schema_profile_from_type(type_id: str) -> SchemaProfile:

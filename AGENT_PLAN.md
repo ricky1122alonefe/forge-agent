@@ -223,10 +223,23 @@ AgentSpecGenerator ──► AgentSpec (validate)
 | Phase 6 Agent 试跑 | 3/3 | ✅ |
 | Phase 7 成熟度闭环 | 4/4 | ✅ |
 | Phase 8 Agent 资产 version | 4/4 | ✅ |
+| Phase 9 自动连线 + 能力可配 | 5/5 | ✅ |
 
-**当前 focus**：Phase 8 已完成 — Agent YAML 带 spec_version/revision，Bundle 导出携带版本，mock_cases 质量提升
+**当前 focus**：Phase 9 已完成 — primitive 自动连线编队 + memory/constraints 能力可配
 
 **执行纪律**：新 work 必须先写入本文档 Phase 表再开发；禁止 Pipeline / 市场 / CLI 支线。
+
+---
+
+### Phase 9 — 自动连线 + 能力可配
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A9.1 | `wire.py` primitive 插头表 + `validate_wiring()` | Synthesizer 无前游报错 |
+| A9.2 | `compose.py` 规则拆解 → 多 AgentSpec + pipeline 建议 | golden：双 Fetcher + Synth |
+| A9.3 | `POST /agent-spec/compose` + apply agents+pipeline + Web 编队 Tab | Mock smoke 全绿 |
+| A9.4 | `capabilities.py` memory/constraints → AgentSpec config | 关键词触发、默认 memory 关 |
+| A9.5 | agent_type 可选 `capabilities` 模板 | from-type 继承 |
 
 ---
 

@@ -226,7 +226,10 @@ def generate_spec_rule_based(
         AgentPrimitive.GENERATOR: lambda: _build_generator_spec(req, aid, name, kw),
         AgentPrimitive.REASONER: lambda: _build_reasoner_spec(req, aid, name, profile, kw),
     }
-    return builders[primitive]()
+    spec = builders[primitive]()
+    from forge_agent.agent_spec.capabilities import apply_requirement_capabilities
+
+    return apply_requirement_capabilities(spec, req)
 
 
 def _guess_name(requirement: str, primitive: AgentPrimitive) -> str:

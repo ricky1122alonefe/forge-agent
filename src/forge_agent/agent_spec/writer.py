@@ -28,12 +28,19 @@ def spec_to_agent_dict(spec: AgentSpec) -> dict[str, Any]:
     }
     if spec.mock_cases:
         agent["mock_cases"] = [c.to_dict() for c in spec.mock_cases]
-    agent["_meta"] = {
+    meta: dict[str, Any] = {
         "primitive": spec.primitive.value,
         "requirement": spec.requirement,
         "planner": spec.planner,
         "schema_profile": spec.schema_profile.value,
     }
+    if spec.capabilities:
+        meta["capabilities"] = list(spec.capabilities.keys())
+    agent["_meta"] = meta
+    if spec.capabilities:
+        from forge_agent.agent_spec.capabilities import merge_capabilities_into_config
+
+        merge_capabilities_into_config(agent["config"], spec.capabilities, spec.agent_id)
     return agent
 
 

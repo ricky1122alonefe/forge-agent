@@ -14,6 +14,7 @@
 
     <div class="mb-4 flex gap-2">
         <button type="button" id="tabNl" class="tab-btn px-3 py-1.5 rounded text-sm bg-indigo-600 text-white">自然语言</button>
+        <button type="button" id="tabCompose" class="tab-btn px-3 py-1.5 rounded text-sm bg-white border border-gray-300 text-gray-700">编队</button>
         <button type="button" id="tabType" class="tab-btn px-3 py-1.5 rounded text-sm bg-white border border-gray-300 text-gray-700">从类型</button>
     </div>
 
@@ -45,6 +46,25 @@
             </label>
         </div>
 
+        <div id="composePanel" class="hidden space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">编队需求（多 Agent 自动连线）</label>
+                <textarea id="composeRequirement" rows="4" class="block w-full border border-gray-300 rounded-md p-3 text-sm"
+                    placeholder="例如：抓微博和小红书 labubu 热度，再汇总成一份报告"></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">关键词（可选）</label>
+                    <input id="composeKeyword" type="text" class="block w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="labubu">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Pipeline ID（可选）</label>
+                    <input id="composePipelineId" type="text" class="block w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="自动生成">
+                </div>
+            </div>
+            <p class="text-xs text-gray-500">规则拆解：多平台 → 多个 Fetcher + Synthesizer，sequential 注入 reports；一键 apply agents + pipeline。</p>
+        </div>
+
         <div id="typePanel" class="hidden space-y-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Agent 类型</label>
@@ -62,9 +82,17 @@
         </label>
         <div class="flex gap-3">
             <button type="button" id="previewBtn" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-50">预览 AgentSpec</button>
+            <button type="button" id="composePreviewBtn" class="hidden bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-50">预览编队</button>
             <button type="button" id="applyBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700">保存 Agent</button>
+            <button type="button" id="composeApplyBtn" class="hidden bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700">保存编队</button>
         </div>
     </form>
+
+    <div id="composePreviewBox" class="hidden bg-white p-6 rounded-lg shadow border border-gray-100 mb-6">
+        <h3 class="font-bold text-sm mb-3">编队预览</h3>
+        <p class="text-xs text-gray-600 mb-2">Pipeline：<span id="composePipelineLabel" class="font-medium text-gray-900">-</span> · 模式：<span id="composeModeLabel">-</span></p>
+        <pre id="composeJson" class="bg-gray-50 border border-gray-100 p-3 text-xs overflow-auto rounded-md max-h-64"></pre>
+    </div>
 
     <div id="previewBox" class="hidden bg-white p-6 rounded-lg shadow border border-gray-100 mb-6">
         <h3 class="font-bold text-sm mb-3">AgentSpec 预览</h3>
@@ -95,16 +123,30 @@ const AGENT_TYPES = {{ types_json | safe }};
 let lastSpec = null;
 let mode = 'nl';
 
+let lastCompose = null;
+
 function setMode(next) {
     mode = next;
     document.getElementById('nlPanel').classList.toggle('hidden', mode !== 'nl');
+    document.getElementById('composePanel').classList.toggle('hidden', mode !== 'compose');
     document.getElementById('typePanel').classList.toggle('hidden', mode !== 'type');
-    document.getElementById('examplesBox').classList.toggle('hidden', mode !== 'nl');
-    document.getElementById('modeHint').textContent = mode === 'nl' ? '用自然语言描述 Agent 能力' : '从已注册 Agent 类型实例化（含 mock_cases）';
+    document.getElementById('examplesBox').classList.toggle('hidden', mode !== 'nl' && mode !== 'compose');
+    document.getElementById('previewBtn').classList.toggle('hidden', mode === 'compose');
+    document.getElementById('applyBtn').classList.toggle('hidden', mode === 'compose');
+    document.getElementById('composePreviewBtn').classList.toggle('hidden', mode !== 'compose');
+    document.getElementById('composeApplyBtn').classList.toggle('hidden', mode !== 'compose');
+    const hints = {
+        nl: '用自然语言描述 Agent 能力',
+        compose: '一句话拆解多 Agent 编队，自动 sequential 连线 + Pipeline',
+        type: '从已注册 Agent 类型实例化（含 mock_cases）',
+    };
+    document.getElementById('modeHint').textContent = hints[mode] || hints.nl;
     document.getElementById('tabNl').className = 'tab-btn px-3 py-1.5 rounded text-sm ' + (mode === 'nl' ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300 text-gray-700');
+    document.getElementById('tabCompose').className = 'tab-btn px-3 py-1.5 rounded text-sm ' + (mode === 'compose' ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300 text-gray-700');
     document.getElementById('tabType').className = 'tab-btn px-3 py-1.5 rounded text-sm ' + (mode === 'type' ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300 text-gray-700');
 }
 document.getElementById('tabNl').addEventListener('click', () => setMode('nl'));
+document.getElementById('tabCompose').addEventListener('click', () => setMode('compose'));
 document.getElementById('tabType').addEventListener('click', () => setMode('type'));
 
 function renderTypeParams(typeDef) {
@@ -147,6 +189,27 @@ function buildNlPayload() {
         agent_id: document.getElementById('agentId').value.trim() || null,
         use_llm: document.getElementById('useLlm').checked,
     };
+}
+
+function buildComposePayload(apply) {
+    const requirement = document.getElementById('composeRequirement').value.trim();
+    if (!requirement) throw new Error('请填写编队需求');
+    return {
+        requirement,
+        keyword: document.getElementById('composeKeyword').value.trim() || null,
+        pipeline_id: document.getElementById('composePipelineId').value.trim() || null,
+        apply,
+        overwrite: document.getElementById('overwriteCheck').checked,
+        run_smoke: true,
+    };
+}
+
+function renderComposePreview(plan) {
+    lastCompose = plan;
+    document.getElementById('composePreviewBox').classList.remove('hidden');
+    document.getElementById('composePipelineLabel').textContent = plan.pipeline?.pipeline_id || '-';
+    document.getElementById('composeModeLabel').textContent = plan.pipeline?.mode || '-';
+    document.getElementById('composeJson').textContent = JSON.stringify(plan, null, 2);
 }
 
 function buildTypePayload(apply) {
@@ -197,9 +260,37 @@ function renderPreview(spec, smoke) {
 
 document.querySelectorAll('.example-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        setMode('nl');
-        document.getElementById('requirement').value = btn.dataset.text;
+        if (mode === 'compose' || btn.dataset.text.includes('汇总') || btn.dataset.text.includes('微博')) {
+            setMode('compose');
+            document.getElementById('composeRequirement').value = btn.dataset.text.includes('汇总')
+                ? '抓微博和小红书 labubu 热度，再汇总成一份报告'
+                : btn.dataset.text;
+        } else {
+            setMode('nl');
+            document.getElementById('requirement').value = btn.dataset.text;
+        }
     });
+});
+
+document.getElementById('composePreviewBtn').addEventListener('click', async () => {
+    try {
+        const plan = await apiPost('/agent-spec/compose', buildComposePayload(false));
+        renderComposePreview(plan);
+        showToast('编队计划已生成', 'success');
+    } catch (err) {
+        showToast('预览失败: ' + err.message, 'error');
+    }
+});
+
+document.getElementById('composeApplyBtn').addEventListener('click', async () => {
+    try {
+        const data = await apiPost('/agent-spec/compose', buildComposePayload(true));
+        renderComposePreview(data);
+        showToast(`Pipeline ${data.pipeline_id} 已创建`, 'success');
+        setTimeout(() => { window.location.href = data.pipeline_url; }, 800);
+    } catch (err) {
+        showToast('保存失败: ' + err.message, 'error');
+    }
 });
 
 document.getElementById('previewBtn').addEventListener('click', async () => {
