@@ -32,6 +32,7 @@ class AgentTypeRegistry:
 
     def __init__(self, tenant_shared_dir: Path | None = None) -> None:
         self._types: dict[str, dict[str, Any]] = {}
+        self._tenant_type_ids: set[str] = set()
         self._tenant_shared_dir = tenant_shared_dir
         self._load_builtin()
         self._load_tenant_types()
@@ -62,7 +63,19 @@ class AgentTypeRegistry:
             if not agent_type or "type_id" not in agent_type:
                 continue
             # Tenant types override built-in types with the same type_id.
-            self._types[agent_type["type_id"]] = agent_type
+            type_id = agent_type["type_id"]
+            self._types[type_id] = agent_type
+            self._tenant_type_ids.add(type_id)
+
+    def list_with_source(self) -> list[dict[str, Any]]:
+        """Return all types annotated with source=builtin|tenant."""
+        return [
+            {
+                **type_def,
+                "source": "tenant" if type_def["type_id"] in self._tenant_type_ids else "builtin",
+            }
+            for type_def in self.list()
+        ]
 
     def list(self) -> list[dict[str, Any]]:
         """Return all registered agent type definitions."""

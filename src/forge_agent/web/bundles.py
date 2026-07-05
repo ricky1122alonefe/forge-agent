@@ -24,6 +24,7 @@ def export_agent_bundle(project_root: Path, agent_id: str) -> dict[str, Any]:
     agent = get_agent(project_root, agent_id)
     if agent is None:
         raise ValueError(f"Agent {agent_id!r} not found")
+    meta = agent.get("_meta") if isinstance(agent.get("_meta"), dict) else {}
     return {
         "kind": BUNDLE_KIND,
         "version": BUNDLE_VERSION,
@@ -33,6 +34,9 @@ def export_agent_bundle(project_root: Path, agent_id: str) -> dict[str, Any]:
         "agents": [agent],
         "pipeline": None,
         "mock_cases_count": len(agent.get("mock_cases") or []),
+        "agent_spec_version": meta.get("spec_version"),
+        "agent_revision": meta.get("revision"),
+        "generated_at": meta.get("generated_at"),
     }
 
 

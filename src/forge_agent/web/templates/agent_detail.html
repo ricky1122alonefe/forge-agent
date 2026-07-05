@@ -19,10 +19,21 @@
         </div>
         <p class="text-xs text-gray-600">当前：<span class="font-medium">{{ maturity.label }}</span> — {{ maturity.hint }}</p>
         <p class="text-xs text-indigo-700 bg-indigo-50 rounded px-2 py-1">下一步：{{ maturity.next_step }}</p>
-        <div>
+        <div class="flex flex-wrap gap-2">
             <button type="button" id="smokeBtn" class="text-xs border border-gray-300 rounded px-3 py-1 hover:bg-gray-50">运行 Mock Smoke</button>
             <span id="smokeStatus" class="text-xs text-gray-500 ml-2"></span>
         </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-3 mb-6">
+        <h3 class="font-bold text-sm text-gray-700">试跑 Agent（无需 Pipeline）</h3>
+        <p class="text-xs text-gray-500">直接运行此 Agent，默认 payload 来自 mock_cases。Mock 模式下不消耗 API Key。</p>
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Payload (JSON)</label>
+            <textarea id="runPayload" rows="4" class="block w-full border border-gray-300 rounded-md p-2 text-xs font-mono">{{ run_defaults_json }}</textarea>
+        </div>
+        <button type="button" id="runBtn" class="text-xs bg-indigo-600 text-white rounded px-3 py-1.5 hover:bg-indigo-700">试跑</button>
+        <pre id="runResult" class="hidden text-xs bg-gray-50 border border-gray-100 rounded p-3 overflow-auto max-h-48"></pre>
     </div>
 
     <form id="quickForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4 mb-6">
@@ -73,7 +84,9 @@
         </div>
     </form>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
 document.getElementById('smokeBtn').addEventListener('click', async () => {
     const status = document.getElementById('smokeStatus');
@@ -86,6 +99,22 @@ document.getElementById('smokeBtn').addEventListener('click', async () => {
     } catch (err) {
         status.textContent = err.message;
         status.className = 'text-xs ml-2 text-red-600';
+    }
+});
+
+document.getElementById('runBtn').addEventListener('click', async () => {
+    const box = document.getElementById('runResult');
+    box.classList.remove('hidden');
+    box.textContent = '运行中…';
+    try {
+        const payload = JSON.parse(document.getElementById('runPayload').value || '{}');
+        const data = await apiPost('/agents/{{ agent_id }}/run', { payload });
+        box.textContent = JSON.stringify(data.report?.raw?.decision || data.report || data, null, 2);
+        showToast('试跑完成: ' + (data.verdict || 'ok'), 'success');
+        if (data.maturity && !data.mock_mode) setTimeout(() => location.reload(), 600);
+    } catch (err) {
+        box.textContent = err.message;
+        showToast('试跑失败: ' + err.message, 'error');
     }
 });
 

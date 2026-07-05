@@ -57,6 +57,32 @@ class TestAgentTypeRegistry:
 
         assert registry.get("scraper")["name"] == "Custom Scraper"
 
+    def test_list_with_source(self, tmp_path: Path) -> None:
+        shared_dir = tmp_path / "agent_types"
+        shared_dir.mkdir(parents=True)
+        (shared_dir / "custom.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "agent_type": {
+                        "type_id": "custom",
+                        "name": "C",
+                        "description": "d",
+                        "domain": "g",
+                        "template": "prompt_agent",
+                        "params": [],
+                        "prompt_template": "x",
+                        "output_schema": {},
+                        "output_mapping": {},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        registry = AgentTypeRegistry(tenant_shared_dir=shared_dir)
+        by_id = {t["type_id"]: t for t in registry.list_with_source()}
+        assert by_id["custom"]["source"] == "tenant"
+        assert by_id["scraper"]["source"] == "builtin"
+
     def test_schema_file_is_ignored(self) -> None:
         registry = AgentTypeRegistry()
 

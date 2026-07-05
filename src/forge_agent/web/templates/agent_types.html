@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Agent 类型 · forge-agent{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Agent 类型</h2>
+        <a href="{{ pu('/agents/generate') }}" class="text-sm text-indigo-600 hover:text-indigo-800">从类型生成 Agent →</a>
+    </div>
+
+    <div class="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+        内置类型全局可用；租户类型保存在 <code class="text-xs bg-gray-100 px-1 rounded">shared/agent_types/</code>，可覆盖同名内置定义。
+    </div>
+
+    <div class="bg-white rounded-lg shadow border border-gray-100 mb-6 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-gray-50 text-left text-xs text-gray-500 uppercase">
+                <tr>
+                    <th class="px-4 py-2">类型</th>
+                    <th class="px-4 py-2">模板</th>
+                    <th class="px-4 py-2">来源</th>
+                    <th class="px-4 py-2"></th>
+                </tr>
+            </thead>
+            <tbody id="typeTable">
+                {% for t in types %}
+                <tr class="border-t border-gray-50" data-type-id="{{ t.type_id }}">
+                    <td class="px-4 py-3">
+                        <div class="font-medium">{{ t.name }}</div>
+                        <code class="text-xs text-gray-500">{{ t.type_id }}</code>
+                    </td>
+                    <td class="px-4 py-3 text-gray-600">{{ t.template }}</td>
+                    <td class="px-4 py-3">
+                        <span class="text-xs px-2 py-0.5 rounded {% if t.source == 'tenant' %}bg-indigo-100 text-indigo-800{% else %}bg-gray-100 text-gray-600{% endif %}">{{ t.source }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                        {% if t.source == 'tenant' %}
+                        <button type="button" class="delete-type text-xs text-red-600 hover:underline" data-id="{{ t.type_id }}">删除</button>
+                        {% else %}
+                        <button type="button" class="clone-type text-xs text-indigo-600 hover:underline" data-id="{{ t.type_id }}">克隆</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+        <h3 class="font-bold text-sm mb-4">保存租户类型</h3>
+        <form id="saveTypeForm" class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">type_id</label>
+                    <input id="typeId" required pattern="[a-z][a-z0-9_]*" class="w-full border border-gray-300 rounded p-2 text-sm" placeholder="my_analyst">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">名称</label>
+                    <input id="typeName" required class="w-full border border-gray-300 rounded p-2 text-sm">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">描述</label>
+                <input id="typeDesc" class="w-full border border-gray-300 rounded p-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">YAML（agent_type 字段内容）</label>
+                <textarea id="typeYaml" rows="12" class="w-full border border-gray-300 rounded p-2 text-xs font-mono"></textarea>
+            </div>
+            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700">保存类型</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ALL_TYPES = {{ types_json | safe }};
+
+function findType(typeId) {
+    return ALL_TYPES.find(t => t.type_id === typeId);
+}
+
+document.querySelectorAll('.clone-type').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const src = findType(btn.dataset.id);
+        if (!src) return;
+        const copy = JSON.parse(JSON.stringify(src));
+        delete copy.source;
+        const newId = copy.type_id + '_custom';
+        copy.type_id = newId;
+        copy.name = copy.name + ' (租户)';
+        document.getElementById('typeId').value = newId;
+        document.getElementById('typeName').value = copy.name;
+        document.getElementById('typeDesc').value = copy.description || '';
+        document.getElementById('typeYaml').value = JSON.stringify(copy, null, 2);
+    });
+});
+
+document.querySelectorAll('.delete-type').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (!confirm('删除租户类型 ' + btn.dataset.id + '？')) return;
+        try {
+            await apiDelete('/agent-types/' + btn.dataset.id);
+            showToast('已删除', 'success');
+            location.reload();
+        } catch (err) {
+            showToast('删除失败: ' + err.message, 'error');
+        }
+    });
+});
+
+document.getElementById('saveTypeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+        const agent_type = JSON.parse(document.getElementById('typeYaml').value);
+        agent_type.type_id = document.getElementById('typeId').value.trim();
+        agent_type.name = document.getElementById('typeName').value.trim();
+        agent_type.description = document.getElementById('typeDesc').value.trim() || agent_type.description || '';
+        await apiPost('/agent-types', { agent_type });
+        showToast('类型已保存', 'success');
+        setTimeout(() => location.reload(), 500);
+    } catch (err) {
+        showToast('保存失败: ' + err.message, 'error');
+    }
+});
+</script>
+{% endblock %}

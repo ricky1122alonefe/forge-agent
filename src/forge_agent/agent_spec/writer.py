@@ -8,6 +8,12 @@ from typing import Any
 import yaml
 
 from forge_agent.agent_spec.models import AgentSpec
+from forge_agent.agent_spec.versioning import (
+    AGENT_ASSET_SPEC_VERSION,
+    next_revision,
+    stamp_agent_meta,
+    validate_agent_asset,
+)
 
 
 def spec_to_agent_dict(spec: AgentSpec) -> dict[str, Any]:
@@ -57,6 +63,34 @@ def validate_spec(spec: AgentSpec) -> list[str]:
     return errors
 
 
+def _stamp_dict_for_write(
+    project_root: Path,
+    spec: AgentSpec,
+    *,
+    path: Path,
+    overwrite: bool,
+    smoke_verified: bool = False,
+) -> dict[str, Any]:
+    """Build agent dict with version metadata for YAML write."""
+    from forge_agent.web.data import get_agent
+
+    existing = get_agent(project_root, spec.agent_id) if path.exists() else None
+    revision = next_revision(existing) if existing else 1
+    agent_dict = spec_to_agent_dict(spec)
+    agent_dict["_meta"] = stamp_agent_meta(
+        agent_dict["_meta"],
+        revision=revision,
+        reset_verification=bool(existing and overwrite),
+    )
+    if smoke_verified:
+        agent_dict["_meta"]["smoke_verified"] = True
+        agent_dict["_meta"]["maturity"] = "verified"
+    asset_errors = validate_agent_asset(agent_dict)
+    if asset_errors:
+        raise ValueError("; ".join(asset_errors))
+    return agent_dict
+
+
 def re_valid_id(agent_id: str) -> bool:
     import re
 
@@ -80,9 +114,9 @@ def write_agent_yaml(
     if path.exists() and not overwrite:
         raise ValueError(f"Agent {spec.agent_id!r} already exists")
 
-    doc = {"agents": [spec_to_agent_dict(spec)]}
+    agent_dict = _stamp_dict_for_write(project_root, spec, path=path, overwrite=overwrite)
     path.write_text(
-        yaml.safe_dump(doc, sort_keys=False, allow_unicode=True),
+        yaml.safe_dump({"agents": [agent_dict]}, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
     )
     return path
@@ -106,10 +140,14 @@ def apply_spec(
     if path.exists() and not overwrite:
         raise ValueError(f"Agent {spec.agent_id!r} already exists")
 
-    agent_dict = spec_to_agent_dict(spec)
-    if smoke_verified:
-        agent_dict["_meta"]["smoke_verified"] = True
-        agent_dict["_meta"]["maturity"] = "verified"
+    agent_dict = _stamp_dict_for_write(
+        project_root,
+        spec,
+        path=path,
+        overwrite=overwrite,
+        smoke_verified=smoke_verified,
+    )
+    revision = int(agent_dict["_meta"]["revision"])
 
     path.write_text(
         yaml.safe_dump({"agents": [agent_dict]}, sort_keys=False, allow_unicode=True),
@@ -123,19 +161,42 @@ def apply_spec(
         "planner": spec.planner,
         "mock_cases": len(spec.mock_cases),
         "smoke_verified": smoke_verified,
+        "spec_version": AGENT_ASSET_SPEC_VERSION,
+        "revision": revision,
     }
 
 
 def mark_smoke_verified(project_root: Path, agent_id: str) -> None:
     """Persist smoke_verified flag on an existing agent YAML."""
+    _update_agent_meta(project_root, agent_id, smoke_verified=True, maturity="verified")
+
+
+def mark_real_run_verified(project_root: Path, agent_id: str) -> None:
+    """Persist real_run_verified after a successful non-mock agent run (A7.1)."""
+    from forge_agent.web.data import get_agent
+
+    agent = get_agent(project_root, agent_id)
+    if agent is None:
+        return
+    config = agent.get("config", {}) if isinstance(agent.get("config"), dict) else {}
+    has_tools = bool(config.get("tools"))
+    maturity = "connected" if has_tools else "production"
+    _update_agent_meta(
+        project_root,
+        agent_id,
+        real_run_verified=True,
+        maturity=maturity,
+    )
+
+
+def _update_agent_meta(project_root: Path, agent_id: str, **meta_updates: Any) -> None:
     from forge_agent.web.data import get_agent
 
     agent = get_agent(project_root, agent_id)
     if agent is None:
         return
     meta = dict(agent.get("_meta") or {})
-    meta["smoke_verified"] = True
-    meta["maturity"] = "verified"
+    meta.update(meta_updates)
     agent["_meta"] = meta
     path = project_root / "agents" / f"{agent_id}.yaml"
     path.write_text(

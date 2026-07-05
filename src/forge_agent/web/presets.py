@@ -9,6 +9,7 @@ AGENT_TEMPLATE_LABELS: dict[str, str] = {
     "scraper": "数据抓取",
     "search": "搜索分析",
     "analyzer": "数据分析",
+    "reasoner": "结构化推理",
     "synthesizer": "报告汇总",
     "monitor": "指标监控",
     "generator": "内容生成",

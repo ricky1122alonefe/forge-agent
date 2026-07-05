@@ -11,8 +11,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from forge_agent.agent_spec.maturity import compute_maturity
-from forge_agent.builtin import AgentTypeRegistry
+from forge_agent.project.agent_runner import default_run_payload
 from forge_agent.project.state_store import StateStore
+from forge_agent.web.agent_types import registry_for
 from forge_agent.web.bundles import build_market_catalog
 from forge_agent.web.context import ProjectContext, base_context, get_project_context
 from forge_agent.web.data import (
@@ -78,7 +79,7 @@ async def index(request: Request, ctx: Ctx) -> HTMLResponse:
 async def create_agent_page(request: Request, ctx: Ctx) -> HTMLResponse:
     """Create agent form."""
     templates = _get_templates()
-    registry = AgentTypeRegistry(tenant_shared_dir=ctx.tenant.get_shared_path())
+    registry = registry_for(ctx)
     types = registry.list()
     context = base_context(request, ctx)
     context.update(
@@ -111,9 +112,32 @@ async def generate_agent_page(request: Request, ctx: Ctx) -> HTMLResponse:
                 "润色并改写营销报告",
                 "对用户评论做情感分类",
             ],
+            "agent_types": [
+                t for t in registry_for(ctx).list_with_source() if t.get("type_id") != "chief"
+            ],
+            "types_json": json.dumps(
+                [t for t in registry_for(ctx).list_with_source() if t.get("type_id") != "chief"],
+                ensure_ascii=False,
+            ),
         }
     )
     return templates.TemplateResponse(request=request, name="generate_agent.html", context=context)
+
+
+@router.get("/agent-types", response_class=HTMLResponse)
+async def agent_types_page(request: Request, ctx: Ctx) -> HTMLResponse:
+    """Tenant agent type management (AGENT_PLAN A5.4)."""
+    templates = _get_templates()
+    types = registry_for(ctx).list_with_source()
+    context = base_context(request, ctx)
+    context.update(
+        {
+            "types": types,
+            "types_json": json.dumps(types, ensure_ascii=False),
+            "clone_sources": [t for t in types if t.get("type_id") != "chief"],
+        }
+    )
+    return templates.TemplateResponse(request=request, name="agent_types.html", context=context)
 
 
 @router.get("/agents/{agent_id}", response_class=HTMLResponse)
@@ -124,6 +148,7 @@ async def agent_detail_page(agent_id: str, request: Request, ctx: Ctx) -> HTMLRe
     if not agent_file.exists():
         raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
     agent = get_agent(ctx.project_root, agent_id) or {}
+    run_defaults = default_run_payload(agent)
     context = base_context(request, ctx)
     context.update(
         {
@@ -131,6 +156,7 @@ async def agent_detail_page(agent_id: str, request: Request, ctx: Ctx) -> HTMLRe
             "yaml": agent_file.read_text(encoding="utf-8"),
             "agent_config": get_agent_config(ctx.project_root, agent_id),
             "maturity": compute_maturity(agent),
+            "run_defaults_json": json.dumps(run_defaults, ensure_ascii=False),
         }
     )
     return templates.TemplateResponse(request=request, name="agent_detail.html", context=context)

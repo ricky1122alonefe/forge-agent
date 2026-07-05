@@ -193,8 +193,10 @@ AgentSpecGenerator ──► AgentSpec (validate)
                                 ▼
                           AgentFactory.load
                                 │
-                                ▼
-                          TeamRunner.run
+                    ┌───────────┴───────────┐
+                    ▼                       ▼
+            run_single_agent          TeamRunner.run
+            (Agent 试跑 A6)           (Pipeline 组装)
 ```
 
 **代码位置**：
@@ -217,8 +219,57 @@ AgentSpecGenerator ──► AgentSpec (validate)
 | Phase 2 五原语 + 矩阵 | 5/5 | ✅ |
 | Phase 3 产品化 | 4/4 | ✅ |
 | Phase 4 类型 + LLM | 4/4 | ✅ |
+| Phase 5 租户类型 + 统一路径 | 4/4 | ✅ |
+| Phase 6 Agent 试跑 | 3/3 | ✅ |
+| Phase 7 成熟度闭环 | 4/4 | ✅ |
+| Phase 8 Agent 资产 version | 4/4 | ✅ |
 
-**当前 focus**：Phase 4 已完成 — Agent 类型扩展、LLM planner、覆盖率报告、architect UI
+**当前 focus**：Phase 8 已完成 — Agent YAML 带 spec_version/revision，Bundle 导出携带版本，mock_cases 质量提升
+
+**执行纪律**：新 work 必须先写入本文档 Phase 表再开发；禁止 Pipeline / 市场 / CLI 支线。
+
+---
+
+### Phase 8 — Agent 资产 version + Generator 质量
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A8.1 | `_meta.spec_version` / `revision` / `generated_at` on apply | overwrite 递增 revision |
+| A8.2 | profile-aware `expect_keys` in mock_cases | 分析类含 verdict/confidence/risk/evidence/recommended_action |
+| A8.3 | `validate_agent_asset()` + `GET /api/agents/{id}/validate` | 缺 version 报错 |
+| A8.4 | Bundle export 携带 agent_revision | 单元测试 + 矩阵仍 20/20 |
+
+---
+
+### Phase 7 — 成熟度阶梯闭环（计划 §二 Mock 阶梯）
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A7.1 | `mark_real_run_verified` 写 `_meta` | 真实试跑后持久化 |
+| A7.2 | 非 Mock 试跑前 `ensure_llm_ready` | 无 Key 明确报错 |
+| A7.3 | `compute_maturity` 需 `real_run_verified` 才进 connected/production | 单元测试 |
+| A7.4 | 试跑 API 返回 `maturity`；详情页刷新阶梯 | E2E |
+
+---
+
+### Phase 6 — Agent 一等公民：单独运行
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A6.1 | `run_single_agent` + `POST /agents/{id}/run` | Mock 下返回 report |
+| A6.2 | 默认 payload 来自 mock_cases | `/run-defaults` |
+| A6.3 | Agent 详情页「试跑」UI | 无需 Pipeline 可看结果 |
+
+---
+
+### Phase 5 — 租户类型与统一生成路径
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A5.1 | 修复 `shared/agent_types/` 路径 + Registry source | 租户类型可加载 |
+| A5.2 | 租户 agent_type CRUD API | POST/DELETE `/api/agent-types` |
+| A5.3 | `/agent-spec/from-type` + create/preset 走 AgentSpec | 含 mock_cases smoke |
+| A5.4 | Web 类型管理页 + 生成页「从类型」Tab | `/agent-types` + E2E |
 
 ---
 

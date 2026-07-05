@@ -6,36 +6,59 @@
 <div class="max-w-3xl mx-auto">
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold">生成 Agent</h2>
-        <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
+        <div class="flex gap-3 text-sm">
+            <a href="{{ pu('/agent-types') }}" class="text-gray-600 hover:text-indigo-600">管理类型</a>
+            <a href="{{ pu('/') }}" class="text-gray-600 hover:text-indigo-600">← 工作台</a>
+        </div>
+    </div>
+
+    <div class="mb-4 flex gap-2">
+        <button type="button" id="tabNl" class="tab-btn px-3 py-1.5 rounded text-sm bg-indigo-600 text-white">自然语言</button>
+        <button type="button" id="tabType" class="tab-btn px-3 py-1.5 rounded text-sm bg-white border border-gray-300 text-gray-700">从类型</button>
     </div>
 
     <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-        <p class="font-medium">用自然语言描述 Agent 能力</p>
-        <p class="text-xs text-indigo-800 mt-1">基于 AgentSpec 内核：自动选原语、工具、Schema，Mock smoke 通过后可保存。无需 API Key。</p>
+        <p class="font-medium" id="modeHint">用自然语言描述 Agent 能力</p>
+        <p class="text-xs text-indigo-800 mt-1">统一 AgentSpec 内核：NL / 类型 / preset 均带 mock_cases smoke。</p>
         <p id="coverageBanner" class="text-xs text-indigo-700 mt-2 hidden"></p>
     </div>
 
     <form id="genForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4 mb-6">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">需求描述</label>
-            <textarea id="requirement" rows="4" required class="block w-full border border-gray-300 rounded-md p-3 text-sm"
-                placeholder="例如：搜索 AI 行业动态并给出趋势判断"></textarea>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div id="nlPanel">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">关键词（可选）</label>
-                <input id="keyword" type="text" class="block w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="自动提取">
+                <label class="block text-sm font-medium text-gray-700 mb-1">需求描述</label>
+                <textarea id="requirement" rows="4" class="block w-full border border-gray-300 rounded-md p-3 text-sm"
+                    placeholder="例如：搜索 AI 行业动态并给出趋势判断"></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">关键词（可选）</label>
+                    <input id="keyword" type="text" class="block w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="自动提取">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Agent ID（可选）</label>
+                    <input id="agentId" type="text" class="block w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="留空自动生成">
+                </div>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-gray-700 mt-4">
+                <input type="checkbox" id="useLlm" class="h-4 w-4"> 使用 LLM 规划
+            </label>
+        </div>
+
+        <div id="typePanel" class="hidden space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Agent 类型</label>
+                <select id="typeSelect" class="block w-full border border-gray-300 rounded-md p-2 text-sm"></select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Agent ID（可选）</label>
-                <input id="agentId" type="text" class="block w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="留空自动生成">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Agent ID</label>
+                <input id="typeAgentId" type="text" required class="block w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="my_agent">
             </div>
+            <div id="typeParams" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
         </div>
+
         <label class="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" id="overwriteCheck" class="h-4 w-4"> 覆盖已存在的 Agent
-        </label>
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" id="useLlm" class="h-4 w-4"> 使用 LLM 规划（需配置 API Key，失败时降级规则）
         </label>
         <div class="flex gap-3">
             <button type="button" id="previewBtn" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-50">预览 AgentSpec</button>
@@ -55,7 +78,7 @@
         <p id="smokeResult" class="hidden mt-3 text-xs rounded p-2"></p>
     </div>
 
-    <div class="bg-white p-4 rounded-lg shadow border border-gray-100">
+    <div id="examplesBox" class="bg-white p-4 rounded-lg shadow border border-gray-100">
         <h3 class="text-sm font-bold text-gray-700 mb-2">示例需求</h3>
         <div class="flex flex-wrap gap-2">
             {% for ex in examples %}
@@ -68,18 +91,79 @@
 
 {% block extra_js %}
 <script>
+const AGENT_TYPES = {{ types_json | safe }};
 let lastSpec = null;
+let mode = 'nl';
 
-function buildPayload() {
+function setMode(next) {
+    mode = next;
+    document.getElementById('nlPanel').classList.toggle('hidden', mode !== 'nl');
+    document.getElementById('typePanel').classList.toggle('hidden', mode !== 'type');
+    document.getElementById('examplesBox').classList.toggle('hidden', mode !== 'nl');
+    document.getElementById('modeHint').textContent = mode === 'nl' ? '用自然语言描述 Agent 能力' : '从已注册 Agent 类型实例化（含 mock_cases）';
+    document.getElementById('tabNl').className = 'tab-btn px-3 py-1.5 rounded text-sm ' + (mode === 'nl' ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300 text-gray-700');
+    document.getElementById('tabType').className = 'tab-btn px-3 py-1.5 rounded text-sm ' + (mode === 'type' ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300 text-gray-700');
+}
+document.getElementById('tabNl').addEventListener('click', () => setMode('nl'));
+document.getElementById('tabType').addEventListener('click', () => setMode('type'));
+
+function renderTypeParams(typeDef) {
+    const box = document.getElementById('typeParams');
+    box.innerHTML = '';
+    (typeDef.params || []).forEach(p => {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `<label class="block text-xs font-medium text-gray-600 mb-1">${p.name}${p.required ? ' *' : ''}</label>
+            <input data-param="${p.name}" type="text" class="w-full border border-gray-300 rounded p-2 text-sm" value="${p.default ?? ''}">`;
+        box.appendChild(wrap);
+    });
+}
+
+function initTypeSelect() {
+    const sel = document.getElementById('typeSelect');
+    sel.innerHTML = '';
+    AGENT_TYPES.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.type_id;
+        opt.textContent = `${t.name} (${t.type_id})`;
+        sel.appendChild(opt);
+    });
+    if (AGENT_TYPES.length) {
+        renderTypeParams(AGENT_TYPES[0]);
+        document.getElementById('typeAgentId').value = AGENT_TYPES[0].type_id + '_1';
+    }
+    sel.addEventListener('change', () => {
+        const t = AGENT_TYPES.find(x => x.type_id === sel.value);
+        if (t) renderTypeParams(t);
+    });
+}
+initTypeSelect();
+
+function buildNlPayload() {
     const requirement = document.getElementById('requirement').value.trim();
     if (!requirement) throw new Error('请填写需求描述');
-    const keyword = document.getElementById('keyword').value.trim();
-    const agent_id = document.getElementById('agentId').value.trim();
     return {
         requirement,
-        keyword: keyword || null,
-        agent_id: agent_id || null,
+        keyword: document.getElementById('keyword').value.trim() || null,
+        agent_id: document.getElementById('agentId').value.trim() || null,
         use_llm: document.getElementById('useLlm').checked,
+    };
+}
+
+function buildTypePayload(apply) {
+    const agent_type = document.getElementById('typeSelect').value;
+    const agent_id = document.getElementById('typeAgentId').value.trim();
+    if (!agent_id) throw new Error('请填写 Agent ID');
+    const params = {};
+    document.querySelectorAll('#typeParams [data-param]').forEach(el => {
+        params[el.dataset.param] = el.value;
+    });
+    return {
+        agent_type,
+        agent_id,
+        params,
+        overwrite: document.getElementById('overwriteCheck').checked,
+        run_smoke: true,
+        apply,
     };
 }
 
@@ -105,7 +189,7 @@ function renderPreview(spec, smoke) {
     if (smoke) {
         smokeBox.classList.remove('hidden');
         smokeBox.className = 'mt-3 text-xs rounded p-2 ' + (smoke.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800');
-        smokeBox.textContent = smoke.success ? `Smoke 通过 (${smoke.case})` : `Smoke 失败: ${(smoke.missing_keys || []).join(', ')}`;
+        smokeBox.textContent = smoke.success ? `Smoke 通过 (${smoke.case || 'default'})` : `Smoke 失败: ${(smoke.missing_keys || []).join(', ')}`;
     } else {
         smokeBox.classList.add('hidden');
     }
@@ -113,14 +197,20 @@ function renderPreview(spec, smoke) {
 
 document.querySelectorAll('.example-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+        setMode('nl');
         document.getElementById('requirement').value = btn.dataset.text;
     });
 });
 
 document.getElementById('previewBtn').addEventListener('click', async () => {
     try {
-        const spec = await apiPost('/agent-spec/plan', buildPayload());
-        renderPreview(spec);
+        if (mode === 'nl') {
+            const spec = await apiPost('/agent-spec/plan', buildNlPayload());
+            renderPreview(spec);
+        } else {
+            const data = await apiPost('/agent-spec/from-type', buildTypePayload(false));
+            renderPreview(data.spec);
+        }
         showToast('AgentSpec 已生成', 'success');
     } catch (err) {
         showToast('预览失败: ' + err.message, 'error');
@@ -129,14 +219,21 @@ document.getElementById('previewBtn').addEventListener('click', async () => {
 
 document.getElementById('applyBtn').addEventListener('click', async () => {
     try {
-        const payload = buildPayload();
-        payload.overwrite = document.getElementById('overwriteCheck').checked;
-        payload.run_smoke = true;
-        if (lastSpec) payload.spec = lastSpec;
-        const data = await apiPost('/agent-spec/apply', payload);
-        renderPreview(lastSpec || payload.spec, data.smoke);
-        showToast(`Agent ${data.agent_id} 已保存`, 'success');
-        setTimeout(() => { window.location.href = data.agent_url; }, 800);
+        if (mode === 'nl') {
+            const payload = buildNlPayload();
+            payload.overwrite = document.getElementById('overwriteCheck').checked;
+            payload.run_smoke = true;
+            if (lastSpec) payload.spec = lastSpec;
+            const data = await apiPost('/agent-spec/apply', payload);
+            renderPreview(lastSpec || payload.spec, data.smoke);
+            showToast(`Agent ${data.agent_id} 已保存`, 'success');
+            setTimeout(() => { window.location.href = data.agent_url; }, 800);
+        } else {
+            const data = await apiPost('/agent-spec/from-type', buildTypePayload(true));
+            renderPreview(data.spec || lastSpec, data.smoke);
+            showToast(`Agent ${data.agent_id} 已保存`, 'success');
+            setTimeout(() => { window.location.href = data.agent_url; }, 800);
+        }
     } catch (err) {
         showToast('保存失败: ' + err.message, 'error');
     }

@@ -34,21 +34,30 @@ def compute_maturity(agent: dict[str, Any]) -> dict[str, Any]:
     meta = agent.get("_meta", {}) if isinstance(agent.get("_meta"), dict) else {}
     mock_mode = bool(config.get("mock_mode", True))
     smoke_verified = bool(meta.get("smoke_verified"))
+    real_run_verified = bool(meta.get("real_run_verified"))
     has_tools = bool(config.get("tools"))
     has_mock_cases = bool(agent.get("mock_cases"))
 
-    if not mock_mode and has_tools:
-        stage = "connected"
-        next_step = "在 LLM 设置中配置 API Key，完成一次真实运行"
-    elif not mock_mode:
-        stage = "production"
-        next_step = "Agent 已面向真实 LLM 运行"
+    if mock_mode:
+        if smoke_verified:
+            stage = "verified"
+            next_step = "关闭 Mock 并配置工具/LLM，然后完成一次真实试跑"
+        else:
+            stage = "draft"
+            next_step = "运行 mock smoke 测试或保存时自动验证"
+    elif real_run_verified:
+        if has_tools:
+            stage = "connected"
+            next_step = "Agent 已连接真实工具并完成试跑，可用于正式分析"
+        else:
+            stage = "production"
+            next_step = "Agent 已完成真实 LLM 试跑"
     elif smoke_verified:
         stage = "verified"
-        next_step = "关闭 Mock 并配置工具/LLM 以进入「已连接」"
+        next_step = "Mock 已关：请配置 LLM/工具并点击「试跑」完成真实验证"
     else:
         stage = "draft"
-        next_step = "运行 mock smoke 测试或保存时自动验证"
+        next_step = "先通过 mock smoke，再关闭 Mock 做真实试跑"
 
     stage_index = next(i for i, s in enumerate(STAGES) if s["id"] == stage)
     current = STAGES[stage_index]
@@ -59,6 +68,7 @@ def compute_maturity(agent: dict[str, Any]) -> dict[str, Any]:
         "next_step": next_step,
         "mock_mode": mock_mode,
         "smoke_verified": smoke_verified,
+        "real_run_verified": real_run_verified,
         "has_mock_cases": has_mock_cases,
         "stages": STAGES,
         "stage_index": stage_index,

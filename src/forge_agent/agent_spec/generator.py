@@ -21,6 +21,9 @@ from forge_agent.agent_spec.schema_profiles import (
 )
 from forge_agent.agent_spec.tool_match import match_platforms
 
+ANALYSIS_EXPECT_KEYS = ["verdict", "confidence", "risk", "evidence", "recommended_action"]
+MONITOR_EXPECT_KEYS = ["alert", "severity", "message", "recommended_action"]
+
 SYNTHESIZER_KEYWORDS = ["汇总", "综合", "上游", "多份报告", "synthesize", "combine reports"]
 SEARCH_KEYWORDS = ["搜索", "查询", "search", "look up", "检索", "rss", "feed", "订阅"]
 MONITOR_KEYWORDS = [
@@ -142,17 +145,19 @@ def _default_mock_cases(
     if primitive == AgentPrimitive.FETCHER:
         kw = str(params.get("keyword", "demo"))
         return [
-            MockCase(name="default", input={"keyword": kw}, expect_keys=["verdict", "confidence"])
+            MockCase(name="default", input={"keyword": kw}, expect_keys=list(ANALYSIS_EXPECT_KEYS))
         ]
     if primitive == AgentPrimitive.SEARCHER:
         q = str(params.get("query", params.get("keyword", "demo")))
-        return [MockCase(name="default", input={"query": q}, expect_keys=["verdict", "confidence"])]
+        return [
+            MockCase(name="default", input={"query": q}, expect_keys=list(ANALYSIS_EXPECT_KEYS))
+        ]
     if primitive == AgentPrimitive.SYNTHESIZER:
         return [
             MockCase(
                 name="with_upstream",
                 input={"reports": [{"agent_id": "a1", "verdict": "lean_positive"}]},
-                expect_keys=["verdict", "confidence"],
+                expect_keys=list(ANALYSIS_EXPECT_KEYS),
             )
         ]
     if primitive == AgentPrimitive.MONITOR:
@@ -165,7 +170,7 @@ def _default_mock_cases(
                     "threshold": threshold,
                     "metric_name": params.get("metric_name", "metric"),
                 },
-                expect_keys=["alert", "severity", "message"],
+                expect_keys=list(MONITOR_EXPECT_KEYS),
             )
         ]
     if primitive == AgentPrimitive.GENERATOR:
@@ -178,7 +183,9 @@ def _default_mock_cases(
             )
         ]
     topic = str(params.get("topic", params.get("keyword", "demo")))
-    return [MockCase(name="default", input={"topic": topic}, expect_keys=["verdict", "confidence"])]
+    return [
+        MockCase(name="default", input={"topic": topic}, expect_keys=list(ANALYSIS_EXPECT_KEYS))
+    ]
 
 
 def generate_spec_rule_based(
@@ -269,7 +276,7 @@ def _build_fetcher_spec(req: str, agent_id: str, name: str, keyword: str) -> Age
         },
         mock_cases=[
             MockCase(
-                name="default", input={"keyword": keyword}, expect_keys=["verdict", "confidence"]
+                name="default", input={"keyword": keyword}, expect_keys=list(ANALYSIS_EXPECT_KEYS)
             )
         ],
     )
@@ -305,7 +312,7 @@ def _build_searcher_spec(req: str, agent_id: str, name: str, keyword: str) -> Ag
         },
         mock_cases=[
             MockCase(
-                name="default", input={"query": keyword}, expect_keys=["verdict", "confidence"]
+                name="default", input={"query": keyword}, expect_keys=list(ANALYSIS_EXPECT_KEYS)
             )
         ],
     )
@@ -341,7 +348,7 @@ def _build_synthesizer_spec(req: str, agent_id: str, name: str, focus: str) -> A
                         {"agent_id": "a1", "verdict": "lean_positive", "evidence": ["mock"]}
                     ]
                 },
-                expect_keys=["verdict", "confidence"],
+                expect_keys=list(ANALYSIS_EXPECT_KEYS),
             )
         ],
     )
@@ -372,7 +379,7 @@ def _build_monitor_spec(req: str, agent_id: str, name: str, keyword: str) -> Age
             MockCase(
                 name="default",
                 input={"current_value": 42, "threshold": 100},
-                expect_keys=["alert", "severity", "message"],
+                expect_keys=list(MONITOR_EXPECT_KEYS),
             )
         ],
     )
@@ -430,7 +437,7 @@ def _build_reasoner_spec(
         },
         mock_cases=[
             MockCase(
-                name="default", input={"topic": keyword}, expect_keys=["verdict", "confidence"]
+                name="default", input={"topic": keyword}, expect_keys=list(ANALYSIS_EXPECT_KEYS)
             )
         ],
     )

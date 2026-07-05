@@ -19,9 +19,17 @@ from forge_agent.agent_spec import (
     smoke_run_spec,
 )
 from forge_agent.agent_spec.coverage import compute_scenario_coverage
-from forge_agent.builtin import AgentTypeRegistry
-from forge_agent.project.agent_builder import build_agent_yaml, build_pipeline_yaml
+from forge_agent.agent_spec.from_type import generate_from_agent_type
+from forge_agent.agent_spec.versioning import validate_agent_asset
+from forge_agent.builtin.tenant_types import (
+    delete_tenant_agent_type,
+    load_tenant_agent_type,
+    save_tenant_agent_type,
+)
+from forge_agent.project.agent_builder import build_pipeline_yaml
+from forge_agent.project.agent_runner import default_run_payload, run_single_agent
 from forge_agent.project.launcher import _run_pipeline
+from forge_agent.web.agent_types import registry_for
 from forge_agent.web.architect import apply_plan, generate_plan
 from forge_agent.web.bundles import (
     build_market_catalog,
@@ -54,9 +62,40 @@ Ctx = Annotated[ProjectContext, Depends(get_project_context)]
 
 @router.get("/agent-types")
 async def get_agent_types(ctx: Ctx) -> dict[str, Any]:
-    """List available agent types."""
-    registry = AgentTypeRegistry(tenant_shared_dir=ctx.tenant.get_shared_path())
-    return {"types": registry.list()}
+    """List available agent types (built-in + tenant)."""
+    return {"types": registry_for(ctx).list_with_source()}
+
+
+class SaveTenantAgentTypePayload(BaseModel):
+    agent_type: dict[str, Any]
+
+
+@router.post("/agent-types")
+async def save_tenant_agent_type_api(
+    payload: SaveTenantAgentTypePayload, ctx: Ctx
+) -> dict[str, Any]:
+    """Create or update a tenant-scoped agent type (A5.2)."""
+    try:
+        path = save_tenant_agent_type(ctx.tenant, payload.agent_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    type_id = str(payload.agent_type["type_id"])
+    return {
+        "success": True,
+        "type_id": type_id,
+        "path": str(path),
+        "agent_type": registry_for(ctx).get(type_id),
+        "source": "tenant",
+    }
+
+
+@router.delete("/agent-types/{type_id}")
+async def delete_tenant_agent_type_api(type_id: str, ctx: Ctx) -> dict[str, Any]:
+    """Delete a tenant agent type definition (built-in types cannot be deleted)."""
+    if load_tenant_agent_type(ctx.tenant, type_id) is None:
+        raise HTTPException(status_code=404, detail=f"Tenant agent type {type_id!r} not found")
+    delete_tenant_agent_type(ctx.tenant, type_id)
+    return {"success": True, "type_id": type_id}
 
 
 class CreateAgentPayload(BaseModel):
@@ -73,25 +112,73 @@ def _pipeline_path(project_root: Path, pipeline_id: str) -> Path:
     return project_root / "pipelines" / f"{pipeline_id}.yaml"
 
 
-@router.post("/agents")
-async def create_agent(payload: CreateAgentPayload, ctx: Ctx) -> dict[str, Any]:
-    """Create a new agent YAML file from a selected agent type."""
-    registry = AgentTypeRegistry(tenant_shared_dir=ctx.tenant.get_shared_path())
+async def _apply_agent_spec(
+    ctx: Ctx,
+    spec: AgentSpec,
+    *,
+    overwrite: bool = False,
+    run_smoke: bool = True,
+) -> dict[str, Any]:
+    result = apply_spec(ctx.project_root, spec, overwrite=overwrite)
+    if run_smoke and spec.mock_cases:
+        smoke = await smoke_run_spec(spec)
+        result["smoke"] = smoke
+        if smoke.get("success"):
+            mark_smoke_verified(ctx.project_root, spec.agent_id)
+        else:
+            result["success"] = False
+    return result
 
+
+async def _create_agent_from_type(
+    ctx: Ctx,
+    agent_type: str,
+    agent_id: str,
+    params: dict[str, Any],
+    *,
+    requirement: str = "",
+    overwrite: bool = False,
+    run_smoke: bool = True,
+) -> dict[str, Any]:
     try:
-        type_def = registry.get(payload.agent_type)
+        type_def = registry_for(ctx).get(agent_type)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    agents_dir = ctx.project_root / "agents"
-    agents_dir.mkdir(exist_ok=True)
-    target = _agent_path(ctx.project_root, payload.agent_id)
-    if target.exists():
-        raise HTTPException(status_code=409, detail=f"Agent {payload.agent_id!r} already exists")
+    target = _agent_path(ctx.project_root, agent_id)
+    if target.exists() and not overwrite:
+        raise HTTPException(status_code=409, detail=f"Agent {agent_id!r} already exists")
 
-    yaml_text = build_agent_yaml(type_def, payload.agent_id, payload.params)
-    target.write_text(yaml_text, encoding="utf-8")
-    return {"success": True, "path": str(target), "agent_id": payload.agent_id}
+    spec = generate_from_agent_type(
+        type_def,
+        agent_id,
+        params,
+        requirement=requirement,
+    )
+    try:
+        result = await _apply_agent_spec(ctx, spec, overwrite=overwrite, run_smoke=run_smoke)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        **result,
+        "agent_id": spec.agent_id,
+        "path": str(target),
+        "primitive": spec.primitive.value,
+        "planner": spec.planner,
+        "agent_url": project_url(ctx.tenant_id, ctx.project_id, f"/agents/{spec.agent_id}"),
+    }
+
+
+@router.post("/agents")
+async def create_agent(payload: CreateAgentPayload, ctx: Ctx) -> dict[str, Any]:
+    """Create a new agent via AgentSpec from a selected agent type (A5.3)."""
+    return await _create_agent_from_type(
+        ctx,
+        payload.agent_type,
+        payload.agent_id,
+        payload.params,
+    )
 
 
 @router.get("/agent-presets")
@@ -216,6 +303,25 @@ async def get_agent(agent_id: str, ctx: Ctx) -> dict[str, Any]:
     return {"agent_id": agent_id, "yaml": target.read_text(encoding="utf-8")}
 
 
+@router.get("/agents/{agent_id}/validate")
+async def validate_agent_asset_api(agent_id: str, ctx: Ctx) -> dict[str, Any]:
+    """Validate stored agent YAML meets AgentSpec asset requirements (A8.3)."""
+    from forge_agent.agent_spec.versioning import AGENT_ASSET_SPEC_VERSION
+
+    agent = load_agent_dict(ctx.project_root, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
+    errors = validate_agent_asset(agent)
+    meta = agent.get("_meta") if isinstance(agent.get("_meta"), dict) else {}
+    return {
+        "valid": not errors,
+        "errors": errors,
+        "spec_version": meta.get("spec_version"),
+        "revision": meta.get("revision"),
+        "expected_spec_version": AGENT_ASSET_SPEC_VERSION,
+    }
+
+
 @router.get("/agents/{agent_id}/config")
 async def get_agent_config_api(agent_id: str, ctx: Ctx) -> dict[str, Any]:
     """Return structured config fields for an agent."""
@@ -303,6 +409,36 @@ async def agent_smoke_test(agent_id: str, ctx: Ctx) -> dict[str, Any]:
         "smoke": smoke,
         "maturity": compute_maturity(updated),
     }
+
+
+class RunAgentPayload(BaseModel):
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+@router.post("/agents/{agent_id}/run")
+async def run_agent(agent_id: str, body: RunAgentPayload, ctx: Ctx) -> dict[str, Any]:
+    """Run a single Agent with payload — no Pipeline required (A6.1)."""
+    try:
+        return await run_single_agent(
+            ctx.project_root,
+            ctx.tenant_id,
+            agent_id,
+            body.payload,
+            tenant=ctx.tenant,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/agents/{agent_id}/run-defaults")
+async def agent_run_defaults(agent_id: str, ctx: Ctx) -> dict[str, Any]:
+    """Return suggested default payload for single-agent run."""
+    agent = load_agent_dict(ctx.project_root, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
+    return {"payload": default_run_payload(agent)}
 
 
 @router.get("/pipelines/{pipeline_id}/payload-fields")
@@ -727,22 +863,69 @@ async def agent_spec_apply(payload: AgentSpecApplyPayload, ctx: Ctx) -> dict[str
                 use_llm=payload.use_llm,
                 llm_chat=llm_chat,
             )
-        result = apply_spec(ctx.project_root, spec, overwrite=payload.overwrite)
-        smoke_ok = False
-        if payload.run_smoke and spec.mock_cases:
-            smoke = await smoke_run_spec(spec)
-            result["smoke"] = smoke
-            smoke_ok = bool(smoke.get("success"))
-            if smoke_ok:
-                mark_smoke_verified(ctx.project_root, spec.agent_id)
-            else:
-                result["success"] = False
+        result = await _apply_agent_spec(
+            ctx,
+            spec,
+            overwrite=payload.overwrite,
+            run_smoke=payload.run_smoke,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return {
         **result,
         "agent_url": project_url(ctx.tenant_id, ctx.project_id, f"/agents/{result['agent_id']}"),
+    }
+
+
+class AgentSpecFromTypePayload(BaseModel):
+    agent_type: str
+    agent_id: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    requirement: str = ""
+    overwrite: bool = False
+    run_smoke: bool = True
+    apply: bool = True
+
+
+@router.post("/agent-spec/from-type")
+async def agent_spec_from_type(payload: AgentSpecFromTypePayload, ctx: Ctx) -> dict[str, Any]:
+    """Plan or apply an AgentSpec from a registered agent type (A5.3)."""
+    try:
+        type_def = registry_for(ctx).get(payload.agent_type)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    target = _agent_path(ctx.project_root, payload.agent_id)
+    if target.exists() and not payload.overwrite:
+        raise HTTPException(status_code=409, detail=f"Agent {payload.agent_id!r} already exists")
+
+    spec = generate_from_agent_type(
+        type_def,
+        payload.agent_id,
+        payload.params,
+        requirement=payload.requirement,
+    )
+    if not payload.apply:
+        return {"spec": spec.to_dict(), "applied": False}
+
+    try:
+        result = await _apply_agent_spec(
+            ctx,
+            spec,
+            overwrite=payload.overwrite,
+            run_smoke=payload.run_smoke,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        **result,
+        "spec": spec.to_dict(),
+        "applied": True,
+        "primitive": spec.primitive.value,
+        "planner": spec.planner,
+        "agent_url": project_url(ctx.tenant_id, ctx.project_id, f"/agents/{spec.agent_id}"),
     }
 
 

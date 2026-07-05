@@ -28,6 +28,7 @@ class TestAgentSpecGenerator:
         spec = generate_spec_rule_based("搜索 popmart 舆情", agent_id="search_test")
         result = apply_spec(tmp_path, spec)
         assert result["success"] is True
+        assert result["revision"] == 1
         assert (tmp_path / "agents" / "search_test.yaml").exists()
 
     def test_validate_rejects_invalid_id(self) -> None:

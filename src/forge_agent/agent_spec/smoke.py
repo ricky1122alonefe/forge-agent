@@ -25,25 +25,30 @@ async def smoke_run_spec(spec: AgentSpec, case_index: int = 0) -> dict[str, Any]
         "config": dict(spec.config),
         "override": True,
     }
-    cls = factory.from_dict(agent_dict)
-    agent = cls(config=spec.config)
-    await agent.initialize()
+    try:
+        cls = factory.from_dict(agent_dict)
+        agent = cls(config=spec.config)
+        await agent.initialize()
 
-    ctx = AgentContext(
-        scope_id="smoke",
-        scope_name="AgentSpec smoke",
-        payload=dict(case.input),
-    )
-    report = await agent.run(ctx)
-    decision = report.raw.get("decision", {})
-    missing = [k for k in case.expect_keys if k not in decision]
-    return {
-        "success": not missing and report.agent_id == spec.agent_id,
-        "case": case.name,
-        "missing_keys": missing,
-        "verdict": str(report.verdict),
-        "agent_id": report.agent_id,
-    }
+        ctx = AgentContext(
+            scope_id="smoke",
+            scope_name="AgentSpec smoke",
+            payload=dict(case.input),
+        )
+        report = await agent.run(ctx)
+        decision = report.raw.get("decision", {})
+        missing = [k for k in case.expect_keys if k not in decision]
+        return {
+            "success": not missing and report.agent_id == spec.agent_id,
+            "case": case.name,
+            "missing_keys": missing,
+            "verdict": str(report.verdict),
+            "agent_id": report.agent_id,
+        }
+    finally:
+        from forge_agent.registry.registry import get_registry
+
+        get_registry().unregister(spec.agent_id)
 
 
 def smoke_run_spec_sync(spec: AgentSpec, case_index: int = 0) -> dict[str, Any]:
