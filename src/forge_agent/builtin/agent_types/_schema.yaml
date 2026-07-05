@@ -17,7 +17,7 @@ agent_type:
   template:
     type: string
     required: true
-    enum: [prompt_agent, scraper_agent]
+    enum: [prompt_agent, scraper_agent, search_agent]
   params:
     type: list
     required: true

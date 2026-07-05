@@ -7,7 +7,9 @@ from typing import Any
 # User-facing labels for built-in agent type templates (P1.3).
 AGENT_TEMPLATE_LABELS: dict[str, str] = {
     "scraper": "数据抓取",
+    "search": "搜索分析",
     "analyzer": "数据分析",
+    "synthesizer": "报告汇总",
     "chief": "决策汇总",
 }
 
@@ -57,6 +59,18 @@ AGENT_PRESETS: list[dict[str, Any]] = [
             "tool": "dewu.search",
         },
     },
+    {
+        "preset_id": "douyin_trend",
+        "name": "抖音趋势分析",
+        "description": "抓取抖音热点并分析话题热度",
+        "agent_type": "scraper",
+        "default_agent_id": "douyin_analyst",
+        "params": {
+            "keyword": "labubu",
+            "platform": "douyin",
+            "tool": "douyin.hot",
+        },
+    },
 ]
 
 
@@ -69,6 +83,17 @@ def get_preset(preset_id: str) -> dict[str, Any] | None:
 
 # One-click pipeline presets — creates agents (if missing) + pipeline.
 PIPELINE_PRESETS: list[dict[str, Any]] = [
+    {
+        "preset_id": "four_platform_trend",
+        "name": "四平台趋势 Demo",
+        "description": "微博 + 小红书 + 得物 + 抖音并行分析，Chief 汇总（Mock）",
+        "pipeline_id": "four_trend",
+        "pipeline_name": "四平台趋势分析",
+        "pipeline_description": "微博、小红书、得物、抖音并行抓取分析",
+        "agent_presets": ["weibo_trend", "xhs_trend", "dewu_trend", "douyin_trend"],
+        "chief_id": "generic.chief",
+        "mode": "parallel",
+    },
     {
         "preset_id": "all_platform_trend",
         "name": "三平台趋势 Demo",

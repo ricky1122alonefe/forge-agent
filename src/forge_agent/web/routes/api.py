@@ -9,9 +9,11 @@ import yaml
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
+from forge_agent.agent_spec import AgentSpec, apply_spec, generate_spec, smoke_run_spec
 from forge_agent.builtin import AgentTypeRegistry
 from forge_agent.project.agent_builder import build_agent_yaml, build_pipeline_yaml
 from forge_agent.project.launcher import _run_pipeline
+from forge_agent.web.architect import apply_plan, generate_plan
 from forge_agent.web.bundles import (
     build_market_catalog,
     export_agent_bundle,
@@ -525,7 +527,8 @@ async def export_pipeline(pipeline_id: str, ctx: Ctx) -> dict[str, Any]:
 
 
 class ImportBundlePayload(BaseModel):
-    bundle: dict[str, Any]
+    bundle: dict[str, Any] | None = None
+    bundle_text: str | None = None
     overwrite: bool = False
 
 
@@ -533,7 +536,15 @@ class ImportBundlePayload(BaseModel):
 async def import_bundle_api(payload: ImportBundlePayload, ctx: Ctx) -> dict[str, Any]:
     """Import agents/pipeline from a bundle."""
     try:
-        return import_bundle(ctx.project_root, payload.bundle, overwrite=payload.overwrite)
+        if payload.bundle is not None:
+            data = payload.bundle
+        elif payload.bundle_text:
+            from forge_agent.web.bundles import parse_bundle_text
+
+            data = parse_bundle_text(payload.bundle_text)
+        else:
+            raise ValueError("bundle or bundle_text is required")
+        return import_bundle(ctx.project_root, data, overwrite=payload.overwrite)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -567,3 +578,124 @@ async def import_shared_bundle(payload: ImportSharedPayload, ctx: Ctx) -> dict[s
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {**result, "filename": payload.filename}
+
+
+class ArchitectPlanPayload(BaseModel):
+    requirement: str = Field(min_length=4, max_length=2000)
+    keyword: str | None = None
+    use_llm: bool = False
+
+
+@router.post("/architect/plan")
+async def architect_plan(payload: ArchitectPlanPayload) -> dict[str, Any]:
+    """Generate a pipeline plan from natural language (P4.4)."""
+    try:
+        return await generate_plan(
+            payload.requirement,
+            keyword=payload.keyword,
+            use_llm=payload.use_llm,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class ArchitectApplyPayload(BaseModel):
+    requirement: str = Field(min_length=4, max_length=2000)
+    keyword: str | None = None
+    use_llm: bool = False
+    overwrite: bool = False
+    pipeline_id: str | None = None
+    plan: dict[str, Any] | None = None
+
+
+@router.post("/architect/apply")
+async def architect_apply(payload: ArchitectApplyPayload, ctx: Ctx) -> dict[str, Any]:
+    """Apply an architect plan: write agents + pipeline, return run URL."""
+    try:
+        if payload.plan is not None:
+            plan = payload.plan
+        else:
+            plan = await generate_plan(
+                payload.requirement,
+                keyword=payload.keyword,
+                use_llm=payload.use_llm,
+            )
+        result = apply_plan(
+            ctx.project_root,
+            plan,
+            pipeline_id=payload.pipeline_id,
+            overwrite=payload.overwrite,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    pid = result["pipeline_id"]
+    return {
+        **result,
+        "run_url": project_url(ctx.tenant_id, ctx.project_id, f"/pipelines/{pid}/run"),
+        "workspace_url": project_url(ctx.tenant_id, ctx.project_id, "/"),
+    }
+
+
+class AgentSpecPlanPayload(BaseModel):
+    requirement: str = Field(min_length=4, max_length=2000)
+    agent_id: str | None = None
+    keyword: str | None = None
+    focus: str | None = None
+    use_llm: bool = False
+
+
+@router.post("/agent-spec/plan")
+async def agent_spec_plan(payload: AgentSpecPlanPayload) -> dict[str, Any]:
+    """Generate an AgentSpec preview from natural language (AGENT_PLAN A1.5)."""
+    try:
+        spec = await generate_spec(
+            payload.requirement,
+            agent_id=payload.agent_id,
+            keyword=payload.keyword,
+            focus=payload.focus,
+            use_llm=payload.use_llm,
+        )
+        return spec.to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class AgentSpecApplyPayload(BaseModel):
+    requirement: str = Field(min_length=4, max_length=2000)
+    agent_id: str | None = None
+    keyword: str | None = None
+    focus: str | None = None
+    use_llm: bool = False
+    overwrite: bool = False
+    run_smoke: bool = True
+    spec: dict[str, Any] | None = None
+
+
+@router.post("/agent-spec/apply")
+async def agent_spec_apply(payload: AgentSpecApplyPayload, ctx: Ctx) -> dict[str, Any]:
+    """Write a generated AgentSpec to the project agents/ directory."""
+    try:
+        if payload.spec is not None:
+            spec = AgentSpec.from_dict(payload.spec)
+        else:
+            spec = await generate_spec(
+                payload.requirement,
+                agent_id=payload.agent_id,
+                keyword=payload.keyword,
+                focus=payload.focus,
+                use_llm=payload.use_llm,
+            )
+        result = apply_spec(ctx.project_root, spec, overwrite=payload.overwrite)
+        if payload.run_smoke and spec.mock_cases:
+            smoke = await smoke_run_spec(spec)
+            result["smoke"] = smoke
+            if not smoke.get("success"):
+                result["success"] = False
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        **result,
+        "agent_url": project_url(ctx.tenant_id, ctx.project_id, f"/agents/{result['agent_id']}"),
+    }

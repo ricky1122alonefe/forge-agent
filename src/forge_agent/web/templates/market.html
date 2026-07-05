@@ -144,9 +144,16 @@ async function exportPipeline(pipelineId) {
 
 function showExport(data) {
     const el = document.getElementById('exportOutput');
-    el.textContent = JSON.stringify(data, null, 2);
+    const text = JSON.stringify(data, null, 2);
+    el.textContent = text;
     el.classList.remove('hidden');
-    showToast('已生成 Bundle JSON（见下方）', 'success');
+    const blob = new Blob([text], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (data.bundle_id || 'forge_bundle').replace(/:/g, '_') + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('Bundle 已导出并下载', 'success');
 }
 
 async function publishPipeline(pipelineId) {
@@ -175,17 +182,9 @@ async function importPastedBundle() {
         showToast('请粘贴 Bundle 内容', 'error');
         return;
     }
-    let bundle;
-    try {
-        bundle = raw.startsWith('{') ? JSON.parse(raw) : null;
-        if (!bundle) throw new Error('use yaml');
-    } catch (_) {
-        showToast('请使用 JSON 格式（YAML 导入后续支持）', 'error');
-        return;
-    }
     try {
         const overwrite = document.getElementById('overwriteCheck').checked;
-        await apiPost('/bundles/import', { bundle, overwrite });
+        await apiPost('/bundles/import', { bundle_text: raw, overwrite });
         showToast('Bundle 导入成功', 'success');
         setTimeout(() => { window.location.href = '{{ pu("/") }}'; }, 600);
     } catch (err) {

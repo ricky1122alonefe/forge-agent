@@ -396,6 +396,21 @@ class TestWebGoldenPath:
         assert "template: scraper_agent" in yaml_text
 
     @pytest.mark.asyncio
+    async def test_create_four_platform_pipeline_preset(
+        self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
+    ) -> None:
+        _, project_root = web_project
+        response = await client.post(
+            f"{project_base}/api/pipelines/from-preset",
+            json={"preset_id": "four_platform_trend"},
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["pipeline_id"] == "four_trend"
+        assert len(data["agent_ids"]) == 4
+        assert (project_root / "pipelines" / "four_trend.yaml").exists()
+
+    @pytest.mark.asyncio
     async def test_p4_market_export_import(
         self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
     ) -> None:
@@ -437,3 +452,113 @@ class TestWebGoldenPath:
         response = await client.get(f"{project_base}/market")
         assert response.status_code == 200
         assert "模板市场" in response.text
+
+    @pytest.mark.asyncio
+    async def test_p06_golden_path_script(
+        self,
+        client: httpx.AsyncClient,
+        web_project: tuple[LocalTenant, Path],
+        project_base: str,
+    ) -> None:
+        """P0.6: mirrors PLAN manual script (weibo + xhs analysts → pipeline → run → history)."""
+        _, project_root = web_project
+
+        for preset_id, agent_id in (("weibo_trend", "weibo_analyst"), ("xhs_trend", "xhs_analyst")):
+            response = await client.post(
+                f"{project_base}/api/agents/from-preset",
+                json={"preset_id": preset_id, "agent_id": agent_id},
+            )
+            assert response.status_code == 200, response.text
+            assert (project_root / "agents" / f"{agent_id}.yaml").exists()
+
+        response = await client.post(
+            f"{project_base}/api/pipelines",
+            json={
+                "pipeline_id": "trend",
+                "name": "Trend Pipeline",
+                "agent_ids": ["weibo_analyst", "xhs_analyst"],
+                "chief_id": "generic.chief",
+                "mode": "parallel",
+                "description": "P0.6 golden path",
+            },
+        )
+        assert response.status_code == 200, response.text
+
+        response = await client.post(
+            f"{project_base}/api/pipelines/trend/run",
+            json={"payload": {"keyword": "labubu"}},
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["success"] is True
+        assert len(data["record"]["agent_reports"]) == 2
+        assert data["record"]["chief_summary"] is not None
+
+        response = await client.get(f"{project_base}/runs")
+        assert response.status_code == 200
+        assert data["run_id"] in response.text
+
+        response = await client.get(f"{project_base}/runs/{data['run_id']}")
+        assert response.status_code == 200
+        assert "labubu" in response.text
+
+    @pytest.mark.asyncio
+    async def test_p44_architect_nl_pipeline(
+        self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
+    ) -> None:
+        """P4.4: natural language → plan → apply → run."""
+        _, project_root = web_project
+
+        response = await client.post(
+            f"{project_base}/api/architect/plan",
+            json={"requirement": "分析 labubu 在微博和小红书的热度", "use_llm": False},
+        )
+        assert response.status_code == 200, response.text
+        plan = response.json()
+        assert plan["keyword"] == "labubu"
+        assert len(plan["agents"]) >= 2
+
+        response = await client.post(
+            f"{project_base}/api/architect/apply",
+            json={"requirement": "分析 labubu 在微博和小红书的热度", "plan": plan},
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        pid = data["pipeline_id"]
+        assert (project_root / "pipelines" / f"{pid}.yaml").exists()
+
+        response = await client.post(
+            f"{project_base}/api/pipelines/{pid}/run",
+            json={"payload": {"keyword": "labubu"}},
+        )
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+
+        response = await client.get(f"{project_base}/architect")
+        assert response.status_code == 200
+        assert "智能创建" in response.text
+
+    @pytest.mark.asyncio
+    async def test_a15_agent_spec_generate_and_apply(
+        self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
+    ) -> None:
+        """AGENT_PLAN A1.5: agent-spec plan → apply → smoke."""
+        _, project_root = web_project
+
+        response = await client.post(
+            f"{project_base}/api/agent-spec/plan",
+            json={"requirement": "搜索 AI 行业动态并分析", "keyword": "AI"},
+        )
+        assert response.status_code == 200, response.text
+        spec = response.json()
+        assert spec["primitive"] == "searcher"
+
+        response = await client.post(
+            f"{project_base}/api/agent-spec/apply",
+            json={"requirement": "搜索 AI 行业动态并分析", "spec": spec},
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["success"] is True
+        assert data["smoke"]["success"] is True
+        assert (project_root / "agents" / f"{spec['agent_id']}.yaml").exists()

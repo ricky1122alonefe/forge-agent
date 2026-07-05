@@ -50,7 +50,7 @@ Project
 
 ### 明确不做（当前阶段）
 
-- 自然语言自动生成 Pipeline（`architect` 留作高级功能）
+- 自然语言建 Pipeline（P4.4 `architect` 高级入口，默认规则+Mock）
 - `forge-agent generate` 写 Python（开发者能力，非主路径）
 - Skill 市场 / SaaS 计费（P3 以后）
 
@@ -140,7 +140,7 @@ team:
 | P0.3 | 修复 `_configure_llm` 使用项目所属 tenant 根目录 | 临时目录项目可运行 | ✅ |
 | P0.4 | Web 全流程集成测试 | `pytest tests/integration/test_web_e2e.py` 全绿 | ✅ |
 | P0.5 | README Quick Start 对齐主路径 | 文档以 up → Agent → Pipeline 为准 | ✅ |
-| P0.6 | 手动走一遍黄金路径 | 按下方脚本操作成功 | ⬜ |
+| P0.6 | 手动走一遍黄金路径 | 按下方脚本操作成功 | 🟡 自动化已覆盖，待人工 UI 确认 |
 
 **黄金路径验收脚本**：
 
@@ -155,7 +155,7 @@ forge-agent up
 # 5. 运行历史 → 看到 2 份 Agent 报告 + Chief 汇总
 ```
 
-**Phase 0 出口**：上述脚本 + 集成测试均通过。
+**Phase 0 出口**：`pytest tests/integration/test_web_e2e.py::TestWebGoldenPath::test_p06_golden_path_script` + 下方手动脚本（或 `scripts/golden_path_check.sh`）。
 
 ---
 
@@ -208,9 +208,9 @@ forge-agent up
 | ID | 任务 | 验收 | 状态 |
 |----|------|------|------|
 | P4.1 | Agent/Pipeline Bundle 导入导出 + 模板市场页 | Web 一键导入/导出/发布共享 | ✅ |
-| P4.2 | Pipeline 模板扩展 | 更多内置预设 | 🟡 基础版已有 |
+| P4.2 | Pipeline 模板扩展 | 四平台预设 + YAML Bundle 导入 | ✅ |
 | P4.3 | DBTenant + 配额 | 企业 SaaS | ⬜ |
-| P4.4 | 自然语言建 Pipeline | architect 高级入口 | ⬜ |
+| P4.4 | 自然语言建 Pipeline | architect 高级入口 | ✅ |
 
 ---
 
@@ -225,10 +225,10 @@ Phase 2  部署（多租户、登录、Project CRUD）  ← ✅ 已完成
     │
 Phase 3  可观测 + 真实数据  ← Phase 3 基本完成（P3.4 ✅）
     │
-Phase 4  生态（模板市场）  ← P4.1 已完成
+Phase 4  生态（模板市场 + 智能创建）  ← P4.1/P4.2/P4.4 ✅
 ```
 
-**当前 focus**：P4.1 模板市场（Bundle 导入/导出/共享）已完成；P4.3/P4.4 或 P0.6 按需。
+**当前 focus**：**Agent Generator** — 见 [`AGENT_PLAN.md`](AGENT_PLAN.md) Phase 1（A1.1–A1.6）。Pipeline / 市场 / P4.3 冻结。
 
 ---
 
@@ -258,7 +258,7 @@ forge-agent new myproj --template config-driven --tenant acme
 | Phase 1 体验 | 8/8 | ✅ 完成 |
 | Phase 2 部署 | 6/6 | ✅ 完成 |
 | Phase 3 可观测 | 5/5 | ✅ 完成 |
-| Phase 4 生态 | 1/4 | 🟡 进行中 |
+| Phase 4 生态 | 3/4 | 🟡 P4.3 按需 |
 
 ---
 

@@ -243,3 +243,11 @@ async def market_page(request: Request, ctx: Ctx) -> HTMLResponse:
         }
     )
     return templates.TemplateResponse(request=request, name="market.html", context=context)
+
+
+@router.get("/architect", response_class=HTMLResponse)
+async def architect_page(request: Request, ctx: Ctx) -> HTMLResponse:
+    """Natural-language pipeline architect (P4.4)."""
+    templates = _get_templates()
+    context = base_context(request, ctx)
+    return templates.TemplateResponse(request=request, name="architect.html", context=context)

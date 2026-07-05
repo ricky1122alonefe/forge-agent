@@ -73,3 +73,11 @@ class TestBundles:
         assert path.exists()
         loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
         assert loaded["kind"] == "forge_agent_bundle"
+
+    def test_parse_bundle_yaml_text(self, project_root: Path) -> None:
+        from forge_agent.web.bundles import parse_bundle_text
+
+        bundle = export_agent_bundle(project_root, "weibo_analyst")
+        yaml_text = yaml.safe_dump(bundle, allow_unicode=True)
+        parsed = parse_bundle_text(yaml_text)
+        assert parsed["bundle_id"] == bundle["bundle_id"]

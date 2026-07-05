@@ -59,7 +59,13 @@ class PromptAgent(BaseAgent):
         """Extract template variables from the payload."""
         observation: dict[str, Any] = {}
         for var_name, payload_key in self.variables.items():
-            observation[var_name] = ctx.payload.get(payload_key)
+            value = ctx.payload.get(payload_key)
+            if payload_key == "reports" and isinstance(value, list):
+                observation[var_name] = json.dumps(value, ensure_ascii=False, indent=2)
+            elif isinstance(value, (dict, list)):
+                observation[var_name] = json.dumps(value, ensure_ascii=False)
+            else:
+                observation[var_name] = value
         return observation
 
     async def decide(self, ctx: AgentContext, observation: dict[str, Any]) -> dict[str, Any]:

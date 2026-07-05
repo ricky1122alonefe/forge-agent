@@ -21,7 +21,7 @@ from forge_agent.core.team import Team
 from forge_agent.pipeline.aggregator import Aggregator
 from forge_agent.registry.registry import get_registry
 from forge_agent.scheduler.scheduler import Scheduler
-from forge_agent.scheduler.strategies import ParallelStrategy, SequentialStrategy
+from forge_agent.scheduler.strategies import ParallelStrategy
 from forge_agent.scheduler.tasks import ScheduleTask
 from forge_agent.storage import ForgeStore
 
@@ -102,17 +102,15 @@ class TeamRunner:
         if not team.agent_ids:
             return []
 
-        strategy = ParallelStrategy() if team.mode == "parallel" else SequentialStrategy()
+        if team.mode == "parallel":
+            return await self._run_agents_parallel(team, ctx)
+        return await self._run_agents_sequential(team, ctx)
+
+    async def _run_agents_parallel(self, team: Team, ctx: AgentContext) -> list[AgentReport]:
+        strategy = ParallelStrategy()
         scheduler = Scheduler(strategy=strategy)
         for agent_id in team.agent_ids:
-            scheduler.add_task(
-                ScheduleTask(
-                    task_id=agent_id,
-                    agent_id=agent_id,
-                    context=ctx,
-                )
-            )
-
+            scheduler.add_task(ScheduleTask(task_id=agent_id, agent_id=agent_id, context=ctx))
         results = await scheduler.run()
         reports: list[AgentReport] = []
         for result in results.values():
@@ -120,6 +118,25 @@ class TeamRunner:
                 reports.append(result.report)
             else:
                 log.warning("Agent %s produced no report: %s", result.agent_id, result.error)
+        return reports
+
+    async def _run_agents_sequential(self, team: Team, ctx: AgentContext) -> list[AgentReport]:
+        """Run agents in order; inject upstream reports for Synthesizer agents."""
+        registry = get_registry()
+        reports: list[AgentReport] = []
+        upstream: list[dict[str, Any]] = []
+
+        for agent_id in team.agent_ids:
+            run_ctx = ctx.child()
+            if upstream:
+                run_ctx.payload["reports"] = list(upstream)
+            try:
+                agent = await registry.get(agent_id)
+                report = await agent.run(run_ctx)
+                reports.append(report)
+                upstream.append(report.to_dict())
+            except Exception:
+                log.exception("Agent %s failed in sequential run", agent_id)
         return reports
 
     async def _run_chief(

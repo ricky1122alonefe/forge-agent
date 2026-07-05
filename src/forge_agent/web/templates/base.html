@@ -33,6 +33,7 @@
                 <a href="{{ pu('/runs') }}" class="text-gray-600 hover:text-indigo-600">运行历史</a>
                 <a href="{{ pu('/settings/llm') }}" class="text-gray-500 hover:text-indigo-600">LLM 设置</a>
                 <a href="{{ pu('/market') }}" class="text-gray-500 hover:text-indigo-600">模板市场</a>
+                <a href="{{ pu('/architect') }}" class="text-gray-500 hover:text-indigo-600">智能创建</a>
                 <a href="{{ tenant_hub_url }}" class="text-gray-500 hover:text-indigo-600">切换项目</a>
                 {% if auth_enabled and auth_user %}
                 <form action="/auth/logout" method="post" class="inline">

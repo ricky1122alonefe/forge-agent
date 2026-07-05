@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}智能创建 Pipeline · forge-agent{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">智能创建 Pipeline</h2>
+        <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
+    </div>
+
+    <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+        <p class="font-medium">用自然语言描述你想分析什么</p>
+        <p class="text-xs text-indigo-800 mt-1">默认使用规则规划 + Mock，无需 API Key。示例：分析 labubu 在微博和小红书的热度趋势</p>
+    </div>
+
+    <form id="architectForm" class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-4 mb-6">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">需求描述</label>
+            <textarea id="requirement" rows="4" required
+                class="block w-full border border-gray-300 rounded-md p-3 text-sm"
+                placeholder="例如：分析 labubu 在微博、小红书上的热度，并给出是否值得跟进的建议"></textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">关键词（可选，留空自动提取）</label>
+            <input id="keyword" type="text" class="block w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="labubu">
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="checkbox" id="useLlm" class="h-4 w-4">
+            <label for="useLlm" class="text-sm text-gray-700">使用 LLM 规划（可能消耗额度，失败时自动降级）</label>
+        </div>
+        <label class="flex items-center gap-2 text-xs text-gray-600">
+            <input type="checkbox" id="overwriteCheck" class="h-4 w-4"> 覆盖已存在的 Agent / Pipeline
+        </label>
+        <div class="flex gap-3">
+            <button type="button" id="previewBtn" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-50">预览方案</button>
+            <button type="button" id="applyBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700">创建并运行</button>
+        </div>
+    </form>
+
+    <div id="previewBox" class="hidden bg-white p-6 rounded-lg shadow border border-gray-100">
+        <h3 class="font-bold text-sm mb-3">规划预览</h3>
+        <p class="text-xs text-gray-500 mb-3">规划器：<span id="plannerLabel">-</span> · 关键词：<span id="keywordLabel">-</span></p>
+        <ul id="agentList" class="text-sm space-y-2 mb-4"></ul>
+        <p id="newTools" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded p-2"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let lastPlan = null;
+
+async function buildPayload() {
+    const requirement = document.getElementById('requirement').value.trim();
+    const keyword = document.getElementById('keyword').value.trim();
+    const use_llm = document.getElementById('useLlm').checked;
+    if (!requirement) throw new Error('请填写需求描述');
+    return {
+        requirement,
+        keyword: keyword || null,
+        use_llm,
+    };
+}
+
+function renderPreview(plan) {
+    lastPlan = plan;
+    document.getElementById('previewBox').classList.remove('hidden');
+    document.getElementById('plannerLabel').textContent = plan.planner || 'rule';
+    document.getElementById('keywordLabel').textContent = plan.keyword;
+    const list = document.getElementById('agentList');
+    list.innerHTML = '';
+    (plan.agents || []).forEach(a => {
+        const li = document.createElement('li');
+        li.className = 'flex justify-between border-b border-gray-50 pb-2';
+        li.innerHTML = `<span>${a.name} <code class="text-xs text-gray-500">${a.agent_id}</code></span><span class="text-xs text-gray-500">${(a.config.tools||[]).join(', ')}</span>`;
+        list.appendChild(li);
+    });
+    const nt = document.getElementById('newTools');
+    if (plan.new_tools && plan.new_tools.length) {
+        nt.textContent = '缺少工具: ' + plan.new_tools.map(t => t.tool_name || t).join(', ');
+        nt.classList.remove('hidden');
+    } else {
+        nt.classList.add('hidden');
+    }
+}
+
+document.getElementById('previewBtn').addEventListener('click', async () => {
+    try {
+        const plan = await apiPost('/architect/plan', await buildPayload());
+        renderPreview(plan);
+        showToast('方案已生成', 'success');
+    } catch (err) {
+        showToast('预览失败: ' + err.message, 'error');
+    }
+});
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+    try {
+        const payload = await buildPayload();
+        payload.overwrite = document.getElementById('overwriteCheck').checked;
+        if (lastPlan) payload.plan = lastPlan;
+        const data = await apiPost('/architect/apply', payload);
+        showToast(`Pipeline ${data.pipeline_id} 已创建`, 'success');
+        window.location.href = data.run_url;
+    } catch (err) {
+        showToast('创建失败: ' + err.message, 'error');
+    }
+});
+</script>
+{% endblock %}

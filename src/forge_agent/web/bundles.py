@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +79,21 @@ def validate_bundle(data: dict[str, Any]) -> None:
     for agent in agents:
         if not isinstance(agent, dict) or not agent.get("agent_id"):
             raise ValueError("Each agent entry must include agent_id")
+
+
+def parse_bundle_text(text: str) -> dict[str, Any]:
+    """Parse a bundle from JSON or YAML text."""
+    raw = text.strip()
+    if not raw:
+        raise ValueError("Bundle text is empty")
+    try:
+        data = json.loads(raw) if raw.startswith("{") else yaml.safe_load(raw)
+    except (json.JSONDecodeError, yaml.YAMLError) as exc:
+        raise ValueError(f"Invalid bundle format: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError("Bundle must be a JSON/YAML object")
+    validate_bundle(data)
+    return data
 
 
 def import_bundle(

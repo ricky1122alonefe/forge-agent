@@ -57,15 +57,27 @@ def build_agent(
     if params.get("platform"):
         config["platform"] = params["platform"]
 
+    if params.get("search_backend"):
+        config["search_backend"] = params["search_backend"]
+
+    if params.get("query_template"):
+        config["query_template"] = params["query_template"]
+
     mock_response = type_def.get("mock_response")
     if mock_response:
         config["mock_response"] = _render_template(mock_response.strip(), params)
 
     # Only expose runtime payload keys. platform/tool are fixed at agent creation time.
-    runtime_keys = {"keyword"}
-    config["variables"] = {
-        p["name"]: p["name"] for p in type_def.get("params", []) if p["name"] in runtime_keys
-    }
+    runtime_keys = {"keyword", "query", "topic", "current_value", "threshold", "focus"}
+    variables: dict[str, str] = {}
+    for param in type_def.get("params", []):
+        name = param["name"]
+        if name in runtime_keys:
+            variables[name] = name
+    if type_def.get("type_id") == "synthesizer":
+        variables["reports"] = "reports"
+    if variables:
+        config["variables"] = variables
 
     return {
         "agent_id": agent_id,
