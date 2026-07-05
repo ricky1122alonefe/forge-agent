@@ -44,9 +44,34 @@ class TestBuildAgent:
         assert agent["agent_id"] == "weibo_scraper"
         assert agent["template"] == "prompt_agent"
         assert "weibo.hot_search" in agent["config"]["tools"]
+        assert agent["config"]["platform"] == "weibo"
         assert "labubu" in agent["config"]["prompt"]
         assert "{data}" in agent["config"]["prompt"]
         assert "weibo" in agent["config"]["mock_response"]
+
+    def test_scraper_type_uses_scraper_agent_template(self) -> None:
+        type_def = {
+            "type_id": "scraper",
+            "name": "Data Scraper",
+            "domain": "generic",
+            "template": "scraper_agent",
+            "params": [
+                {"name": "keyword", "type": "string", "required": True, "description": ""},
+                {"name": "platform", "type": "string", "required": True, "description": ""},
+                {"name": "tool", "type": "string", "required": True, "description": ""},
+            ],
+            "tools": ["{tool}"],
+            "prompt_template": "Analyze {platform}",
+            "output_schema": {"type": "object"},
+            "output_mapping": {},
+        }
+        agent = build_agent(
+            type_def,
+            "weibo_scraper",
+            {"keyword": "labubu", "platform": "weibo", "tool": "weibo.hot_search"},
+        )
+        assert agent["template"] == "scraper_agent"
+        assert agent["config"]["platform"] == "weibo"
 
     def test_build_agent_yaml_serializes(self) -> None:
         type_def = {

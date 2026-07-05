@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+from forge_agent.builtin.tools.mode import ToolMode, resolve_tool_mode
 from forge_agent.builtin.tools.social import (
     dewu_search,
     douyin_hot,
     weibo_hot_search,
     xiaohongshu_search,
 )
-from forge_agent.platform import Tool, get_tool_registry
+from forge_agent.platform.tool import Tool
+from forge_agent.platform.tool_registry import get_tool_registry
 
 __all__ = [
+    "ToolMode",
     "dewu_search",
     "douyin_hot",
     "register_builtin_tools",
+    "resolve_tool_mode",
     "weibo_hot_search",
     "xiaohongshu_search",
 ]

@@ -5,7 +5,7 @@ agent_type:
     Fetches data from an external source (social media, API, web page)
     and produces a structured trend assessment.
   domain: generic
-  template: prompt_agent
+  template: scraper_agent
   params:
     - name: keyword
       type: string

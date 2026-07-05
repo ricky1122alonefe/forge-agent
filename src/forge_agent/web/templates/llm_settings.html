@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">LLM 设置</h2>
+        <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
+    </div>
+
+    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p class="font-medium">可选配置 · 不影响 Mock 演示</p>
+        <p class="text-xs text-amber-800 mt-1">默认 Mock 模式无需 API Key。关闭 Agent 的 Mock 并配置 Key 后，才会调用真实 LLM（会产生费用）。</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow border border-gray-100 divide-y divide-gray-100">
+        {% for provider in settings.providers %}
+        <div class="p-5" id="provider-{{ provider.provider_id }}">
+            <div class="flex items-start justify-between gap-4 mb-3">
+                <div>
+                    <h3 class="font-semibold text-sm">{{ provider.provider_id }}
+                        {% if provider.is_primary %}<span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded ml-1">主 Provider</span>{% endif %}
+                    </h3>
+                    <p class="text-xs text-gray-500 mt-1">{{ provider.model }} · {{ provider.type }}</p>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-full {% if provider.key_configured %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                    {% if provider.needs_key %}{{ 'Key 已配置' if provider.key_configured else '未配置 Key' }}{% else %}无需 Key{% endif %}
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" class="provider-enabled h-4 w-4" data-provider="{{ provider.provider_id }}" {% if provider.enabled %}checked{% endif %}>
+                    启用
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="radio" name="primary_provider" value="{{ provider.provider_id }}" {% if provider.is_primary %}checked{% endif %}>
+                    设为主 Provider
+                </label>
+            </div>
+
+            {% if provider.needs_key and provider.api_key_env %}
+            <div class="mb-3">
+                <label class="block text-xs font-medium text-gray-600 mb-1">API Key（写入项目 .env，变量 {{ provider.api_key_env }}）</label>
+                <div class="flex gap-2">
+                    <input type="password" class="api-key-input flex-1 border border-gray-300 rounded-md p-2 text-sm" data-provider="{{ provider.provider_id }}" placeholder="sk-...">
+                    <button type="button" onclick="saveKey('{{ provider.provider_id }}')" class="text-sm bg-gray-800 text-white px-3 py-2 rounded hover:bg-gray-900">保存 Key</button>
+                </div>
+            </div>
+            {% endif %}
+
+            <button type="button" onclick="testProvider('{{ provider.provider_id }}')" class="text-xs text-indigo-600 hover:underline">测试连通（可能消耗额度）</button>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="mt-4 flex gap-3">
+        <button type="button" onclick="saveConfig()" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm">保存 Provider 设置</button>
+    </div>
+
+    <p class="mt-4 text-xs text-gray-400">配置文件：{{ settings.env_files.project }}/llm_providers.json · Key：{{ settings.env_files.project }}/.env</p>
+</div>
+
+<script>
+async function saveConfig() {
+    const primary = document.querySelector('input[name=primary_provider]:checked');
+    const providers = {};
+    document.querySelectorAll('.provider-enabled').forEach(cb => {
+        providers[cb.dataset.provider] = { enabled: cb.checked };
+    });
+    try {
+        await apiPut('/llm/config', {
+            primary_id: primary ? primary.value : null,
+            providers,
+        });
+        showToast('LLM 设置已保存', 'success');
+        setTimeout(() => location.reload(), 500);
+    } catch (err) {
+        showToast('保存失败: ' + err.message, 'error');
+    }
+}
+
+async function saveKey(providerId) {
+    const input = document.querySelector(`.api-key-input[data-provider="${providerId}"]`);
+    if (!input || !input.value.trim()) {
+        showToast('请输入 API Key', 'error');
+        return;
+    }
+    try {
+        await apiPut('/llm/secrets', { provider_id: providerId, api_key: input.value.trim() });
+        input.value = '';
+        showToast('API Key 已保存', 'success');
+        setTimeout(() => location.reload(), 500);
+    } catch (err) {
+        showToast('保存失败: ' + err.message, 'error');
+    }
+}
+
+async function testProvider(providerId) {
+    if (!confirm('测试会调用真实 LLM API，可能产生费用。继续？')) return;
+    try {
+        const data = await apiPost('/llm/test', { provider_id: providerId });
+        if (data.success) {
+            showToast(`连通成功 (${data.latency_ms}ms)`, 'success');
+        } else {
+            showToast('测试失败: ' + data.error, 'error');
+        }
+    } catch (err) {
+        showToast('测试失败: ' + err.message, 'error');
+    }
+}
+</script>
+{% endblock %}

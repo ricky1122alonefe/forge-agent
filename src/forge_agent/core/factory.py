@@ -24,6 +24,7 @@ from typing import Any, ClassVar
 from forge_agent.core.base import BaseAgent
 from forge_agent.core.templates.prompt_agent import register_prompt_agent
 from forge_agent.core.templates.search_agent import register_search_agent
+from forge_agent.core.templates.tool_agent import register_tool_agent
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,8 @@ class AgentFactory:
         # Register built-in templates lazily to avoid import side-effects.
         self._builders.setdefault("prompt_agent", register_prompt_agent)
         self._builders.setdefault("search_agent", register_search_agent)
+        self._builders.setdefault("tool_agent", register_tool_agent)
+        self._builders.setdefault("scraper_agent", register_tool_agent)
 
     def register_template(
         self,

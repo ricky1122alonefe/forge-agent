@@ -184,8 +184,8 @@ forge-agent up
 |----|------|------|
 | P2.1 | Web 路由 `/t/{tenant}/p/{project}/...` | 一套 up 服务多租户 | ✅ |
 | P2.2 | Web 内新建/切换/列出 Project | 无需 CLI `forge-agent new` | ✅ |
-| P2.3 | 用户注册 → 自动创建 tenant | 新用户有独立命名空间 | ⬜ |
-| P2.4 | 登录 + Session；只能访问自己 tenant | 跨 tenant 返回 403 | ⬜ |
+| P2.3 | 用户注册 → 自动创建 tenant | 新用户有独立命名空间 | ✅ |
+| P2.4 | 登录 + Session；只能访问自己 tenant | 跨 tenant 返回 403 | ✅ |
 | P2.5 | docker-compose volume 持久化数据 | 重启不丢 Agent/Pipeline | ✅ |
 | P2.6 | 部署文档：环境变量、端口、数据目录 | 外人能独立部署 | ✅ |
 
@@ -197,20 +197,20 @@ forge-agent up
 |----|------|------|
 | P3.1 | 每次 Run 写入 trace_id + logs | `logs/{trace_id}.json` | ✅ |
 | P3.2 | Web 运行详情展示 Trace | 各 Agent 耗时、输入输出 | ✅ |
-| P3.3 | 租户级 LLM 配置 UI | Web 填 API Key |
-| P3.4 | 工具层：scraper_agent + 真实/降级 mock 工具 | 可切换真实数据 |
-| P3.5 | E2E：注册 → 建 Agent → 建 Pipeline → 运行 | CI 全绿 |
+| P3.3 | 租户级 LLM 配置 UI | Web 填 API Key | ✅ |
+| P3.4 | 工具层：scraper_agent + 真实/降级 mock 工具 | 可切换真实数据 | ✅ |
+| P3.5 | E2E：注册 → 建 Agent → 建 Pipeline → 运行 | CI 全绿 | ✅ |
 
 ---
 
-### Phase 4 — 生态与商业化（未来）
+### Phase 4 — 生态与商业化
 
-| 方向 | 内容 |
-|------|------|
-| Agent 模板市场 | 分享/导入整套 Agent 配置 |
-| Pipeline 模板 | 一键导入「趋势分析」等预设 Pipeline | 🟡 基础版已做 |
-| DBTenant + 配额 | 企业 SaaS |
-| 自然语言建 Pipeline | architect 作为高级入口 |
+| ID | 任务 | 验收 | 状态 |
+|----|------|------|------|
+| P4.1 | Agent/Pipeline Bundle 导入导出 + 模板市场页 | Web 一键导入/导出/发布共享 | ✅ |
+| P4.2 | Pipeline 模板扩展 | 更多内置预设 | 🟡 基础版已有 |
+| P4.3 | DBTenant + 配额 | 企业 SaaS | ⬜ |
+| P4.4 | 自然语言建 Pipeline | architect 高级入口 | ⬜ |
 
 ---
 
@@ -221,14 +221,14 @@ Phase 0  跑通 ✅（待手动验收）
     │
 Phase 1  体验 ✅
     │
-Phase 2  部署（多租户、登录、Project CRUD）  ← 进行中（P2.1/P2.2/P2.5 已完成）
+Phase 2  部署（多租户、登录、Project CRUD）  ← ✅ 已完成
     │
-Phase 3  可观测 + 真实数据（按需）
+Phase 3  可观测 + 真实数据  ← Phase 3 基本完成（P3.4 ✅）
     │
-Phase 4  生态（未来）
+Phase 4  生态（模板市场）  ← P4.1 已完成
 ```
 
-**当前 focus**：Pipeline 模板 +  onboarding 引导；登录鉴权按需。
+**当前 focus**：P4.1 模板市场（Bundle 导入/导出/共享）已完成；P4.3/P4.4 或 P0.6 按需。
 
 ---
 
@@ -256,9 +256,9 @@ forge-agent new myproj --template config-driven --tenant acme
 |-------|------|------|
 | Phase 0 跑通 | 6/6 | ✅ 完成 |
 | Phase 1 体验 | 8/8 | ✅ 完成 |
-| Phase 2 部署 | 4/6 | 🟡 本地跳过登录 |
-| Phase 3 可观测 | 2/5 | 🟡 进行中 |
-| Phase 4 生态 | — | ⬜ 未规划细节 |
+| Phase 2 部署 | 6/6 | ✅ 完成 |
+| Phase 3 可观测 | 5/5 | ✅ 完成 |
+| Phase 4 生态 | 1/4 | 🟡 进行中 |
 
 ---
 
@@ -273,7 +273,7 @@ forge-agent new myproj --template config-driven --tenant acme
 
 ### 2026-07-04 — 本地优先策略
 
-- 登录注册（P2.3/P2.4）本地单机使用暂不实现
+- 登录注册（P2.3/P2.4）通过 `FORGE_AGENT_WEB_AUTH=1` 按需开启；默认关闭，本地单机免登录
 - 真实 LLM（P3.3/P3.4）按需；默认 Mock 演示
 - 优先打磨本地 UI：Mock 提示、运行进度、Trace 时间线
 

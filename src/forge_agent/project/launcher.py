@@ -18,7 +18,9 @@ from forge_agent.llm.registry import get_registry
 from forge_agent.platform import ConfigValidator, LLMConfigManager, LocalTenant
 from forge_agent.project.state_store import RunRecord, StateStore, generate_run_id
 from forge_agent.project.tui import run_menu
+from forge_agent.storage import ForgeStore
 from forge_agent.web.data import infer_run_mock_mode
+from forge_agent.web.llm_settings import load_env_files
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +67,7 @@ def resolve_local_tenant(tenant_id: str, project_root: Path) -> LocalTenant:
 
 def _configure_llm(tenant: LocalTenant, project_root: Path) -> None:
     """Load the layered LLM config for this tenant/project and configure the registry."""
+    load_env_files(tenant, project_root)
     cfg = LLMConfigManager(tenant).load(project_root.name)
     get_registry().configure(cfg)
     log.info(
@@ -131,7 +134,8 @@ async def _run_pipeline(
     )
 
     try:
-        board = await TeamRunner().run(mission)
+        store = ForgeStore(db_path=project_root / "state" / "forge_data.db")
+        board = await TeamRunner(store=store).run(mission)
         tm.end_span(team_span, status="ok")
     except Exception:
         tm.end_span(team_span, status="error", error_message="pipeline run failed")

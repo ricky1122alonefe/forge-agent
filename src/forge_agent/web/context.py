@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request
 
 from forge_agent.exceptions import ProjectNotFoundError
 from forge_agent.platform import LocalTenant
+from forge_agent.web.auth.service import AuthUser
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,10 @@ def base_context(request: Request, ctx: ProjectContext) -> dict:
     def pu(path: str = "/") -> str:
         return project_url(ctx.tenant_id, ctx.project_id, path)
 
+    auth_config = getattr(request.app.state, "auth_config", None)
+    auth_enabled = bool(auth_config and auth_config.enabled)
+    auth_user: AuthUser | None = getattr(request.state, "user", None)
+
     return {
         "request": request,
         "tenant_id": ctx.tenant_id,
@@ -78,4 +83,6 @@ def base_context(request: Request, ctx: ProjectContext) -> dict:
         "pu": pu,
         "api_prefix": project_url(ctx.tenant_id, ctx.project_id, "/api"),
         "tenant_hub_url": tenant_url(ctx.tenant_id),
+        "auth_enabled": auth_enabled,
+        "auth_user": auth_user,
     }

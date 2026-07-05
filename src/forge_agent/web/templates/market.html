@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold">模板市场</h2>
+    <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
+</div>
+
+<p class="text-sm text-gray-600 mb-6">导入内置模板、租户共享 Bundle，或从当前项目导出 Agent / Pipeline 配置与他人分享。</p>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white rounded-lg shadow border border-gray-100 p-5">
+        <h3 class="font-bold text-sm mb-3">内置 Pipeline 模板</h3>
+        <ul class="space-y-3">
+            {% for preset in pipeline_presets %}
+            <li class="flex items-start justify-between gap-3 border-b border-gray-50 pb-3">
+                <div>
+                    <p class="font-medium text-sm">{{ preset.name }}</p>
+                    <p class="text-xs text-gray-500">{{ preset.description }}</p>
+                </div>
+                <button type="button" onclick="installPipelinePreset('{{ preset.preset_id }}')" class="text-xs text-indigo-600 hover:underline shrink-0">一键导入</button>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="bg-white rounded-lg shadow border border-gray-100 p-5">
+        <h3 class="font-bold text-sm mb-3">内置 Agent 模板</h3>
+        <ul class="space-y-3">
+            {% for preset in agent_presets %}
+            <li class="flex items-start justify-between gap-3 border-b border-gray-50 pb-3">
+                <div>
+                    <p class="font-medium text-sm">{{ preset.name }}</p>
+                    <p class="text-xs text-gray-500">{{ preset.description }}</p>
+                </div>
+                <button type="button" onclick="installAgentPreset('{{ preset.preset_id }}')" class="text-xs text-indigo-600 hover:underline shrink-0">添加</button>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+{% if catalog.shared_bundles %}
+<div class="bg-white rounded-lg shadow border border-gray-100 p-5 mb-6">
+    <h3 class="font-bold text-sm mb-3">租户共享 Bundle</h3>
+    <ul class="divide-y divide-gray-100">
+        {% for bundle in catalog.shared_bundles %}
+        <li class="py-3 flex items-center justify-between">
+            <div>
+                <p class="font-medium text-sm">{{ bundle.name }}</p>
+                <p class="text-xs text-gray-500">{{ bundle.description or bundle.filename }} · {{ bundle.agent_count }} Agent{% if bundle.has_pipeline %} + Pipeline{% endif %}</p>
+            </div>
+            <button type="button" onclick="importShared('{{ bundle.filename }}')" class="text-xs text-indigo-600 hover:underline">导入</button>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white rounded-lg shadow border border-gray-100 p-5">
+        <h3 class="font-bold text-sm mb-3">从当前项目导出</h3>
+        {% if catalog.project_pipelines %}
+        <p class="text-xs text-gray-500 mb-2">Pipeline（含 Agent）</p>
+        <ul class="space-y-2 mb-4">
+            {% for p in catalog.project_pipelines %}
+            <li class="flex items-center justify-between text-sm">
+                <span>{{ p.pipeline_id }}</span>
+                <span class="space-x-2">
+                    <button type="button" onclick="exportPipeline('{{ p.pipeline_id }}')" class="text-xs text-indigo-600 hover:underline">导出 JSON</button>
+                    <button type="button" onclick="publishPipeline('{{ p.pipeline_id }}')" class="text-xs text-gray-600 hover:underline">发布共享</button>
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if catalog.project_agents %}
+        <p class="text-xs text-gray-500 mb-2">Agent</p>
+        <ul class="space-y-2">
+            {% for a in catalog.project_agents %}
+            <li class="flex items-center justify-between text-sm">
+                <span>{{ a.agent_id }}</span>
+                <button type="button" onclick="exportAgent('{{ a.agent_id }}')" class="text-xs text-indigo-600 hover:underline">导出 JSON</button>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-sm text-gray-500">当前项目还没有可导出的 Agent / Pipeline</p>
+        {% endif %}
+    </div>
+
+    <div class="bg-white rounded-lg shadow border border-gray-100 p-5">
+        <h3 class="font-bold text-sm mb-3">粘贴 Bundle 导入</h3>
+        <p class="text-xs text-gray-500 mb-2">支持 JSON 或 YAML（kind: forge_agent_bundle）</p>
+        <textarea id="bundleInput" rows="10" class="w-full border border-gray-300 rounded-md p-2 font-mono text-xs" placeholder='{"kind":"forge_agent_bundle","version":1,"agents":[...]}'></textarea>
+        <label class="flex items-center gap-2 text-xs text-gray-600 mt-2 mb-3">
+            <input type="checkbox" id="overwriteCheck" class="h-4 w-4"> 覆盖已存在的 Agent / Pipeline
+        </label>
+        <button type="button" onclick="importPastedBundle()" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700">导入 Bundle</button>
+    </div>
+</div>
+
+<pre id="exportOutput" class="hidden bg-gray-900 text-green-200 text-xs p-4 rounded-lg overflow-auto max-h-64"></pre>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function installPipelinePreset(presetId) {
+    try {
+        const data = await apiPost('/pipelines/from-preset', { preset_id: presetId });
+        showToast(`Pipeline ${data.pipeline_id} 已导入`, 'success');
+        setTimeout(() => { window.location.href = data.run_url || '{{ pu("/") }}'; }, 600);
+    } catch (err) {
+        showToast('导入失败: ' + err.message, 'error');
+    }
+}
+
+async function installAgentPreset(presetId) {
+    try {
+        await apiPost('/agents/from-preset', { preset_id: presetId });
+        showToast('Agent 已添加', 'success');
+    } catch (err) {
+        showToast('添加失败: ' + err.message, 'error');
+    }
+}
+
+async function exportAgent(agentId) {
+    try {
+        const data = await fetch(apiUrl(`/agents/${agentId}/export`)).then(r => r.json());
+        showExport(data);
+    } catch (err) {
+        showToast('导出失败', 'error');
+    }
+}
+
+async function exportPipeline(pipelineId) {
+    try {
+        const data = await fetch(apiUrl(`/pipelines/${pipelineId}/export`)).then(r => r.json());
+        showExport(data);
+    } catch (err) {
+        showToast('导出失败', 'error');
+    }
+}
+
+function showExport(data) {
+    const el = document.getElementById('exportOutput');
+    el.textContent = JSON.stringify(data, null, 2);
+    el.classList.remove('hidden');
+    showToast('已生成 Bundle JSON（见下方）', 'success');
+}
+
+async function publishPipeline(pipelineId) {
+    try {
+        const data = await apiPost('/bundles/publish', { pipeline_id: pipelineId });
+        showToast(`已发布到共享市场: ${data.filename}`, 'success');
+        setTimeout(() => location.reload(), 800);
+    } catch (err) {
+        showToast('发布失败: ' + err.message, 'error');
+    }
+}
+
+async function importShared(filename) {
+    try {
+        await apiPost('/bundles/import-shared', { filename, overwrite: false });
+        showToast('共享 Bundle 已导入', 'success');
+        setTimeout(() => { window.location.href = '{{ pu("/") }}'; }, 600);
+    } catch (err) {
+        showToast('导入失败: ' + err.message, 'error');
+    }
+}
+
+async function importPastedBundle() {
+    const raw = document.getElementById('bundleInput').value.trim();
+    if (!raw) {
+        showToast('请粘贴 Bundle 内容', 'error');
+        return;
+    }
+    let bundle;
+    try {
+        bundle = raw.startsWith('{') ? JSON.parse(raw) : null;
+        if (!bundle) throw new Error('use yaml');
+    } catch (_) {
+        showToast('请使用 JSON 格式（YAML 导入后续支持）', 'error');
+        return;
+    }
+    try {
+        const overwrite = document.getElementById('overwriteCheck').checked;
+        await apiPost('/bundles/import', { bundle, overwrite });
+        showToast('Bundle 导入成功', 'success');
+        setTimeout(() => { window.location.href = '{{ pu("/") }}'; }, 600);
+    } catch (err) {
+        showToast('导入失败: ' + err.message, 'error');
+    }
+}
+</script>
+{% endblock %}

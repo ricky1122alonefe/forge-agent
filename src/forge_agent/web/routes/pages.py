@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from forge_agent.builtin import AgentTypeRegistry
 from forge_agent.project.state_store import StateStore
+from forge_agent.web.bundles import build_market_catalog
 from forge_agent.web.context import ProjectContext, base_context, get_project_context
 from forge_agent.web.data import (
     collect_payload_fields,
@@ -26,6 +27,7 @@ from forge_agent.web.data import (
     summarize_pipeline_mock_mode,
     summarize_project_mock_mode,
 )
+from forge_agent.web.llm_settings import get_llm_settings_view, load_env_files
 from forge_agent.web.presets import AGENT_PRESETS, PIPELINE_PRESETS, template_label
 
 router = APIRouter()
@@ -215,3 +217,29 @@ async def run_detail_page(run_id: str, request: Request, ctx: Ctx) -> HTMLRespon
         }
     )
     return templates.TemplateResponse(request=request, name="run_detail.html", context=context)
+
+
+@router.get("/settings/llm", response_class=HTMLResponse)
+async def llm_settings_page(request: Request, ctx: Ctx) -> HTMLResponse:
+    """LLM provider and API key settings (P3.3)."""
+    templates = _get_templates()
+    load_env_files(ctx.tenant, ctx.project_root)
+    context = base_context(request, ctx)
+    context.update({"settings": get_llm_settings_view(ctx.tenant, ctx.project_id)})
+    return templates.TemplateResponse(request=request, name="llm_settings.html", context=context)
+
+
+@router.get("/market", response_class=HTMLResponse)
+async def market_page(request: Request, ctx: Ctx) -> HTMLResponse:
+    """Template market: presets, shared bundles, import/export (Phase 4)."""
+    templates = _get_templates()
+    shared_market = ctx.tenant.get_shared_path() / "market"
+    context = base_context(request, ctx)
+    context.update(
+        {
+            "catalog": build_market_catalog(ctx.project_root, shared_market),
+            "agent_presets": AGENT_PRESETS,
+            "pipeline_presets": PIPELINE_PRESETS,
+        }
+    )
+    return templates.TemplateResponse(request=request, name="market.html", context=context)

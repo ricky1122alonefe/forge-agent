@@ -9,6 +9,9 @@ services:
       - forge-data:/data
     environment:
       - FORGE_AGENT_DATA_DIR=/data
+      # Optional multi-user auth (P2.3/P2.4): set to 1 and configure SESSION_SECRET
+      # - FORGE_AGENT_WEB_AUTH=1
+      # - FORGE_AGENT_SESSION_SECRET=change-me
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     healthcheck:

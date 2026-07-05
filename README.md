@@ -132,6 +132,20 @@ forge-agent up --data-dir ~/.forge-agent
 
 Web 内通过导航 **「切换项目」** 可新建/进入其他 Project。
 
+### 公网部署：开启登录（可选）
+
+默认 **免登录**（适合本地单机）。多用户公网部署时：
+
+```bash
+export FORGE_AGENT_WEB_AUTH=1
+export FORGE_AGENT_SESSION_SECRET="change-me-to-a-long-random-string"
+forge-agent up --host 0.0.0.0
+```
+
+- 注册后自动创建独立租户（用户名 = 租户 ID）和 `default` 项目
+- Session Cookie 登录；只能访问自己的 `/t/{tenant}/...`，跨租户返回 403
+- 导航栏可 **退出** 登录
+
 ### Docker 本地部署
 
 ```bash

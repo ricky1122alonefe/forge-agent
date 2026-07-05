@@ -1,0 +1,24 @@
+{% extends "auth_base.html" %}
+
+{% block title %}注册 · forge-agent{% endblock %}
+
+{% block content %}
+<h2 class="text-2xl font-bold mb-6">注册</h2>
+<p class="text-sm text-gray-600 mb-4">注册后会自动创建独立租户（命名空间），用户名即租户 ID。</p>
+<form method="post" action="/auth/register" class="space-y-4">
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+        <input name="username" type="text" required autocomplete="username" pattern="[a-zA-Z][a-zA-Z0-9_-]{2,31}"
+               class="block w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="例如 alice">
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+        <input name="password" type="password" required autocomplete="new-password" minlength="8"
+               class="block w-full border border-gray-300 rounded-md p-2 text-sm">
+    </div>
+    <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 text-sm font-medium">
+        注册并进入
+    </button>
+</form>
+<p class="mt-4 text-sm text-gray-600">已有账号？<a href="{{ login_url }}" class="text-indigo-600 hover:underline">登录</a></p>
+{% endblock %}

@@ -161,6 +161,7 @@ class TestWebGoldenPath:
         assert data["record"]["metadata"]["duration_ms"] is not None
         trace_path = project_root / "logs" / f"{data['record']['trace_id']}.json"
         assert trace_path.exists(), f"missing trace log: {trace_path}"
+        assert (project_root / "state" / "forge_data.db").exists()
 
         records = StateStore(project_root).list()
         assert len(records) >= 1
@@ -173,6 +174,32 @@ class TestWebGoldenPath:
         response = await client.get(f"{project_base}/runs/{data['run_id']}")
         assert response.status_code == 200
         assert "labubu" in response.text
+
+    @pytest.mark.asyncio
+    async def test_llm_settings_api(self, client: httpx.AsyncClient, project_base: str) -> None:
+        response = await client.get(f"{project_base}/api/llm/config")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["project_id"] == "demo"
+        assert any(p["provider_id"] == "deepseek" for p in data["providers"])
+
+        response = await client.put(
+            f"{project_base}/api/llm/config",
+            json={"primary_id": "deepseek", "providers": {"deepseek": {"enabled": True}}},
+        )
+        assert response.status_code == 200
+        assert response.json()["primary_id"] == "deepseek"
+
+        response = await client.put(
+            f"{project_base}/api/llm/secrets",
+            json={"provider_id": "deepseek", "api_key": "sk-test-demo"},
+        )
+        assert response.status_code == 200
+        assert response.json()["env_name"] == "DEEPSEEK_API_KEY"
+
+        response = await client.get(f"{project_base}/settings/llm")
+        assert response.status_code == 200
+        assert "LLM 设置" in response.text
 
     @pytest.mark.asyncio
     async def test_create_all_platform_pipeline_preset(
@@ -291,3 +318,122 @@ class TestWebGoldenPath:
 
         response = await client.get("/t/bob/p/demo/api/agents/secret_agent")
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_p35_local_journey(
+        self,
+        client: httpx.AsyncClient,
+        web_project: tuple[LocalTenant, Path],
+    ) -> None:
+        """P3.5: project → preset agents/pipeline → run → history (no auth, local-first)."""
+        _, acme_demo_root = web_project
+
+        response = await client.post("/t/acme/api/projects", json={"project_id": "lab"})
+        assert response.status_code == 200, response.text
+        lab_base = "/t/acme/p/lab"
+
+        response = await client.get(f"{lab_base}/")
+        assert response.status_code == 200
+
+        response = await client.post(
+            f"{lab_base}/api/pipelines/from-preset",
+            json={"preset_id": "multi_platform_trend"},
+        )
+        assert response.status_code == 200, response.text
+        preset = response.json()
+        assert preset["success"] is True
+        pipeline_id = preset["pipeline_id"]
+        lab_root = acme_demo_root.parent / "lab"
+        assert (lab_root / "pipelines" / f"{pipeline_id}.yaml").exists()
+
+        response = await client.post(
+            f"{lab_base}/api/pipelines/{pipeline_id}/run",
+            json={"payload": {"keyword": "labubu"}},
+        )
+        assert response.status_code == 200, response.text
+        run = response.json()
+        assert run["success"] is True, run.get("error")
+        assert run["record"]["metadata"]["mock_mode"] is True
+        assert len(run["record"]["agent_reports"]) == 2
+        run_id = run["run_id"]
+
+        response = await client.get(f"{lab_base}/runs")
+        assert response.status_code == 200
+        assert run_id in response.text
+
+        response = await client.get(f"{lab_base}/runs/{run_id}")
+        assert response.status_code == 200
+        assert "labubu" in response.text
+        assert "trace" in response.text.lower() or "耗时" in response.text
+
+        response = await client.get(f"{lab_base}/settings/llm")
+        assert response.status_code == 200
+        assert "LLM 设置" in response.text
+
+        assert (lab_root / "state" / "forge_data.db").exists()
+        assert (lab_root / "logs" / f"{run['record']['trace_id']}.json").exists()
+
+    @pytest.mark.asyncio
+    async def test_p34_scraper_uses_tool_agent_template(
+        self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
+    ) -> None:
+        """P3.4: scraper agents are created with scraper_agent template."""
+        _, project_root = web_project
+        response = await client.post(
+            f"{project_base}/api/agents",
+            json={
+                "agent_type": "scraper",
+                "agent_id": "weibo_scraper",
+                "params": {
+                    "keyword": "labubu",
+                    "platform": "weibo",
+                    "tool": "weibo.hot_search",
+                },
+            },
+        )
+        assert response.status_code == 200, response.text
+        yaml_text = (project_root / "agents" / "weibo_scraper.yaml").read_text(encoding="utf-8")
+        assert "template: scraper_agent" in yaml_text
+
+    @pytest.mark.asyncio
+    async def test_p4_market_export_import(
+        self, client: httpx.AsyncClient, web_project: tuple[LocalTenant, Path], project_base: str
+    ) -> None:
+        """Phase 4: export pipeline bundle and import into same project with new ids."""
+        _, project_root = web_project
+        await client.post(
+            f"{project_base}/api/agents",
+            json={
+                "agent_type": "scraper",
+                "agent_id": "weibo_scraper",
+                "params": {"keyword": "labubu", "platform": "weibo", "tool": "weibo.hot_search"},
+            },
+        )
+        await client.post(
+            f"{project_base}/api/pipelines",
+            json={
+                "pipeline_id": "trend",
+                "name": "Trend",
+                "agent_ids": ["weibo_scraper"],
+                "chief_id": "generic.chief",
+            },
+        )
+
+        response = await client.get(f"{project_base}/api/pipelines/trend/export")
+        assert response.status_code == 200
+        bundle = response.json()
+        assert bundle["pipeline"]["pipeline_id"] == "trend"
+
+        bundle["pipeline"]["pipeline_id"] = "trend_copy"
+        bundle["agents"][0]["agent_id"] = "weibo_copy"
+        response = await client.post(
+            f"{project_base}/api/bundles/import",
+            json={"bundle": bundle, "overwrite": False},
+        )
+        assert response.status_code == 200
+        assert "weibo_copy" in response.json()["agents_created"]
+        assert (project_root / "pipelines" / "trend_copy.yaml").exists()
+
+        response = await client.get(f"{project_base}/market")
+        assert response.status_code == 200
+        assert "模板市场" in response.text

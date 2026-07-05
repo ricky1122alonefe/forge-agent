@@ -54,6 +54,9 @@ def build_agent(
     if rendered_tools:
         config["tools"] = rendered_tools
 
+    if params.get("platform"):
+        config["platform"] = params["platform"]
+
     mock_response = type_def.get("mock_response")
     if mock_response:
         config["mock_response"] = _render_template(mock_response.strip(), params)

@@ -19,6 +19,11 @@
     <main class="max-w-2xl mx-auto px-4 py-8">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-bold">选择或创建项目</h2>
+            {% if auth_enabled and auth_user %}
+            <form action="/auth/logout" method="post">
+                <button type="submit" class="text-sm text-gray-500 hover:text-indigo-600">退出 ({{ auth_user.username }})</button>
+            </form>
+            {% endif %}
         </div>
 
         <div class="bg-white p-6 rounded-lg shadow border border-gray-100 mb-6">

@@ -25,7 +25,17 @@ def _get_templates():
 
 @router.get("/", response_class=RedirectResponse)
 async def root_redirect(request: Request) -> RedirectResponse:
-    """Redirect to the default tenant/project workspace."""
+    """Redirect to workspace or login."""
+    auth_config = request.app.state.auth_config
+    if auth_config.enabled:
+        user = getattr(request.state, "user", None)
+        if user is None:
+            return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(
+            url=project_url(user.tenant_id, "default", "/"),
+            status_code=302,
+        )
+
     tenant_id: str = request.app.state.default_tenant_id
     project_id: str = request.app.state.default_project_id
     return RedirectResponse(
@@ -42,12 +52,16 @@ async def tenant_hub_page(tenant_id: str, request: Request) -> HTMLResponse:
     tenant = LocalTenant(tenant_id, root_dir=data_root)
     tenant.get_shared_path()
     projects = tenant.list_projects()
+    auth_config = request.app.state.auth_config
+    auth_user = getattr(request.state, "user", None)
     context = {
         "request": request,
         "tenant_id": tenant_id,
         "projects": projects,
         "project_link": lambda project_id: project_url(tenant_id, project_id, "/"),
         "tenant_api_prefix": tenant_url(tenant_id, "/api"),
+        "auth_enabled": bool(auth_config.enabled),
+        "auth_user": auth_user,
     }
     return templates.TemplateResponse(request=request, name="tenant_hub.html", context=context)
 

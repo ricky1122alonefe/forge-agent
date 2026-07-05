@@ -12,8 +12,22 @@ from pydantic import BaseModel, Field
 from forge_agent.builtin import AgentTypeRegistry
 from forge_agent.project.agent_builder import build_agent_yaml, build_pipeline_yaml
 from forge_agent.project.launcher import _run_pipeline
+from forge_agent.web.bundles import (
+    build_market_catalog,
+    export_agent_bundle,
+    export_pipeline_bundle,
+    import_bundle,
+    load_shared_bundle,
+    save_shared_bundle,
+)
 from forge_agent.web.context import ProjectContext, get_project_context, project_url
 from forge_agent.web.data import collect_payload_fields, get_agent_config
+from forge_agent.web.llm_settings import (
+    get_llm_settings_view,
+    load_env_files,
+    save_api_key,
+    update_llm_config,
+)
 from forge_agent.web.presets import (
     AGENT_PRESETS,
     PIPELINE_PRESETS,
@@ -389,3 +403,167 @@ async def run_pipeline(pipeline_id: str, payload: RunPayload, ctx: Ctx) -> dict[
         return {"success": False, "error": str(exc)}
 
     return {"success": True, "run_id": record.run_id, "record": record.to_dict()}
+
+
+@router.get("/llm/config")
+async def get_llm_config(ctx: Ctx) -> dict[str, Any]:
+    """Return effective LLM settings for the current project."""
+    load_env_files(ctx.tenant, ctx.project_root)
+    return get_llm_settings_view(ctx.tenant, ctx.project_id)
+
+
+class UpdateLLMConfigPayload(BaseModel):
+    primary_id: str | None = None
+    providers: dict[str, dict[str, Any]] | None = None
+
+
+@router.put("/llm/config")
+async def put_llm_config(payload: UpdateLLMConfigPayload, ctx: Ctx) -> dict[str, Any]:
+    """Update project-level LLM provider settings."""
+    try:
+        return update_llm_config(
+            ctx.tenant,
+            ctx.project_id,
+            primary_id=payload.primary_id,
+            provider_updates=payload.providers,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class SaveLLMSecretPayload(BaseModel):
+    provider_id: str
+    api_key: str
+
+
+@router.put("/llm/secrets")
+async def put_llm_secret(payload: SaveLLMSecretPayload, ctx: Ctx) -> dict[str, Any]:
+    """Save an API key to the project .env file."""
+    load_env_files(ctx.tenant, ctx.project_root)
+    cfg_view = get_llm_settings_view(ctx.tenant, ctx.project_id)
+    provider = next(
+        (p for p in cfg_view["providers"] if p["provider_id"] == payload.provider_id),
+        None,
+    )
+    if provider is None:
+        raise HTTPException(status_code=404, detail=f"Provider {payload.provider_id!r} not found")
+    env_name = provider.get("api_key_env")
+    if not env_name:
+        raise HTTPException(status_code=400, detail="Provider does not use an API key")
+
+    try:
+        path = save_api_key(ctx.tenant, ctx.project_root, env_name, payload.api_key)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "success": True,
+        "env_name": env_name,
+        "path": str(path),
+        "settings": get_llm_settings_view(ctx.tenant, ctx.project_id),
+    }
+
+
+class TestLLMPayload(BaseModel):
+    provider_id: str
+    message: str = "Hello, reply with one short sentence."
+
+
+@router.post("/llm/test")
+async def test_llm_provider(payload: TestLLMPayload, ctx: Ctx) -> dict[str, Any]:
+    """Test connectivity for a provider (may consume API quota)."""
+    from forge_agent.llm import chat
+    from forge_agent.llm.registry import get_registry
+    from forge_agent.platform import LLMConfigManager
+
+    load_env_files(ctx.tenant, ctx.project_root)
+    cfg = LLMConfigManager(ctx.tenant).load(ctx.project_id)
+    get_registry().configure(cfg)
+
+    try:
+        response = await chat(payload.message, provider=payload.provider_id)
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
+    return {
+        "success": True,
+        "provider_id": payload.provider_id,
+        "model": response.model,
+        "latency_ms": response.latency_ms,
+        "tokens_in": response.tokens_in,
+        "tokens_out": response.tokens_out,
+        "content_preview": response.content[:200],
+    }
+
+
+def _shared_market_dir(ctx: Ctx) -> Path:
+    return ctx.tenant.get_shared_path() / "market"
+
+
+@router.get("/market/catalog")
+async def market_catalog(ctx: Ctx) -> dict[str, Any]:
+    """List built-in presets, shared bundles, and project export sources."""
+    return build_market_catalog(ctx.project_root, _shared_market_dir(ctx))
+
+
+@router.get("/agents/{agent_id}/export")
+async def export_agent(agent_id: str, ctx: Ctx) -> dict[str, Any]:
+    """Export an agent as a portable bundle."""
+    try:
+        return export_agent_bundle(ctx.project_root, agent_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/pipelines/{pipeline_id}/export")
+async def export_pipeline(pipeline_id: str, ctx: Ctx) -> dict[str, Any]:
+    """Export a pipeline and its agents as a bundle."""
+    try:
+        return export_pipeline_bundle(ctx.project_root, pipeline_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+class ImportBundlePayload(BaseModel):
+    bundle: dict[str, Any]
+    overwrite: bool = False
+
+
+@router.post("/bundles/import")
+async def import_bundle_api(payload: ImportBundlePayload, ctx: Ctx) -> dict[str, Any]:
+    """Import agents/pipeline from a bundle."""
+    try:
+        return import_bundle(ctx.project_root, payload.bundle, overwrite=payload.overwrite)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class PublishBundlePayload(BaseModel):
+    pipeline_id: str
+
+
+@router.post("/bundles/publish")
+async def publish_pipeline_bundle(payload: PublishBundlePayload, ctx: Ctx) -> dict[str, Any]:
+    """Publish a pipeline bundle to tenant shared/market/."""
+    try:
+        bundle = export_pipeline_bundle(ctx.project_root, payload.pipeline_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    path = save_shared_bundle(_shared_market_dir(ctx), bundle)
+    return {"success": True, "path": str(path), "filename": path.name}
+
+
+class ImportSharedPayload(BaseModel):
+    filename: str
+    overwrite: bool = False
+
+
+@router.post("/bundles/import-shared")
+async def import_shared_bundle(payload: ImportSharedPayload, ctx: Ctx) -> dict[str, Any]:
+    """Import a bundle from tenant shared/market/."""
+    try:
+        bundle = load_shared_bundle(_shared_market_dir(ctx), payload.filename)
+        result = import_bundle(ctx.project_root, bundle, overwrite=payload.overwrite)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {**result, "filename": payload.filename}
