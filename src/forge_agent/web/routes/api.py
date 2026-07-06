@@ -330,6 +330,39 @@ async def validate_agent_asset_api(agent_id: str, ctx: Ctx) -> dict[str, Any]:
     }
 
 
+@router.post("/agents/{agent_id}/migrate")
+async def migrate_agent_asset(agent_id: str, ctx: Ctx) -> dict[str, Any]:
+    """Upgrade legacy agent YAML with spec_version / primitive metadata (A11.1)."""
+    import yaml
+
+    from forge_agent.agent_spec.versioning import migrate_agent_dict, validate_agent_asset
+
+    target = _agent_path(ctx.project_root, agent_id)
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
+    raw = yaml.safe_load(target.read_text(encoding="utf-8")) or {}
+    agents = raw.get("agents", []) if isinstance(raw, dict) else raw
+    migrated = False
+    for entry in agents:
+        if isinstance(entry, dict) and entry.get("agent_id") == agent_id:
+            entry.update(migrate_agent_dict(entry))
+            migrated = True
+            break
+    if not migrated:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found in YAML")
+    target.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    agent = load_agent_dict(ctx.project_root, agent_id) or {}
+    meta = agent.get("_meta") if isinstance(agent.get("_meta"), dict) else {}
+    return {
+        "success": True,
+        "agent_id": agent_id,
+        "spec_version": meta.get("spec_version"),
+        "revision": meta.get("revision"),
+        "primitive": meta.get("primitive"),
+        "validation_errors": validate_agent_asset(agent),
+    }
+
+
 @router.get("/agents/{agent_id}/config")
 async def get_agent_config_api(agent_id: str, ctx: Ctx) -> dict[str, Any]:
     """Return structured config fields for an agent."""
@@ -707,6 +740,8 @@ class ImportBundlePayload(BaseModel):
     bundle: dict[str, Any] | None = None
     bundle_text: str | None = None
     overwrite: bool = False
+    migrate: bool = True
+    run_ci: bool = False
 
 
 @router.post("/bundles/import")
@@ -721,7 +756,13 @@ async def import_bundle_api(payload: ImportBundlePayload, ctx: Ctx) -> dict[str,
             data = parse_bundle_text(payload.bundle_text)
         else:
             raise ValueError("bundle or bundle_text is required")
-        return import_bundle(ctx.project_root, data, overwrite=payload.overwrite)
+        return import_bundle(
+            ctx.project_root,
+            data,
+            overwrite=payload.overwrite,
+            migrate=payload.migrate,
+            ci_gate=payload.run_ci,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -744,6 +785,8 @@ async def publish_pipeline_bundle(payload: PublishBundlePayload, ctx: Ctx) -> di
 class ImportSharedPayload(BaseModel):
     filename: str
     overwrite: bool = False
+    migrate: bool = True
+    run_ci: bool = False
 
 
 @router.post("/bundles/import-shared")
@@ -751,7 +794,13 @@ async def import_shared_bundle(payload: ImportSharedPayload, ctx: Ctx) -> dict[s
     """Import a bundle from tenant shared/market/."""
     try:
         bundle = load_shared_bundle(_shared_market_dir(ctx), payload.filename)
-        result = import_bundle(ctx.project_root, bundle, overwrite=payload.overwrite)
+        result = import_bundle(
+            ctx.project_root,
+            bundle,
+            overwrite=payload.overwrite,
+            migrate=payload.migrate,
+            ci_gate=payload.run_ci,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {**result, "filename": payload.filename}

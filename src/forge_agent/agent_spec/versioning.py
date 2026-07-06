@@ -59,3 +59,51 @@ def validate_agent_asset(agent: dict[str, Any]) -> list[str]:
     if not config.get("output_schema"):
         errors.append("missing config.output_schema")
     return errors
+
+
+def infer_primitive_from_agent(agent: dict[str, Any]) -> str:
+    """Best-effort primitive label for legacy agent YAML without _meta.primitive."""
+    meta = agent.get("_meta") if isinstance(agent.get("_meta"), dict) else {}
+    if meta.get("primitive"):
+        return str(meta["primitive"])
+    config = agent.get("config") if isinstance(agent.get("config"), dict) else {}
+    variables = config.get("variables") if isinstance(config.get("variables"), dict) else {}
+    if "reports" in variables.values() or variables.get("reports") == "reports":
+        return "synthesizer"
+    template = str(agent.get("template", "prompt_agent"))
+    template_map = {
+        "scraper_agent": "fetcher",
+        "tool_agent": "fetcher",
+        "search_agent": "searcher",
+    }
+    return template_map.get(template, "reasoner")
+
+
+def migrate_agent_dict(
+    agent: dict[str, Any],
+    *,
+    bump_revision: bool = False,
+) -> dict[str, Any]:
+    """Upgrade a legacy agent dict to current asset metadata (A11.1)."""
+    migrated = dict(agent)
+    meta = dict(migrated.get("_meta") or {})
+    if not meta.get("primitive"):
+        meta["primitive"] = infer_primitive_from_agent(migrated)
+
+    try:
+        revision = int(meta.get("revision", 0) or 0)
+    except (TypeError, ValueError):
+        revision = 0
+    if revision < 1:
+        revision = 1
+    if bump_revision:
+        revision += 1
+
+    if meta.get("spec_version") is None:
+        meta = stamp_agent_meta(meta, revision=revision, reset_verification=False)
+    else:
+        meta.setdefault("generated_at", datetime.now(timezone.utc).isoformat())
+        meta.setdefault("revision", revision)
+
+    migrated["_meta"] = meta
+    return migrated

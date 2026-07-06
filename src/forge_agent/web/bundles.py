@@ -106,9 +106,47 @@ def import_bundle(
     data: dict[str, Any],
     *,
     overwrite: bool = False,
+    migrate: bool = True,
+    ci_gate: bool = False,
 ) -> dict[str, Any]:
     """Import agents and optional pipeline from a bundle."""
     validate_bundle(data)
+
+    ci_skipped: list[str] = []
+    chain_result: dict[str, Any] | None = None
+
+    if ci_gate:
+        from forge_agent.agent_spec.ci import run_ci_gate
+        from forge_agent.agent_spec.compose import compose_plan_from_bundle
+        from forge_agent.agent_spec.versioning import migrate_agent_dict
+        from forge_agent.agent_spec.writer import agent_dict_to_spec
+
+        prepared_agents: list[dict[str, Any]] = []
+        for raw in data["agents"]:
+            agent = migrate_agent_dict(dict(raw)) if migrate else dict(raw)
+            agent_id = str(agent["agent_id"])
+            mock_cases = agent.get("mock_cases")
+            if isinstance(mock_cases, list) and mock_cases:
+                run_ci_gate(agent_dict_to_spec(agent))
+            else:
+                ci_skipped.append(agent_id)
+            prepared_agents.append(agent)
+
+        plan = compose_plan_from_bundle({**data, "agents": prepared_agents})
+        if plan is not None:
+            if plan.wiring_errors:
+                raise ValueError("; ".join(plan.wiring_errors))
+            import asyncio
+
+            from forge_agent.agent_spec.chain_smoke import smoke_compose_chain
+
+            chain_result = asyncio.run(smoke_compose_chain(plan))
+
+        data = {**data, "agents": prepared_agents}
+    elif migrate:
+        from forge_agent.agent_spec.versioning import migrate_agent_dict
+
+        data = {**data, "agents": [migrate_agent_dict(dict(a)) for a in data["agents"]]}
 
     agents_dir = project_root / "agents"
     agents_dir.mkdir(parents=True, exist_ok=True)
@@ -145,6 +183,10 @@ def import_bundle(
         "agents_created": created_agents,
         "agents_skipped": skipped_agents,
         "pipeline": pipeline_result,
+        "migrated": migrate,
+        "ci_gate": ci_gate,
+        "ci_skipped": ci_skipped if ci_gate else [],
+        "chain_smoke": chain_result if ci_gate else None,
     }
 
 

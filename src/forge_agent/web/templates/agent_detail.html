@@ -19,7 +19,16 @@
         </div>
         <p class="text-xs text-gray-600">当前：<span class="font-medium">{{ maturity.label }}</span> — {{ maturity.hint }}</p>
         <p class="text-xs text-indigo-700 bg-indigo-50 rounded px-2 py-1">下一步：{{ maturity.next_step }}</p>
-        <div class="flex flex-wrap gap-2">
+        <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mt-2">
+            <p>原语：<span class="font-medium text-gray-900">{{ agent_meta.get('primitive', '-') }}</span></p>
+            <p>版本：<span class="font-medium text-gray-900">v{{ agent_meta.get('spec_version', '?') }} · rev {{ agent_meta.get('revision', '?') }}</span></p>
+            <p>规划器：<span class="font-medium text-gray-900">{{ agent_meta.get('planner', '-') }}</span></p>
+            <p>能力：<span class="font-medium text-gray-900">{{ (agent_meta.get('capabilities') or []) | join(', ') or '无' }}</span></p>
+        </div>
+        {% if not agent_meta.get('spec_version') %}
+        <button type="button" id="migrateBtn" class="text-xs border border-amber-300 text-amber-800 rounded px-3 py-1 hover:bg-amber-50">补全资产元数据</button>
+        {% endif %}
+        <div class="flex flex-wrap gap-2 mt-2">
             <button type="button" id="smokeBtn" class="text-xs border border-gray-300 rounded px-3 py-1 hover:bg-gray-50">运行 Mock Smoke</button>
             <span id="smokeStatus" class="text-xs text-gray-500 ml-2"></span>
         </div>
@@ -88,6 +97,19 @@
 
 {% block extra_js %}
 <script>
+const migrateBtn = document.getElementById('migrateBtn');
+if (migrateBtn) {
+    migrateBtn.addEventListener('click', async () => {
+        try {
+            await apiPost('/agents/{{ agent_id }}/migrate', {});
+            showToast('资产元数据已补全', 'success');
+            setTimeout(() => location.reload(), 500);
+        } catch (err) {
+            showToast('迁移失败: ' + err.message, 'error');
+        }
+    });
+}
+
 document.getElementById('smokeBtn').addEventListener('click', async () => {
     const status = document.getElementById('smokeStatus');
     status.textContent = '运行中…';

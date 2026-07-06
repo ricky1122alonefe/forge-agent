@@ -148,6 +148,7 @@ async def agent_detail_page(agent_id: str, request: Request, ctx: Ctx) -> HTMLRe
     if not agent_file.exists():
         raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
     agent = get_agent(ctx.project_root, agent_id) or {}
+    meta = agent.get("_meta") if isinstance(agent.get("_meta"), dict) else {}
     run_defaults = default_run_payload(agent)
     context = base_context(request, ctx)
     context.update(
@@ -155,6 +156,7 @@ async def agent_detail_page(agent_id: str, request: Request, ctx: Ctx) -> HTMLRe
             "agent_id": agent_id,
             "yaml": agent_file.read_text(encoding="utf-8"),
             "agent_config": get_agent_config(ctx.project_root, agent_id),
+            "agent_meta": meta,
             "maturity": compute_maturity(agent),
             "run_defaults_json": json.dumps(run_defaults, ensure_ascii=False),
         }

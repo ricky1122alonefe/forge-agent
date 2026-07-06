@@ -225,10 +225,22 @@ AgentSpecGenerator ──► AgentSpec (validate)
 | Phase 8 Agent 资产 version | 4/4 | ✅ |
 | Phase 9 自动连线 + 能力可配 | 5/5 | ✅ |
 | Phase 10 CI 门禁 + 全链 Mock | 4/4 | ✅ |
+| Phase 11 跨项目导入 + 可见性 | 4/4 | ✅ |
 
-**当前 focus**：Phase 10 已完成 — apply 前 smoke 拦截；编队全链 sequential Mock 验收
+**当前 focus**：Phase 11 已完成 — Bundle 导入 migrate/CI；详情页与编队预览可见资产与 CI 状态
 
 **执行纪律**：新 work 必须先写入本文档 Phase 表再开发；禁止 Pipeline / 市场 / CLI 支线。
+
+---
+
+### Phase 11 — 跨 Project 导入 + UI 可见性
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A11.1 | `migrate_agent_dict()` + `POST /agents/{id}/migrate` | 老 YAML 补 spec_version |
+| A11.2 | `import_bundle(migrate, ci_gate)` + 编队 bundle 全链 smoke | 导入可选 CI |
+| A11.3 | 详情页资产元数据 + 编队 CI 状态条 | 用户可见 revision/CI |
+| A11.4 | 测试 + 文档进度 | 单元测试全绿 |
 
 ---
 

@@ -247,3 +247,43 @@ def apply_compose_plan(
         "pipeline": pipeline,
         "ci_gate": ci_gate,
     }
+
+
+def compose_plan_from_bundle(data: dict[str, Any]) -> ComposePlan | None:
+    """Build a ComposePlan from an imported pipeline bundle for chain smoke (A11.2)."""
+    from forge_agent.agent_spec.versioning import migrate_agent_dict
+    from forge_agent.agent_spec.writer import agent_dict_to_spec
+
+    pipeline = data.get("pipeline")
+    if not isinstance(pipeline, dict):
+        return None
+    team = pipeline.get("team") if isinstance(pipeline.get("team"), dict) else {}
+    agent_ids = list(team.get("agent_ids", [])) if isinstance(team.get("agent_ids"), list) else []
+    if len(agent_ids) < 2:
+        return None
+
+    agents_by_id = {
+        str(a["agent_id"]): migrate_agent_dict(dict(a))
+        for a in data.get("agents", [])
+        if isinstance(a, dict) and a.get("agent_id")
+    }
+    specs: list[AgentSpec] = []
+    for agent_id in agent_ids:
+        agent = agents_by_id.get(agent_id)
+        if agent is None:
+            return None
+        specs.append(agent_dict_to_spec(agent))
+
+    primitives = [spec.primitive for spec in specs]
+    return ComposePlan(
+        requirement=str(
+            pipeline.get("description") or data.get("description") or "imported bundle"
+        ),
+        specs=specs,
+        pipeline_id=str(pipeline.get("pipeline_id", "imported_pipeline")),
+        pipeline_name=str(pipeline.get("name", pipeline.get("pipeline_id", "Imported"))),
+        agent_ids=list(agent_ids),
+        mode=str(team.get("mode", suggest_team_mode(primitives))),
+        wiring_errors=validate_wiring(primitives),
+        keyword=str(data.get("keyword") or "demo"),
+    )

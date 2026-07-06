@@ -58,12 +58,61 @@ class TestBundles:
         assert bundle["mock_cases_count"] >= 1
         assert bundle["agents"][0].get("mock_cases")
 
+    def test_import_migrates_legacy_agent(self, project_root: Path, tmp_path: Path) -> None:
+        bundle = export_agent_bundle(project_root, "weibo_analyst")
+        target = tmp_path / "imported"
+        tenant = LocalTenant("bob", root_dir=tmp_path / "data2")
+        target = tenant.create_project("lab")
+
+        result = import_bundle(target, bundle, migrate=True)
+        assert "weibo_analyst" in result["agents_created"]
+        assert result["migrated"] is True
+        raw = yaml.safe_load((target / "agents" / "weibo_analyst.yaml").read_text(encoding="utf-8"))
+        meta = raw["agents"][0]["_meta"]
+        assert meta.get("spec_version") == 1
+        assert meta.get("primitive")
+
+    def test_import_with_ci_gate(self, project_root: Path, tmp_path: Path) -> None:
+        from forge_agent.agent_spec.compose import compose_from_requirement
+        from forge_agent.agent_spec.writer import spec_to_agent_dict
+
+        plan = compose_from_requirement(
+            "抓微博和小红书 labubu 热度，再汇总成一份报告",
+            keyword="labubu",
+            pipeline_id="labubu_team",
+        )
+        bundle = {
+            "kind": "forge_agent_bundle",
+            "version": 1,
+            "bundle_id": "pipeline:labubu_team",
+            "name": plan.pipeline_name,
+            "agents": [spec_to_agent_dict(spec) for spec in plan.specs],
+            "pipeline": {
+                "pipeline_id": plan.pipeline_id,
+                "name": plan.pipeline_name,
+                "description": plan.requirement,
+                "team": {
+                    "team_id": f"{plan.pipeline_id}_team",
+                    "name": plan.pipeline_name,
+                    "domain": "generic",
+                    "agent_ids": plan.agent_ids,
+                    "mode": plan.mode,
+                    "chief_id": plan.chief_id,
+                },
+            },
+        }
+        tenant = LocalTenant("ci", root_dir=tmp_path / "data3")
+        target = tenant.create_project("lab")
+        result = import_bundle(target, bundle, ci_gate=True)
+        assert result["ci_gate"] is True
+        assert result["chain_smoke"]["success"] is True
+        assert (target / "pipelines" / "labubu_team.yaml").exists()
+
     def test_export_and_import_agent(self, project_root: Path, tmp_path: Path) -> None:
         bundle = export_agent_bundle(project_root, "weibo_analyst")
         assert bundle["kind"] == "forge_agent_bundle"
         assert len(bundle["agents"]) == 1
 
-        target = tmp_path / "imported"
         tenant = LocalTenant("bob", root_dir=tmp_path / "data2")
         target = tenant.create_project("lab")
 
