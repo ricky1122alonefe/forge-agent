@@ -226,10 +226,22 @@ AgentSpecGenerator ──► AgentSpec (validate)
 | Phase 9 自动连线 + 能力可配 | 5/5 | ✅ |
 | Phase 10 CI 门禁 + 全链 Mock | 4/4 | ✅ |
 | Phase 11 跨项目导入 + 可见性 | 4/4 | ✅ |
+| Phase 12 编队导出 + 编辑 CI | 4/4 | ✅ |
 
-**当前 focus**：Phase 11 已完成 — Bundle 导入 migrate/CI；详情页与编队预览可见资产与 CI 状态
+**当前 focus**：Phase 12 已完成 — 编队一键导出 Bundle；快捷编辑/YAML 保存走 CI 门禁
 
 **执行纪律**：新 work 必须先写入本文档 Phase 表再开发；禁止 Pipeline / 市场 / CLI 支线。
+
+---
+
+### Phase 12 — 编队 Bundle 导出 + 编辑 CI 门禁
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A12.1 | `export_compose_bundle()` + `POST /agent-spec/compose/export` | Bundle 含 versioned agents + pipeline |
+| A12.2 | `persist_agent_document_with_ci()` 用于 config/YAML 保存 | smoke 失败 400，成功 bump revision |
+| A12.3 | Web 编队 Tab「导出 Bundle」下载 JSON | 导出前 CI + 全链验 |
+| A12.4 | 测试 | compose export + persist CI |
 
 ---
 

@@ -85,6 +85,7 @@
             <button type="button" id="composePreviewBtn" class="hidden bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-50">预览编队</button>
             <button type="button" id="applyBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700">保存 Agent</button>
             <button type="button" id="composeApplyBtn" class="hidden bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700">保存编队</button>
+            <button type="button" id="composeExportBtn" class="hidden bg-white border border-indigo-300 text-indigo-700 px-4 py-2 rounded-md text-sm hover:bg-indigo-50">导出 Bundle</button>
         </div>
     </form>
 
@@ -136,6 +137,7 @@ function setMode(next) {
     document.getElementById('applyBtn').classList.toggle('hidden', mode === 'compose');
     document.getElementById('composePreviewBtn').classList.toggle('hidden', mode !== 'compose');
     document.getElementById('composeApplyBtn').classList.toggle('hidden', mode !== 'compose');
+    document.getElementById('composeExportBtn').classList.toggle('hidden', mode !== 'compose');
     const hints = {
         nl: '用自然语言描述 Agent 能力',
         compose: '一句话拆解多 Agent 编队，自动 sequential 连线 + Pipeline',
@@ -297,6 +299,23 @@ document.getElementById('composePreviewBtn').addEventListener('click', async () 
         showToast('编队计划已生成', 'success');
     } catch (err) {
         showToast('预览失败: ' + err.message, 'error');
+    }
+});
+
+document.getElementById('composeExportBtn').addEventListener('click', async () => {
+    try {
+        const data = await apiPost('/agent-spec/compose/export', buildComposePayload(false));
+        renderComposePreview({ ...data.plan, ci_passed: true, chain_smoke: data.chain_smoke });
+        const blob = new Blob([JSON.stringify(data.bundle, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${data.bundle.pipeline?.pipeline_id || 'compose'}_bundle.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Bundle 已导出（含 CI 校验）', 'success');
+    } catch (err) {
+        showToast('导出失败: ' + err.message, 'error');
     }
 });
 

@@ -35,6 +35,7 @@ from forge_agent.web.architect import apply_plan, generate_plan
 from forge_agent.web.bundles import (
     build_market_catalog,
     export_agent_bundle,
+    export_compose_bundle,
     export_pipeline_bundle,
     import_bundle,
     load_shared_bundle,
@@ -376,6 +377,7 @@ class UpdateAgentConfigPayload(BaseModel):
     mock_mode: bool | None = None
     prompt: str | None = None
     tools: list[str] | None = None
+    run_ci: bool = True
 
 
 def _merge_agent_config_yaml(
@@ -413,19 +415,30 @@ async def update_agent_config(
     agent_id: str, payload: UpdateAgentConfigPayload, ctx: Ctx
 ) -> dict[str, Any]:
     """Update selected agent config fields without hand-editing YAML."""
+    from forge_agent.agent_spec.ci import CIGateError, persist_agent_document_with_ci
+
     target = _agent_path(ctx.project_root, agent_id)
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
 
     try:
-        merged = _merge_agent_config_yaml(agent_id, target.read_text(encoding="utf-8"), payload)
+        merged_text = _merge_agent_config_yaml(
+            agent_id, target.read_text(encoding="utf-8"), payload
+        )
+        document = yaml.safe_load(merged_text) or {}
+        result = persist_agent_document_with_ci(
+            ctx.project_root,
+            agent_id,
+            document,
+            ci_gate=payload.run_ci,
+        )
+    except CIGateError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    target.write_text(merged, encoding="utf-8")
     return {
-        "success": True,
-        "agent_id": agent_id,
+        **result,
         "config": get_agent_config(ctx.project_root, agent_id),
     }
 
@@ -492,20 +505,35 @@ async def get_pipeline_payload_fields(pipeline_id: str, ctx: Ctx) -> dict[str, A
 
 class UpdateAgentPayload(BaseModel):
     yaml: str
+    run_ci: bool = True
 
 
 @router.put("/agents/{agent_id}")
 async def update_agent(agent_id: str, payload: UpdateAgentPayload, ctx: Ctx) -> dict[str, Any]:
     """Overwrite an agent YAML file."""
+    from forge_agent.agent_spec.ci import CIGateError, persist_agent_document_with_ci
+
     target = _agent_path(ctx.project_root, agent_id)
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Agent {agent_id!r} not found")
     try:
-        yaml.safe_load(payload.yaml)
+        document = yaml.safe_load(payload.yaml) or {}
     except yaml.YAMLError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid YAML: {exc}") from exc
-    target.write_text(payload.yaml, encoding="utf-8")
-    return {"success": True, "agent_id": agent_id}
+
+    try:
+        result = persist_agent_document_with_ci(
+            ctx.project_root,
+            agent_id,
+            document,
+            ci_gate=payload.run_ci,
+        )
+    except CIGateError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return result
 
 
 @router.delete("/agents/{agent_id}")
@@ -1067,4 +1095,43 @@ async def agent_spec_compose(payload: AgentSpecComposePayload, ctx: Ctx) -> dict
         "smokes": smokes,
         "pipeline_url": project_url(ctx.tenant_id, ctx.project_id, f"/pipelines/{pid}"),
         "run_url": project_url(ctx.tenant_id, ctx.project_id, f"/pipelines/{pid}/run"),
+    }
+
+
+@router.post("/agent-spec/compose/export")
+async def agent_spec_compose_export(payload: AgentSpecComposePayload, ctx: Ctx) -> dict[str, Any]:
+    """Export a compose plan as a portable bundle JSON (A12.1)."""
+    from forge_agent.agent_spec.chain_smoke import smoke_compose_chain
+    from forge_agent.agent_spec.ci import CIGateError, run_ci_gate
+
+    try:
+        plan = compose_from_requirement(
+            payload.requirement,
+            keyword=payload.keyword,
+            pipeline_id=payload.pipeline_id,
+            focus=payload.focus,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if plan.wiring_errors:
+        raise HTTPException(status_code=400, detail="; ".join(plan.wiring_errors))
+
+    if payload.run_smoke:
+        try:
+            for spec in plan.specs:
+                run_ci_gate(spec)
+            chain_smoke = None
+            if len(plan.specs) > 1:
+                chain_smoke = await smoke_compose_chain(plan)
+        except CIGateError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    else:
+        chain_smoke = None
+
+    bundle = export_compose_bundle(plan)
+    return {
+        "bundle": bundle,
+        "plan": plan.to_dict(),
+        "chain_smoke": chain_smoke,
     }

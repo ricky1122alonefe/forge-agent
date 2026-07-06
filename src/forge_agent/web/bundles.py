@@ -73,6 +73,42 @@ def export_pipeline_bundle(project_root: Path, pipeline_id: str) -> dict[str, An
     return bundle
 
 
+def export_compose_bundle(plan: Any) -> dict[str, Any]:
+    """Export a compose plan as a portable pipeline bundle (A12.1)."""
+    from forge_agent.agent_spec.versioning import stamp_agent_meta
+    from forge_agent.agent_spec.writer import spec_to_agent_dict
+    from forge_agent.project.agent_builder import build_pipeline
+
+    agents: list[dict[str, Any]] = []
+    for spec in plan.specs:
+        agent_dict = spec_to_agent_dict(spec)
+        agent_dict["_meta"] = stamp_agent_meta(agent_dict["_meta"], revision=1)
+        agents.append(agent_dict)
+
+    pipeline = build_pipeline(
+        plan.pipeline_id,
+        plan.pipeline_name,
+        plan.agent_ids,
+        chief_id=plan.chief_id,
+        mode=plan.mode,
+        description=plan.requirement,
+    )
+
+    return {
+        "kind": BUNDLE_KIND,
+        "version": BUNDLE_VERSION,
+        "bundle_id": f"pipeline:{plan.pipeline_id}",
+        "name": plan.pipeline_name,
+        "description": plan.requirement,
+        "agents": agents,
+        "pipeline": pipeline,
+        "keyword": plan.keyword,
+        "composed": True,
+        "wiring_valid": not plan.wiring_errors,
+        "agent_count": len(agents),
+    }
+
+
 def validate_bundle(data: dict[str, Any]) -> None:
     if data.get("kind") != BUNDLE_KIND:
         raise ValueError(f"Unsupported bundle kind: {data.get('kind')!r}")
