@@ -183,10 +183,23 @@ def apply_compose_plan(
     plan: ComposePlan,
     *,
     overwrite: bool = False,
+    ci_gate: bool = True,
 ) -> dict[str, Any]:
     """Write all agents and pipeline YAML from a compose plan."""
     if plan.wiring_errors:
         raise ValueError("; ".join(plan.wiring_errors))
+
+    if ci_gate:
+        from forge_agent.agent_spec.ci import run_ci_gate
+
+        for spec in plan.specs:
+            run_ci_gate(spec)
+        if len(plan.specs) > 1:
+            import asyncio
+
+            from forge_agent.agent_spec.chain_smoke import smoke_compose_chain
+
+            asyncio.run(smoke_compose_chain(plan))
 
     agents_dir = project_root / "agents"
     agents_dir.mkdir(parents=True, exist_ok=True)
@@ -202,7 +215,7 @@ def apply_compose_plan(
         agent_path = agents_dir / f"{spec.agent_id}.yaml"
         if agent_path.exists() and not overwrite:
             raise ValueError(f"Agent {spec.agent_id!r} already exists")
-        applied.append(apply_spec(project_root, spec, overwrite=overwrite))
+        applied.append(apply_spec(project_root, spec, overwrite=overwrite, ci_gate=False))
 
     pipeline = build_pipeline(
         plan.pipeline_id,
@@ -232,4 +245,5 @@ def apply_compose_plan(
         "mode": plan.mode,
         "agent_ids": plan.agent_ids,
         "pipeline": pipeline,
+        "ci_gate": ci_gate,
     }

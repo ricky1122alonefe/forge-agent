@@ -224,10 +224,22 @@ AgentSpecGenerator ──► AgentSpec (validate)
 | Phase 7 成熟度闭环 | 4/4 | ✅ |
 | Phase 8 Agent 资产 version | 4/4 | ✅ |
 | Phase 9 自动连线 + 能力可配 | 5/5 | ✅ |
+| Phase 10 CI 门禁 + 全链 Mock | 4/4 | ✅ |
 
-**当前 focus**：Phase 9 已完成 — primitive 自动连线编队 + memory/constraints 能力可配
+**当前 focus**：Phase 10 已完成 — apply 前 smoke 拦截；编队全链 sequential Mock 验收
 
 **执行纪律**：新 work 必须先写入本文档 Phase 表再开发；禁止 Pipeline / 市场 / CLI 支线。
+
+---
+
+### Phase 10 — Agent CI 门禁 + compose 全链 Mock
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A10.1 | `ci.py` apply 前 `run_ci_gate()`，失败不写入 YAML | CIGateError + 单元测试 |
+| A10.2 | `chain_smoke.py` 编队 sequential TeamRunner Mock | 双 Fetcher + Synth 全链绿 |
+| A10.3 | `_apply_agent_spec` / compose apply 默认 CI 开启 | API 400 拦截 |
+| A10.4 | compose 预览也可 dry-run 全链 smoke | preview 返回 chain_smoke |
 
 ---
 

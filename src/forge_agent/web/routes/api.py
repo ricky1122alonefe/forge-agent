@@ -119,15 +119,22 @@ async def _apply_agent_spec(
     *,
     overwrite: bool = False,
     run_smoke: bool = True,
+    ci_gate: bool | None = None,
 ) -> dict[str, Any]:
-    result = apply_spec(ctx.project_root, spec, overwrite=overwrite)
-    if run_smoke and spec.mock_cases:
-        smoke = await smoke_run_spec(spec)
-        result["smoke"] = smoke
-        if smoke.get("success"):
-            mark_smoke_verified(ctx.project_root, spec.agent_id)
-        else:
-            result["success"] = False
+    """Apply AgentSpec with optional CI gate (smoke before write)."""
+    from forge_agent.agent_spec.ci import CIGateError
+
+    gate = run_smoke if ci_gate is None else ci_gate
+    try:
+        result = apply_spec(ctx.project_root, spec, overwrite=overwrite, ci_gate=gate)
+    except CIGateError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if gate and spec.mock_cases and result.get("success"):
+        mark_smoke_verified(ctx.project_root, spec.agent_id)
+        result["smoke_verified"] = True
+        if result.get("smoke_results"):
+            result["smoke"] = result["smoke_results"][0]
     return result
 
 
@@ -966,25 +973,42 @@ async def agent_spec_compose(payload: AgentSpecComposePayload, ctx: Ctx) -> dict
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if not payload.apply:
-        return plan.to_dict()
+        result = plan.to_dict()
+        if payload.run_smoke and plan.specs:
+            from forge_agent.agent_spec.chain_smoke import smoke_compose_chain
+            from forge_agent.agent_spec.ci import CIGateError, run_ci_gate
+
+            try:
+                for spec in plan.specs:
+                    run_ci_gate(spec)
+                if len(plan.specs) > 1:
+                    result["chain_smoke"] = await smoke_compose_chain(plan)
+                result["ci_passed"] = True
+            except CIGateError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return result
 
     if plan.wiring_errors:
         raise HTTPException(status_code=400, detail="; ".join(plan.wiring_errors))
 
+    from forge_agent.agent_spec.ci import CIGateError
+
     try:
-        applied = apply_compose_plan(ctx.project_root, plan, overwrite=payload.overwrite)
+        applied = apply_compose_plan(
+            ctx.project_root, plan, overwrite=payload.overwrite, ci_gate=payload.run_smoke
+        )
+    except CIGateError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     smokes: list[dict[str, Any]] = []
     if payload.run_smoke:
         for spec in plan.specs:
-            if not spec.mock_cases:
-                continue
-            smoke = await smoke_run_spec(spec)
-            smokes.append({"agent_id": spec.agent_id, **smoke})
-            if smoke.get("success"):
-                mark_smoke_verified(ctx.project_root, spec.agent_id)
+            mark_smoke_verified(ctx.project_root, spec.agent_id)
+        smokes = [{"agent_id": s.agent_id, "success": True, "ci_gate": True} for s in plan.specs]
+        if len(plan.specs) > 1:
+            smokes.append({"chain_smoke": True, "success": True})
 
     pid = plan.pipeline_id
     return {

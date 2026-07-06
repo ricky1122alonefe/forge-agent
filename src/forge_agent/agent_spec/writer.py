@@ -135,8 +135,9 @@ def apply_spec(
     *,
     overwrite: bool = False,
     smoke_verified: bool = False,
+    ci_gate: bool = False,
 ) -> dict[str, Any]:
-    """Validate, write YAML, return result metadata."""
+    """Validate, optionally CI-gate, write YAML, return result metadata."""
     errors = validate_spec(spec)
     if errors:
         raise ValueError("; ".join(errors))
@@ -147,12 +148,18 @@ def apply_spec(
     if path.exists() and not overwrite:
         raise ValueError(f"Agent {spec.agent_id!r} already exists")
 
+    smoke_results: list[dict[str, Any]] = []
+    if ci_gate:
+        from forge_agent.agent_spec.ci import run_ci_gate
+
+        smoke_results = run_ci_gate(spec)
+
     agent_dict = _stamp_dict_for_write(
         project_root,
         spec,
         path=path,
         overwrite=overwrite,
-        smoke_verified=smoke_verified,
+        smoke_verified=smoke_verified or bool(ci_gate and smoke_results),
     )
     revision = int(agent_dict["_meta"]["revision"])
 
@@ -167,7 +174,9 @@ def apply_spec(
         "primitive": spec.primitive.value,
         "planner": spec.planner,
         "mock_cases": len(spec.mock_cases),
-        "smoke_verified": smoke_verified,
+        "smoke_verified": smoke_verified or bool(ci_gate and smoke_results),
+        "ci_gate": ci_gate,
+        "smoke_results": smoke_results,
         "spec_version": AGENT_ASSET_SPEC_VERSION,
         "revision": revision,
     }
