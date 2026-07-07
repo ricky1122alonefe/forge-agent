@@ -78,7 +78,7 @@ class AgentFactory:
         log.info("Factory created agent %s from template %s", agent_id, template)
         return cls
 
-    def load_yaml(self, path: str | Path) -> list[type[BaseAgent]]:
+    def load_yaml(self, path: str | Path, *, override: bool = False) -> list[type[BaseAgent]]:
         """Load agent definitions from a YAML file.
 
         Supports two shapes:
@@ -88,6 +88,9 @@ class AgentFactory:
         or a top-level list:
             - agent_id: ...
               ...
+
+        When *override* is True, existing registry entries are replaced (for
+        project reloads after smoke tests or repeated pipeline runs).
         """
         import yaml
 
@@ -106,7 +109,22 @@ class AgentFactory:
             msg = "YAML must contain an 'agents:' list or be a top-level list"
             raise ValueError(msg)
 
-        return [self.from_dict(cfg) for cfg in agents_config]
+        registry = None
+        if override:
+            from forge_agent.registry.registry import get_registry
+
+            registry = get_registry()
+
+        loaded: list[type[BaseAgent]] = []
+        for cfg in agents_config:
+            entry = dict(cfg)
+            if override:
+                agent_id = entry.get("agent_id")
+                if agent_id and registry is not None:
+                    registry.unregister(str(agent_id))
+                entry["override"] = True
+            loaded.append(self.from_dict(entry))
+        return loaded
 
     def list_templates(self) -> list[str]:
         """Return names of registered agent templates."""

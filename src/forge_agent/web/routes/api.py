@@ -46,8 +46,8 @@ from forge_agent.web.data import collect_payload_fields, get_agent_config
 from forge_agent.web.data import get_agent as load_agent_dict
 from forge_agent.web.llm_runtime import resolve_llm_chat
 from forge_agent.web.llm_settings import (
+    bootstrap_project_secrets,
     get_llm_settings_view,
-    load_env_files,
     save_api_key,
     update_llm_config,
 )
@@ -121,13 +121,22 @@ async def _apply_agent_spec(
     overwrite: bool = False,
     run_smoke: bool = True,
     ci_gate: bool | None = None,
+    auto_repair: bool = True,
+    judge_gate: bool = True,
 ) -> dict[str, Any]:
     """Apply AgentSpec with optional CI gate (smoke before write)."""
     from forge_agent.agent_spec.ci import CIGateError
 
     gate = run_smoke if ci_gate is None else ci_gate
     try:
-        result = apply_spec(ctx.project_root, spec, overwrite=overwrite, ci_gate=gate)
+        result = apply_spec(
+            ctx.project_root,
+            spec,
+            overwrite=overwrite,
+            ci_gate=gate,
+            auto_repair=auto_repair and gate,
+            judge_gate=judge_gate and gate,
+        )
     except CIGateError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -135,7 +144,10 @@ async def _apply_agent_spec(
         mark_smoke_verified(ctx.project_root, spec.agent_id)
         result["smoke_verified"] = True
         if result.get("smoke_results"):
-            result["smoke"] = result["smoke_results"][0]
+            first = result["smoke_results"][0]
+            result["smoke"] = first
+            if first.get("judge"):
+                result["judge"] = first["judge"]
     return result
 
 
@@ -168,6 +180,8 @@ async def _create_agent_from_type(
         result = await _apply_agent_spec(ctx, spec, overwrite=overwrite, run_smoke=run_smoke)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return {
         **result,
@@ -648,7 +662,7 @@ async def run_pipeline(pipeline_id: str, payload: RunPayload, ctx: Ctx) -> dict[
 @router.get("/llm/config")
 async def get_llm_config(ctx: Ctx) -> dict[str, Any]:
     """Return effective LLM settings for the current project."""
-    load_env_files(ctx.tenant, ctx.project_root)
+    bootstrap_project_secrets(ctx.tenant, ctx.project_root)
     return get_llm_settings_view(ctx.tenant, ctx.project_id)
 
 
@@ -678,8 +692,7 @@ class SaveLLMSecretPayload(BaseModel):
 
 @router.put("/llm/secrets")
 async def put_llm_secret(payload: SaveLLMSecretPayload, ctx: Ctx) -> dict[str, Any]:
-    """Save an API key to the project .env file."""
-    load_env_files(ctx.tenant, ctx.project_root)
+    """Save an API key to the encrypted SQLite secrets store."""
     cfg_view = get_llm_settings_view(ctx.tenant, ctx.project_id)
     provider = next(
         (p for p in cfg_view["providers"] if p["provider_id"] == payload.provider_id),
@@ -692,14 +705,15 @@ async def put_llm_secret(payload: SaveLLMSecretPayload, ctx: Ctx) -> dict[str, A
         raise HTTPException(status_code=400, detail="Provider does not use an API key")
 
     try:
-        path = save_api_key(ctx.tenant, ctx.project_root, env_name, payload.api_key)
+        saved = save_api_key(ctx.tenant, ctx.project_root, env_name, payload.api_key)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return {
         "success": True,
         "env_name": env_name,
-        "path": str(path),
+        "storage": saved["storage"],
+        "db_path": saved["db_path"],
         "settings": get_llm_settings_view(ctx.tenant, ctx.project_id),
     }
 
@@ -716,7 +730,7 @@ async def test_llm_provider(payload: TestLLMPayload, ctx: Ctx) -> dict[str, Any]
     from forge_agent.llm.registry import get_registry
     from forge_agent.platform import LLMConfigManager
 
-    load_env_files(ctx.tenant, ctx.project_root)
+    bootstrap_project_secrets(ctx.tenant, ctx.project_root)
     cfg = LLMConfigManager(ctx.tenant).load(ctx.project_id)
     get_registry().configure(cfg)
 

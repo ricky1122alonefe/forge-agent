@@ -10,18 +10,16 @@ T = TypeVar("T")
 
 
 def run_sync(coro: Awaitable[T]) -> T:
-    """Run an awaitable to completion. Convenience for scripts & tests."""
+    """Run an awaitable to completion from sync or async callers."""
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're already in an event loop; create a new one in a thread.
-            import concurrent.futures
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                return ex.submit(asyncio.run, coro).result()
+        asyncio.get_running_loop()
     except RuntimeError:
-        pass
-    return asyncio.run(coro)
+        return asyncio.run(coro)
+
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        return ex.submit(asyncio.run, coro).result()
 
 
 async def gather_dict(tasks: dict[str, Awaitable[Any]]) -> dict[str, Any]:

@@ -30,7 +30,7 @@ from forge_agent.web.data import (
     summarize_pipeline_mock_mode,
     summarize_project_mock_mode,
 )
-from forge_agent.web.llm_settings import get_llm_settings_view, load_env_files
+from forge_agent.web.llm_settings import get_llm_settings_view
 from forge_agent.web.presets import AGENT_PRESETS, PIPELINE_PRESETS, template_label
 
 router = APIRouter()
@@ -271,11 +271,19 @@ async def run_detail_page(run_id: str, request: Request, ctx: Ctx) -> HTMLRespon
     return templates.TemplateResponse(request=request, name="run_detail.html", context=context)
 
 
+@router.get("/setup", response_class=HTMLResponse)
+async def setup_llm_page(request: Request, ctx: Ctx) -> HTMLResponse:
+    """First-run style API key setup (encrypted SQLite, not project files)."""
+    templates = _get_templates()
+    context = base_context(request, ctx)
+    context.update({"settings": get_llm_settings_view(ctx.tenant, ctx.project_id)})
+    return templates.TemplateResponse(request=request, name="setup_llm.html", context=context)
+
+
 @router.get("/settings/llm", response_class=HTMLResponse)
 async def llm_settings_page(request: Request, ctx: Ctx) -> HTMLResponse:
     """LLM provider and API key settings (P3.3)."""
     templates = _get_templates()
-    load_env_files(ctx.tenant, ctx.project_root)
     context = base_context(request, ctx)
     context.update({"settings": get_llm_settings_view(ctx.tenant, ctx.project_id)})
     return templates.TemplateResponse(request=request, name="llm_settings.html", context=context)

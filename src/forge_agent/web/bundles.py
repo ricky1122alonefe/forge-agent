@@ -172,11 +172,10 @@ def import_bundle(
         if plan is not None:
             if plan.wiring_errors:
                 raise ValueError("; ".join(plan.wiring_errors))
-            import asyncio
-
             from forge_agent.agent_spec.chain_smoke import smoke_compose_chain
+            from forge_agent.utils.async_utils import run_sync
 
-            chain_result = asyncio.run(smoke_compose_chain(plan))
+            chain_result = run_sync(smoke_compose_chain(plan))
 
         data = {**data, "agents": prepared_agents}
     elif migrate:

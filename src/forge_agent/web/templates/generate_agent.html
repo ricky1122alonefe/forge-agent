@@ -20,7 +20,7 @@
 
     <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
         <p class="font-medium" id="modeHint">用自然语言描述 Agent 能力</p>
-        <p class="text-xs text-indigo-800 mt-1">统一 AgentSpec 内核：NL / 类型 / preset 均带 mock_cases smoke。</p>
+        <p class="text-xs text-indigo-800 mt-1">统一 AgentSpec 内核：NL / 类型 / preset 均带 mock_cases smoke + Judge 质量 CI + 失败自愈。</p>
         <p id="coverageBanner" class="text-xs text-indigo-700 mt-2 hidden"></p>
     </div>
 
@@ -260,7 +260,7 @@ async function loadCoverage() {
 }
 loadCoverage();
 
-function renderPreview(spec, smoke) {
+function renderPreview(spec, smoke, extra) {
     lastSpec = spec;
     document.getElementById('previewBox').classList.remove('hidden');
     document.getElementById('primitiveLabel').textContent = spec.primitive || '-';
@@ -272,7 +272,15 @@ function renderPreview(spec, smoke) {
     if (smoke) {
         smokeBox.classList.remove('hidden');
         smokeBox.className = 'mt-3 text-xs rounded p-2 ' + (smoke.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800');
-        smokeBox.textContent = smoke.success ? `Smoke 通过 (${smoke.case || 'default'})` : `Smoke 失败: ${(smoke.missing_keys || []).join(', ')}`;
+        let msg = smoke.success ? `Smoke 通过 (${smoke.case || 'default'})` : `Smoke 失败: ${(smoke.missing_keys || []).join(', ')}`;
+        const judge = smoke.judge || (extra && extra.judge);
+        if (judge) {
+            msg += ` · Judge ${judge.grade} (${judge.score})`;
+        }
+        if (extra && extra.repair_meta && extra.repair_meta.repaired) {
+            msg += ` · 自愈 ${extra.repair_meta.rounds} 轮`;
+        }
+        smokeBox.textContent = msg;
     } else {
         smokeBox.classList.add('hidden');
     }
@@ -353,12 +361,12 @@ document.getElementById('applyBtn').addEventListener('click', async () => {
             payload.run_smoke = true;
             if (lastSpec) payload.spec = lastSpec;
             const data = await apiPost('/agent-spec/apply', payload);
-            renderPreview(lastSpec || payload.spec, data.smoke);
+            renderPreview(lastSpec || payload.spec, data.smoke, data);
             showToast(`Agent ${data.agent_id} 已保存`, 'success');
             setTimeout(() => { window.location.href = data.agent_url; }, 800);
         } else {
             const data = await apiPost('/agent-spec/from-type', buildTypePayload(true));
-            renderPreview(data.spec || lastSpec, data.smoke);
+            renderPreview(data.spec || lastSpec, data.smoke, data);
             showToast(`Agent ${data.agent_id} 已保存`, 'success');
             setTimeout(() => { window.location.href = data.agent_url; }, 800);
         }

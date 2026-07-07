@@ -227,10 +227,22 @@ AgentSpecGenerator ──► AgentSpec (validate)
 | Phase 10 CI 门禁 + 全链 Mock | 4/4 | ✅ |
 | Phase 11 跨项目导入 + 可见性 | 4/4 | ✅ |
 | Phase 12 编队导出 + 编辑 CI | 4/4 | ✅ |
+| Phase 13 自愈生成 + Judge CI | 4/4 | ✅ |
 
-**当前 focus**：Phase 12 已完成 — 编队一键导出 Bundle；快捷编辑/YAML 保存走 CI 门禁
+**当前 focus**：Phase 13 已完成 — smoke/Judge 失败自动修复；CI 接入 Judge 质量门禁
 
 **执行纪律**：新 work 必须先写入本文档 Phase 表再开发；禁止 Pipeline / 市场 / CLI 支线。
+
+---
+
+### Phase 13 — 自愈生成 + Judge 质量 CI
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| A13.1 | `repair.py` + `run_ci_with_repair()` | 最多 3 轮修复 expect_keys / mock_response |
+| A13.2 | `run_ci_gate(judge_gate=True)` 接入 Judge | smoke 通过后评 report 质量，低分拦截 |
+| A13.3 | `apply_spec` / compose / 编辑保存默认自愈+Judge | API 返回 repair_meta / judge |
+| A13.4 | 测试 + Web 预览展示 Judge 分 | 单元测试全绿 |
 
 ---
 

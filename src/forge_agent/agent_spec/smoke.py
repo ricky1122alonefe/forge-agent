@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from forge_agent.agent_spec.models import AgentSpec
@@ -37,13 +36,17 @@ async def smoke_run_spec(spec: AgentSpec, case_index: int = 0) -> dict[str, Any]
         )
         report = await agent.run(ctx)
         decision = report.raw.get("decision", {})
+        if not isinstance(decision, dict):
+            decision = {}
         missing = [k for k in case.expect_keys if k not in decision]
         return {
             "success": not missing and report.agent_id == spec.agent_id,
             "case": case.name,
             "missing_keys": missing,
+            "decision_keys": list(decision.keys()),
             "verdict": str(report.verdict),
             "agent_id": report.agent_id,
+            "agent_report": report,
         }
     finally:
         from forge_agent.registry.registry import get_registry
@@ -52,7 +55,9 @@ async def smoke_run_spec(spec: AgentSpec, case_index: int = 0) -> dict[str, Any]
 
 
 def smoke_run_spec_sync(spec: AgentSpec, case_index: int = 0) -> dict[str, Any]:
-    return asyncio.run(smoke_run_spec(spec, case_index=case_index))
+    from forge_agent.utils.async_utils import run_sync
+
+    return run_sync(smoke_run_spec(spec, case_index=case_index))
 
 
 async def smoke_all_cases(spec: AgentSpec) -> list[dict[str, Any]]:

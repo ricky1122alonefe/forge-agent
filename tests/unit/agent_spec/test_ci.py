@@ -31,7 +31,7 @@ class TestCIGate:
             MockCase(name="bad", input={"query": "x"}, expect_keys=["missing_field"])
         ]
         with pytest.raises(CIGateError):
-            apply_spec(tmp_path, spec, ci_gate=True)
+            apply_spec(tmp_path, spec, ci_gate=True, auto_repair=False, judge_gate=False)
         assert not (tmp_path / "agents" / "ci_block.yaml").exists()
 
     def test_apply_spec_ci_gate_writes_on_pass(self, tmp_path) -> None:

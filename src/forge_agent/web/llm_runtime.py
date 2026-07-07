@@ -7,14 +7,14 @@ from typing import Any
 
 from forge_agent.llm.registry import get_registry
 from forge_agent.platform import LLMConfigManager, LocalTenant
-from forge_agent.web.llm_settings import load_env_files
+from forge_agent.web.llm_settings import bootstrap_project_secrets
 
 LLMChatFn = Callable[..., Awaitable[Any]]
 
 
 def configure_project_llm(tenant: LocalTenant, project_root) -> None:
     """Load tenant/project LLM config into the process registry."""
-    load_env_files(tenant, project_root)
+    bootstrap_project_secrets(tenant, project_root)
     cfg = LLMConfigManager(tenant).load(project_root.name)
     get_registry().configure(cfg)
 

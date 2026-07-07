@@ -42,7 +42,7 @@ def _ensure_builtin_agents() -> None:
 def _load_agents(factory: AgentFactory, agents_dir: Path) -> None:
     for yaml_file in sorted(agents_dir.glob("*.yaml")):
         log.info("Loading agents from %s", yaml_file)
-        factory.load_yaml(yaml_file)
+        factory.load_yaml(yaml_file, override=True)
 
 
 def _load_pipeline(pipeline_path: Path) -> dict:

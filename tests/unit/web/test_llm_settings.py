@@ -29,14 +29,13 @@ class TestLLMSettings:
         assert view["tenant_id"] == "acme"
         assert view["project_id"] == "demo"
         assert any(p["provider_id"] == "deepseek" for p in view["providers"])
+        assert view["key_storage"] == "database"
 
-    def test_save_api_key_writes_project_env(
-        self, tenant_project: tuple[LocalTenant, Path]
-    ) -> None:
+    def test_save_api_key_uses_database(self, tenant_project: tuple[LocalTenant, Path]) -> None:
         tenant, project_root = tenant_project
-        path = save_api_key(tenant, project_root, "DEEPSEEK_API_KEY", "sk-test-key")
-        assert path.exists()
-        assert "DEEPSEEK_API_KEY" in path.read_text(encoding="utf-8")
+        result = save_api_key(tenant, project_root, "DEEPSEEK_API_KEY", "sk-test-key")
+        assert result["storage"] == "database"
+        assert not (project_root / ".env").exists()
 
         view = get_llm_settings_view(tenant, "demo")
         deepseek = next(p for p in view["providers"] if p["provider_id"] == "deepseek")

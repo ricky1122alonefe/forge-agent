@@ -7,6 +7,26 @@
         <a href="{{ pu('/') }}" class="text-sm text-gray-600 hover:text-indigo-600">← 返回工作台</a>
     </div>
 
+    <div class="mb-6 rounded-lg border {% if agent_config.mock_mode %}border-amber-200 bg-amber-50{% else %}border-green-200 bg-green-50{% endif %} px-4 py-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <p class="font-medium text-sm {% if agent_config.mock_mode %}text-amber-900{% else %}text-green-900{% endif %}">
+                    {% if agent_config.mock_mode %}当前：Mock 演示模式{% else %}当前：真实运行模式{% endif %}
+                </p>
+                <p class="text-xs mt-1 {% if agent_config.mock_mode %}text-amber-800{% else %}text-green-800{% endif %}">
+                    {% if agent_config.mock_mode %}取消勾选 Mock 并保存后，才会调用真实 LLM（需先在导航栏「配置 Key」保存 API Key）{% else %}已关闭 Mock，试跑与 Pipeline 将消耗 API 额度{% endif %}
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" id="mockModeTop" {% if agent_config.mock_mode %}checked{% endif %} class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                    <span>Mock 模式</span>
+                </label>
+                <button type="button" id="mockSaveTop" class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700">保存</button>
+            </div>
+        </div>
+    </div>
+
     <div class="bg-white p-6 rounded-lg shadow border border-gray-100 space-y-3 mb-6">
         <h3 class="font-bold text-sm text-gray-700">成熟度</h3>
         <div class="flex items-center gap-1 mb-2">
@@ -50,7 +70,7 @@
 
         <div class="flex items-center gap-2">
             <input type="checkbox" id="mockMode" {% if agent_config.mock_mode %}checked{% endif %} class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
-            <label for="mockMode" class="text-sm text-gray-700">Mock 模式（演示，不花钱）</label>
+            <label for="mockMode" class="text-sm text-gray-700">Mock 模式（与页顶开关同步）</label>
         </div>
         <p class="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-3 py-2">开启时返回预设结果，不调用 LLM / 抓取工具。本地练习流程建议保持开启；以后需要真实分析再关闭并配置 API Key。</p>
 
@@ -110,6 +130,34 @@ if (migrateBtn) {
     });
 }
 
+function syncMockCheckboxes(checked) {
+    document.getElementById('mockMode').checked = checked;
+    document.getElementById('mockModeTop').checked = checked;
+}
+
+document.getElementById('mockMode').addEventListener('change', (e) => syncMockCheckboxes(e.target.checked));
+document.getElementById('mockModeTop').addEventListener('change', (e) => syncMockCheckboxes(e.target.checked));
+
+async function saveMockMode() {
+    const toolsRaw = document.getElementById('tools').value.trim();
+    const tools = toolsRaw ? toolsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    await apiPut(`/agents/{{ agent_id }}/config`, {
+        mock_mode: document.getElementById('mockMode').checked,
+        prompt: document.getElementById('prompt').value,
+        tools: tools,
+    });
+}
+
+document.getElementById('mockSaveTop').addEventListener('click', async () => {
+    try {
+        await saveMockMode();
+        showToast(document.getElementById('mockMode').checked ? '已开启 Mock' : '已关闭 Mock，将使用真实 LLM', 'success');
+        setTimeout(() => location.reload(), 500);
+    } catch (err) {
+        showToast('保存失败: ' + err.message, 'error');
+    }
+});
+
 document.getElementById('smokeBtn').addEventListener('click', async () => {
     const status = document.getElementById('smokeStatus');
     status.textContent = '运行中…';
@@ -153,11 +201,7 @@ document.getElementById('quickForm').addEventListener('submit', async function (
     const tools = toolsRaw ? toolsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
     try {
-        await apiPut(`/agents/{{ agent_id }}/config`, {
-            mock_mode: document.getElementById('mockMode').checked,
-            prompt: document.getElementById('prompt').value,
-            tools: tools,
-        });
+        await saveMockMode();
         successBox.textContent = '快捷编辑已保存';
         successBox.classList.remove('hidden');
         showToast('Agent 已保存', 'success');

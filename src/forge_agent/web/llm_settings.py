@@ -9,6 +9,7 @@ from typing import Any
 
 from forge_agent.platform import LLMConfigManager, LocalTenant
 from forge_agent.platform.llm_config import deep_merge
+from forge_agent.web.secret_store import get_secret_store
 
 _ENV_LINE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
 
@@ -22,7 +23,7 @@ def project_env_path(project_root: Path) -> Path:
 
 
 def load_env_files(tenant: LocalTenant, project_root: Path) -> None:
-    """Load tenant/project .env into process environment (does not override existing)."""
+    """Load tenant/project .env into process environment (legacy; does not override existing)."""
     for path in (tenant_env_path(tenant), project_env_path(project_root)):
         if not path.is_file():
             continue
@@ -37,18 +38,40 @@ def load_env_files(tenant: LocalTenant, project_root: Path) -> None:
                 os.environ[key] = value
 
 
-def _key_configured(env_name: str | None, alt_envs: list[str]) -> bool:
+def bootstrap_project_secrets(tenant: LocalTenant, project_root: Path) -> None:
+    """Load DB-stored keys (preferred) then legacy .env files into os.environ."""
+    load_env_files(tenant, project_root)
+    store = get_secret_store(tenant.root_dir)
+    store.apply_to_environment(tenant.tenant_id, project_root.name)
+
+
+def _key_configured(
+    tenant: LocalTenant,
+    project_id: str,
+    env_name: str | None,
+    alt_envs: list[str],
+) -> bool:
     names = [env_name, *alt_envs] if env_name else list(alt_envs)
-    return any(name and os.environ.get(name) for name in names)
+    store = get_secret_store(tenant.root_dir)
+    for name in names:
+        if not name:
+            continue
+        if store.has_key(tenant.tenant_id, project_id, name):
+            return True
+        if os.environ.get(name):
+            return True
+    return False
 
 
 def get_llm_settings_view(tenant: LocalTenant, project_id: str) -> dict[str, Any]:
     """Return LLM settings for the web UI (never includes raw API keys)."""
+    bootstrap_project_secrets(tenant, tenant.get_project_path(project_id))
     manager = LLMConfigManager(tenant)
     cfg = manager.load(project_id)
     providers: list[dict[str, Any]] = []
     for pid, provider in cfg.providers.items():
         needs_key = provider.type not in {"ollama", "mock"}
+        key_ok = _key_configured(tenant, project_id, provider.api_key_env, provider.alt_envs)
         providers.append(
             {
                 "provider_id": pid,
@@ -58,12 +81,22 @@ def get_llm_settings_view(tenant: LocalTenant, project_id: str) -> dict[str, Any
                 "api_key_env": provider.api_key_env,
                 "enabled": provider.enabled,
                 "is_primary": pid == cfg.primary_id,
-                "key_configured": _key_configured(provider.api_key_env, provider.alt_envs)
-                or not needs_key,
+                "key_configured": key_ok or not needs_key,
                 "needs_key": needs_key,
                 "tags": provider.tags,
             }
         )
+    primary = cfg.providers.get(cfg.primary_id) if cfg.primary_id else None
+    primary_needs_key = bool(
+        primary and primary.type not in {"ollama", "mock"} and primary.api_key_env
+    )
+    primary_key_ok = (
+        not primary_needs_key
+        or _key_configured(tenant, project_id, primary.api_key_env, primary.alt_envs)
+        if primary
+        else True
+    )
+    store = get_secret_store(tenant.root_dir)
     return {
         "tenant_id": tenant.tenant_id,
         "project_id": project_id,
@@ -71,6 +104,9 @@ def get_llm_settings_view(tenant: LocalTenant, project_id: str) -> dict[str, Any
         "predict_mode": cfg.predict_mode,
         "source_path": str(cfg.source_path) if cfg.source_path else None,
         "providers": providers,
+        "needs_setup": primary_needs_key and not primary_key_ok,
+        "key_storage": "database",
+        "secrets_db": str(store.db_path),
         "env_files": {
             "tenant": str(tenant_env_path(tenant)),
             "project": str(project_env_path(tenant.get_project_path(project_id))),
@@ -78,40 +114,29 @@ def get_llm_settings_view(tenant: LocalTenant, project_id: str) -> dict[str, Any
     }
 
 
-def _read_env_file(path: Path) -> dict[str, str]:
-    if not path.is_file():
-        return {}
-    values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        values[key.strip()] = value.strip().strip('"').strip("'")
-    return values
-
-
-def _write_env_file(path: Path, values: dict[str, str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    lines = ["# forge-agent API keys (do not commit)", ""]
-    for key in sorted(values):
-        if values[key]:
-            lines.append(f'{key}="{values[key]}"')
-    lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
-
-
-def save_api_key(tenant: LocalTenant, project_root: Path, env_name: str, api_key: str) -> Path:
-    """Persist an API key to the project .env file."""
+def save_api_key(
+    tenant: LocalTenant,
+    project_root: Path,
+    env_name: str,
+    api_key: str,
+) -> dict[str, Any]:
+    """Persist an API key to the encrypted SQLite store (not project files)."""
     env_name = env_name.strip()
     if not env_name or not api_key.strip():
         raise ValueError("env_name and api_key are required")
-    path = project_env_path(project_root)
-    values = _read_env_file(path)
-    values[env_name] = api_key.strip()
-    _write_env_file(path, values)
-    os.environ[env_name] = api_key.strip()
-    return path
+    store = get_secret_store(tenant.root_dir)
+    store.set_key(tenant.tenant_id, project_root.name, env_name, api_key)
+    return {
+        "storage": "database",
+        "db_path": str(store.db_path),
+        "env_name": env_name,
+    }
+
+
+def delete_api_key(tenant: LocalTenant, project_root: Path, env_name: str) -> None:
+    store = get_secret_store(tenant.root_dir)
+    store.delete_key(tenant.tenant_id, project_root.name, env_name)
+    os.environ.pop(env_name.strip(), None)
 
 
 def update_llm_config(

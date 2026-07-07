@@ -10,6 +10,7 @@ from fastapi import HTTPException, Request
 from forge_agent.exceptions import ProjectNotFoundError
 from forge_agent.platform import LocalTenant
 from forge_agent.web.auth.service import AuthUser
+from forge_agent.web.llm_settings import bootstrap_project_secrets
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,7 @@ def get_project_context(tenant_id: str, project_id: str, request: Request) -> Pr
         project_root = tenant.get_project_path(project_id)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    bootstrap_project_secrets(tenant, project_root)
     return ProjectContext(
         tenant=tenant,
         project_root=project_root,
@@ -76,6 +78,10 @@ def base_context(request: Request, ctx: ProjectContext) -> dict:
     auth_enabled = bool(auth_config and auth_config.enabled)
     auth_user: AuthUser | None = getattr(request.state, "user", None)
 
+    from forge_agent.web.llm_settings import get_llm_settings_view
+
+    llm_settings = get_llm_settings_view(ctx.tenant, ctx.project_id)
+
     return {
         "request": request,
         "tenant_id": ctx.tenant_id,
@@ -85,4 +91,5 @@ def base_context(request: Request, ctx: ProjectContext) -> dict:
         "tenant_hub_url": tenant_url(ctx.tenant_id),
         "auth_enabled": auth_enabled,
         "auth_user": auth_user,
+        "llm_settings": llm_settings,
     }

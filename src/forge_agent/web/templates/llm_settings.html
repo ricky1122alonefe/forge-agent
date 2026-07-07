@@ -12,6 +12,11 @@
         <p class="text-xs text-amber-800 mt-1">默认 Mock 模式无需 API Key。关闭 Agent 的 Mock 并配置 Key 后，才会调用真实 LLM（会产生费用）。</p>
     </div>
 
+    <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+        <p class="font-medium">Key 存储方式</p>
+        <p class="text-xs text-green-800 mt-1">API Key 加密保存在 <code>{{ settings.secrets_db }}</code>，按租户/项目隔离。不会写入 Agent YAML 或项目目录下的 .env 文件。</p>
+    </div>
+
     <div class="bg-white rounded-lg shadow border border-gray-100 divide-y divide-gray-100">
         {% for provider in settings.providers %}
         <div class="p-5" id="provider-{{ provider.provider_id }}">
@@ -40,7 +45,7 @@
 
             {% if provider.needs_key and provider.api_key_env %}
             <div class="mb-3">
-                <label class="block text-xs font-medium text-gray-600 mb-1">API Key（写入项目 .env，变量 {{ provider.api_key_env }}）</label>
+                <label class="block text-xs font-medium text-gray-600 mb-1">API Key（加密存入数据库，变量 {{ provider.api_key_env }}）</label>
                 <div class="flex gap-2">
                     <input type="password" class="api-key-input flex-1 border border-gray-300 rounded-md p-2 text-sm" data-provider="{{ provider.provider_id }}" placeholder="sk-...">
                     <button type="button" onclick="saveKey('{{ provider.provider_id }}')" class="text-sm bg-gray-800 text-white px-3 py-2 rounded hover:bg-gray-900">保存 Key</button>
@@ -57,7 +62,7 @@
         <button type="button" onclick="saveConfig()" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm">保存 Provider 设置</button>
     </div>
 
-    <p class="mt-4 text-xs text-gray-400">配置文件：{{ settings.env_files.project }}/llm_providers.json · Key：{{ settings.env_files.project }}/.env</p>
+    <p class="mt-4 text-xs text-gray-400">Provider 配置：{{ settings.env_files.project }}/llm_providers.json · Key 数据库：{{ settings.secrets_db }}</p>
 </div>
 
 <script>
@@ -88,7 +93,7 @@ async function saveKey(providerId) {
     try {
         await apiPut('/llm/secrets', { provider_id: providerId, api_key: input.value.trim() });
         input.value = '';
-        showToast('API Key 已保存', 'success');
+        showToast('API Key 已加密保存', 'success');
         setTimeout(() => location.reload(), 500);
     } catch (err) {
         showToast('保存失败: ' + err.message, 'error');

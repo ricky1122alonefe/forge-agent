@@ -184,22 +184,34 @@ def apply_compose_plan(
     *,
     overwrite: bool = False,
     ci_gate: bool = True,
+    auto_repair: bool = True,
+    judge_gate: bool = True,
 ) -> dict[str, Any]:
     """Write all agents and pipeline YAML from a compose plan."""
     if plan.wiring_errors:
         raise ValueError("; ".join(plan.wiring_errors))
 
+    repair_logs: list[dict[str, Any]] = []
     if ci_gate:
         from forge_agent.agent_spec.ci import run_ci_gate
+        from forge_agent.agent_spec.repair import run_ci_with_repair
 
+        repaired_specs: list[AgentSpec] = []
         for spec in plan.specs:
-            run_ci_gate(spec)
+            if auto_repair:
+                repaired, _, meta = run_ci_with_repair(spec, judge_gate=judge_gate)
+                repaired_specs.append(repaired)
+                if meta.get("repaired"):
+                    repair_logs.append({"agent_id": spec.agent_id, **meta})
+            else:
+                run_ci_gate(spec, judge_gate=judge_gate)
+                repaired_specs.append(spec)
+        plan.specs = repaired_specs
         if len(plan.specs) > 1:
-            import asyncio
-
             from forge_agent.agent_spec.chain_smoke import smoke_compose_chain
+            from forge_agent.utils.async_utils import run_sync
 
-            asyncio.run(smoke_compose_chain(plan))
+            run_sync(smoke_compose_chain(plan))
 
     agents_dir = project_root / "agents"
     agents_dir.mkdir(parents=True, exist_ok=True)
@@ -246,6 +258,7 @@ def apply_compose_plan(
         "agent_ids": plan.agent_ids,
         "pipeline": pipeline,
         "ci_gate": ci_gate,
+        "repair_logs": repair_logs,
     }
 
 

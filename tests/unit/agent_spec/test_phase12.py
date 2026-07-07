@@ -38,7 +38,9 @@ class TestPersistAgentCI:
             MockCase(name="bad", input={"query": "x"}, expect_keys=["missing_key"]).to_dict()
         ]
         with pytest.raises(CIGateError):
-            persist_agent_document_with_ci(tmp_path, "edit_ci", raw, ci_gate=True)
+            persist_agent_document_with_ci(
+                tmp_path, "edit_ci", raw, ci_gate=True, auto_repair=False
+            )
 
     def test_persist_bumps_revision(self, tmp_path) -> None:
         spec = generate_spec_rule_based("搜索 popmart 舆情", agent_id="edit_ok")

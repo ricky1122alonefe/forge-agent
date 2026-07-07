@@ -33,6 +33,7 @@
                 <a href="{{ pu('/agent-types') }}" class="text-gray-600 hover:text-indigo-600">Agent 类型</a>
                 <a href="{{ pu('/pipelines/new') }}" class="text-gray-600 hover:text-indigo-600">新建 Pipeline</a>
                 <a href="{{ pu('/runs') }}" class="text-gray-600 hover:text-indigo-600">运行历史</a>
+                <a href="{{ pu('/setup') }}" class="{% if llm_settings.needs_setup %}text-amber-700 font-medium{% else %}text-gray-500{% endif %} hover:text-indigo-600">配置 Key</a>
                 <a href="{{ pu('/settings/llm') }}" class="text-gray-500 hover:text-indigo-600">LLM 设置</a>
                 <a href="{{ pu('/market') }}" class="text-gray-500 hover:text-indigo-600">模板市场</a>
                 <a href="{{ pu('/architect') }}" class="text-gray-500 hover:text-indigo-600">智能创建</a>
@@ -45,6 +46,14 @@
             </nav>
         </div>
     </header>
+    {% if llm_settings.needs_setup %}
+    <div class="bg-amber-50 border-b border-amber-200">
+        <div class="max-w-6xl mx-auto px-4 py-2 flex items-center justify-between gap-3 text-sm text-amber-900">
+            <span>主 LLM Provider 尚未配置 API Key — Mock 可用，真实试跑 / LLM 规划需要 Key</span>
+            <a href="{{ pu('/setup') }}" class="shrink-0 bg-amber-600 text-white px-3 py-1 rounded text-xs hover:bg-amber-700">去配置 →</a>
+        </div>
+    </div>
+    {% endif %}
     <main class="max-w-6xl mx-auto px-4 py-8">
         {% block content %}{% endblock %}
     </main>
