@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -122,11 +123,16 @@ async def generate_plan(
 
 def _normalize_plan(plan: dict[str, Any]) -> dict[str, Any]:
     keyword = plan.get("keyword", "demo")
+    # Default mock mode remains ON for compatibility and offline-first UX.
+    # Production/"normal program" behavior can be enabled by setting
+    # FORGE_AGENT_DEFAULT_MOCK_MODE=false or by auto-disabling mock when LLM is ready.
+    default_mock_mode = os.environ.get("FORGE_AGENT_DEFAULT_MOCK_MODE", "true").strip().lower()
+    mock_default = default_mock_mode not in {"0", "false", "no", "off"}
     agents: list[dict[str, Any]] = []
     for idx, agent in enumerate(plan.get("agents", [])):
         agent_id = str(agent.get("agent_id", f"agent_{idx}"))
         config = dict(agent.get("config", {}))
-        config.setdefault("mock_mode", True)
+        config.setdefault("mock_mode", mock_default)
         tools = config.get("tools") or []
         if isinstance(tools, str):
             config["tools"] = [tools]

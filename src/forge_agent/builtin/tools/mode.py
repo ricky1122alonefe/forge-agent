@@ -16,8 +16,10 @@ class ToolMode(str, Enum):
 
 def resolve_tool_mode(explicit: str | None = None) -> ToolMode:
     """Resolve tool mode from explicit config or ``FORGE_AGENT_TOOL_MODE`` env."""
-    raw = (explicit or os.environ.get("FORGE_AGENT_TOOL_MODE", "mock")).strip().lower()
+    # Default to AUTO so a "normal program" run tries live data first,
+    # and only falls back to fixtures when live probe is unavailable.
+    raw = (explicit or os.environ.get("FORGE_AGENT_TOOL_MODE", "auto")).strip().lower()
     try:
         return ToolMode(raw)
     except ValueError:
-        return ToolMode.MOCK
+        return ToolMode.AUTO

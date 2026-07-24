@@ -26,4 +26,4 @@ async def gather_dict(tasks: dict[str, Awaitable[Any]]) -> dict[str, Any]:
     """Like asyncio.gather but returns a dict keyed by task name."""
     keys = list(tasks.keys())
     values = await asyncio.gather(*tasks.values(), return_exceptions=False)
-    return dict(zip(keys, values, strict=False))
+    return dict(zip(keys, values, strict=True))

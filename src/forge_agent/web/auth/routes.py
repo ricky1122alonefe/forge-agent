@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from pydantic import BaseModel
 
 from forge_agent.web.auth.config import WebAuthConfig
 from forge_agent.web.auth.service import AuthService
@@ -13,6 +14,11 @@ from forge_agent.web.auth.session import clear_session_cookie, read_session_id, 
 from forge_agent.web.context import project_url
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+class _AuthPayload(BaseModel):
+    username: str
+    password: str
 
 
 def _templates():
@@ -56,14 +62,13 @@ async def register_page(request: Request) -> HTMLResponse:
 @router.post("/register")
 async def register(
     request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
+    payload: _AuthPayload,
 ) -> RedirectResponse:
     if not _auth_config(request).enabled:
         raise HTTPException(status_code=404, detail="Auth disabled")
     service = _service(request)
     try:
-        user, session_id = service.register(username, password)
+        user, session_id = service.register(payload.username, payload.password)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -78,14 +83,13 @@ async def register(
 @router.post("/login")
 async def login(
     request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
+    payload: _AuthPayload,
 ) -> RedirectResponse:
     if not _auth_config(request).enabled:
         raise HTTPException(status_code=404, detail="Auth disabled")
     service = _service(request)
     try:
-        user, session_id = service.login(username, password)
+        user, session_id = service.login(payload.username, payload.password)
     except ValueError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 

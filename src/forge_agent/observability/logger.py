@@ -398,4 +398,12 @@ class StructLogger:
         # `agent_id` is also included in context (defensive — BaseAgent
         # also binds it via contextvars, but if a logger is constructed
         # outside an agent run we still want it visible).
-        method(msg, agent_id=agent_id, **extra)
+        try:
+            method(msg, agent_id=agent_id, **extra)
+        except ValueError as exc:
+            # In some test runners, stdout/stderr can be closed while background
+            # tasks still attempt to log (structlog PrintLogger). Logging should
+            # never crash the program.
+            if "I/O operation on closed file" in str(exc):
+                return
+            raise

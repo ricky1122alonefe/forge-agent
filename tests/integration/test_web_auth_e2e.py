@@ -7,13 +7,14 @@ from pathlib import Path
 
 import httpx
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport
 
 from forge_agent.web.app import create_app
 from forge_agent.web.auth.config import WebAuthConfig
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def auth_client(tmp_path: Path) -> AsyncIterator[tuple[httpx.AsyncClient, Path]]:
     root = tmp_path / "data"
     app = create_app(
@@ -43,7 +44,7 @@ class TestWebAuth:
 
         response = await client.post(
             "/auth/register",
-            data={"username": "alice", "password": "password123"},
+            json={"username": "alice", "password": "password123"},
             follow_redirects=False,
         )
         assert response.status_code == 303
@@ -73,7 +74,7 @@ class TestWebAuth:
         ) as client_a:
             await client_a.post(
                 "/auth/register",
-                data={"username": "usera", "password": "password123"},
+                json={"username": "usera", "password": "password123"},
             )
             await client_a.post(
                 "/t/usera/p/default/api/agents",
@@ -93,7 +94,7 @@ class TestWebAuth:
         ) as client_b:
             await client_b.post(
                 "/auth/register",
-                data={"username": "userb", "password": "password123"},
+                json={"username": "userb", "password": "password123"},
             )
             response = await client_b.get("/t/usera/p/default/api/agents/secret_agent")
             assert response.status_code == 403
@@ -108,14 +109,14 @@ class TestWebAuth:
         client, _ = auth_client
         await client.post(
             "/auth/register",
-            data={"username": "loginme", "password": "password123"},
+            json={"username": "loginme", "password": "password123"},
             follow_redirects=False,
         )
         client.cookies.clear()
 
         response = await client.post(
             "/auth/login",
-            data={"username": "loginme", "password": "password123"},
+            json={"username": "loginme", "password": "password123"},
             follow_redirects=False,
         )
         assert response.status_code == 303

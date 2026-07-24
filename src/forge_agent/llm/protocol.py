@@ -216,7 +216,7 @@ async def multi_chat(
                 raw={"error": str(exc)},
             )
 
-    return await asyncio.gather(*[_one(c, p) for c, p in zip(clients, providers, strict=False)])
+    return await asyncio.gather(*[_one(c, p) for c, p in zip(clients, providers, strict=True)])
 
 
 async def stream(

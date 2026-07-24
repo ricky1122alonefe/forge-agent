@@ -30,6 +30,7 @@ from forge_agent.builtin.tenant_types import (
 from forge_agent.project.agent_builder import build_pipeline_yaml
 from forge_agent.project.agent_runner import default_run_payload, run_single_agent
 from forge_agent.project.launcher import _run_pipeline
+from forge_agent.project.llm_ready import ensure_llm_ready
 from forge_agent.web.agent_types import registry_for
 from forge_agent.web.architect import apply_plan, generate_plan
 from forge_agent.web.bundles import (
@@ -176,6 +177,12 @@ async def _create_agent_from_type(
         params,
         requirement=requirement,
     )
+    # If LLM is configured for this project, prefer real runs by default.
+    try:
+        ensure_llm_ready(ctx.tenant, ctx.project_root)
+        spec.config["mock_mode"] = False
+    except Exception:
+        pass
     try:
         result = await _apply_agent_spec(ctx, spec, overwrite=overwrite, run_smoke=run_smoke)
     except ValueError as exc:
@@ -1005,6 +1012,12 @@ async def agent_spec_from_type(payload: AgentSpecFromTypePayload, ctx: Ctx) -> d
         payload.params,
         requirement=payload.requirement,
     )
+    # If LLM is configured for this project, prefer real runs by default.
+    try:
+        ensure_llm_ready(ctx.tenant, ctx.project_root)
+        spec.config["mock_mode"] = False
+    except Exception:
+        pass
     if not payload.apply:
         return {"spec": spec.to_dict(), "applied": False}
 

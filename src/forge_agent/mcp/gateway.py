@@ -9,7 +9,6 @@ In v0.1 this is a stub. In v0.3 we wire the official `mcp` SDK:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -32,7 +31,8 @@ class MCPGateway:
         self._tools: dict[str, ToolHandler] = {}
         self._policies: dict[str, PermissionPolicy] = {}
         self._clients: list[Any] = []  # connected MCPClient instances
-        self._lock = asyncio.Lock()
+        # NOTE: avoid creating asyncio primitives at import/constructor time.
+        # This module is used in sync test contexts where no event loop exists.
 
     def register_tool(
         self,

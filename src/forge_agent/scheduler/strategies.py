@@ -51,7 +51,7 @@ class ParallelStrategy(ExecutionStrategy):
         coros = [run_one(t) for t in tasks.values()]
         outcomes = await asyncio.gather(*coros, return_exceptions=True)
         results: dict[str, ScheduleResult] = {}
-        for task, outcome in zip(tasks.values(), outcomes, strict=False):
+        for task, outcome in zip(tasks.values(), outcomes, strict=True):
             if isinstance(outcome, Exception):
                 results[task.task_id] = ScheduleResult(
                     task_id=task.task_id,
@@ -158,7 +158,7 @@ class DAGStrategy(ExecutionStrategy):
             # Execute all ready tasks concurrently.
             coros = [run_one(task) for task in ready]
             outcomes = await asyncio.gather(*coros, return_exceptions=True)
-            for task, outcome in zip(ready, outcomes, strict=False):
+            for task, outcome in zip(ready, outcomes, strict=True):
                 if isinstance(outcome, Exception):
                     results[task.task_id] = ScheduleResult(
                         task_id=task.task_id,

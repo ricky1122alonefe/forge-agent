@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+import pytest_asyncio
 import yaml
 from httpx import ASGITransport
 
@@ -27,7 +28,7 @@ def project_base() -> str:
     return "/t/acme/p/demo"
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client(
     web_project: tuple[LocalTenant, Path], tmp_path: Path
 ) -> AsyncIterator[httpx.AsyncClient]:

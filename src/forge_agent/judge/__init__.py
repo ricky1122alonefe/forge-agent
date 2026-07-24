@@ -155,7 +155,7 @@ class Judge:
                 name="confidence_calibration",
                 score=conf_score,
                 weight=1.5,
-                details=f"confidence={report.confidence:.2f}",
+                details=f"confidence={report.confidence if report.confidence is not None else 'n/a'}",
             )
         )
         issues.extend(conf_issues)
@@ -190,7 +190,7 @@ class Judge:
                 name="risk_consistency",
                 score=risk_score,
                 weight=1.5,
-                details=f"risk={report.risk:.2f}, verdict={report.verdict.value}",
+                details=f"risk={report.risk if report.risk is not None else 'n/a'}, verdict={report.verdict.value}",
             )
         )
         issues.extend(risk_issues)
@@ -320,12 +320,22 @@ class Judge:
     def _check_confidence(self, report: AgentReport) -> tuple[float, list[JudgeIssue]]:
         issues: list[JudgeIssue] = []
         conf = report.confidence
+        if conf is None:
+            issues.append(
+                JudgeIssue(
+                    code="MISSING_CONFIDENCE",
+                    message="Missing confidence; expected a number between 0.0 and 1.0",
+                    severity=IssueSeverity.WARNING,
+                    agent_id=report.agent_id,
+                )
+            )
+            return 0.2, issues
 
         if conf < self.confidence_low:
             issues.append(
                 JudgeIssue(
                     code="LOW_CONFIDENCE",
-                    message=f"Confidence {conf:.2f} is below threshold {self.confidence_low}",
+                    message=f"Confidence {conf} is below threshold {self.confidence_low}",
                     severity=IssueSeverity.WARNING,
                     agent_id=report.agent_id,
                 )
@@ -336,7 +346,7 @@ class Judge:
             issues.append(
                 JudgeIssue(
                     code="OVERCONFIDENT",
-                    message=f"High confidence {conf:.2f} but no evidence provided",
+                    message=f"High confidence {conf} but no evidence provided",
                     severity=IssueSeverity.WARNING,
                     agent_id=report.agent_id,
                 )
@@ -414,13 +424,23 @@ class Judge:
 
     def _check_risk_consistency(self, report: AgentReport) -> tuple[float, list[JudgeIssue]]:
         issues: list[JudgeIssue] = []
+        if report.risk is None:
+            issues.append(
+                JudgeIssue(
+                    code="MISSING_RISK",
+                    message="Missing risk; expected a number between 0.0 and 1.0",
+                    severity=IssueSeverity.WARNING,
+                    agent_id=report.agent_id,
+                )
+            )
+            return 0.2, issues
 
         # High risk should correlate with RISK verdict or low confidence
         if report.risk > 0.7 and report.verdict not in (Verdict.RISK, Verdict.LEAN_NEGATIVE):
             issues.append(
                 JudgeIssue(
                     code="RISK_VERDICT_MISMATCH",
-                    message=f"High risk ({report.risk:.2f}) but verdict is {report.verdict.value}",
+                    message=f"High risk ({report.risk}) but verdict is {report.verdict.value}",
                     severity=IssueSeverity.WARNING,
                     agent_id=report.agent_id,
                 )
@@ -432,7 +452,7 @@ class Judge:
             issues.append(
                 JudgeIssue(
                     code="LOW_RISK_RISK_VERDICT",
-                    message=f"Low risk ({report.risk:.2f}) but verdict is RISK",
+                    message=f"Low risk ({report.risk}) but verdict is RISK",
                     severity=IssueSeverity.INFO,
                     agent_id=report.agent_id,
                 )

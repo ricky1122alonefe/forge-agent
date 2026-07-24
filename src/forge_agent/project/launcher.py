@@ -139,14 +139,14 @@ async def _run_pipeline(
         tm.end_span(team_span, status="ok")
     except Exception:
         tm.end_span(team_span, status="error", error_message="pipeline run failed")
-        ended_trace = tm.end_trace(trace.trace_id)
+        ended_trace = tm.end_trace(trace.trace_id) or tm.get_trace(trace.trace_id)
         if ended_trace is not None:
             logs_dir = project_root / "logs"
             logs_dir.mkdir(parents=True, exist_ok=True)
             TraceStore(logs_dir).save(ended_trace)
         raise
 
-    ended_trace = tm.end_trace(trace.trace_id)
+    ended_trace = tm.end_trace(trace.trace_id) or tm.get_trace(trace.trace_id)
     duration_ms = ended_trace.duration_ms if ended_trace is not None else 0.0
     if ended_trace is not None:
         logs_dir = project_root / "logs"

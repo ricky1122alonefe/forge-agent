@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from forge_agent.agent_spec.capabilities import merge_type_capabilities
@@ -16,9 +17,12 @@ def generate_from_agent_type(
     params: dict[str, Any],
     *,
     requirement: str = "",
-    mock_mode: bool = True,
+    mock_mode: bool | None = None,
 ) -> AgentSpec:
     """Build an AgentSpec from an AgentTypeRegistry entry."""
+    if mock_mode is None:
+        default_mock_mode = os.environ.get("FORGE_AGENT_DEFAULT_MOCK_MODE", "true").strip().lower()
+        mock_mode = default_mock_mode not in {"0", "false", "no", "off"}
     agent = build_agent(type_def, agent_id, params, mock_mode=mock_mode)
     type_id = str(type_def.get("type_id", "custom"))
     primitive = _primitive_from_type_id(type_id)

@@ -10,6 +10,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport
 
 from forge_agent.platform import LocalTenant
@@ -31,7 +32,7 @@ def project_base() -> str:
     return "/t/acme/p/demo"
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client(
     web_project: tuple[LocalTenant, Path], tmp_path: Path
 ) -> AsyncIterator[httpx.AsyncClient]:
