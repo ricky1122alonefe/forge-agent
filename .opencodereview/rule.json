@@ -1,0 +1,58 @@
+{
+  "_comment": "Open Code Review rules for forge-agent. See PLAN.md v5 for architecture discipline.",
+  "exclude": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/generated_agents/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/.venv/**",
+    "**/datasets/**"
+  ],
+  "rules": [
+    {
+      "path": "src/forge_agent/core/**/*.py",
+      "rule": "core/ 是纯契约与抽象层，禁止包含业务逻辑。检查：1) 不得内联 trace/observability 逻辑（应用装饰器或 mixin）；2) 不得内联 constraint 执行逻辑（应委托 constraints/）；3) 不得内联 learning/evolve 编排（应委托 learning/）；4) BaseAgent 只保留生命周期 hook（observe/decide/act/reflect/learn）；5) 所有公开方法必须有完整类型标注；6) 不得有领域硬编码（如足球/社媒文案）。"
+    },
+    {
+      "path": "src/forge_agent/runtime/**/*.py",
+      "rule": "runtime/ 是任务托管层。检查：1) 全部使用 asyncio，禁止混用 threading.Thread（CPU 密集才用 run_in_executor）；2) TaskRun 状态流转必须通过 transition() 方法，不得直接赋值 status 字段；3) 持久化操作必须复用 SQLiteConnection 底座；4) Runner.submit() 必须立即返回 run_id，不得阻塞等待执行完成；5) 重试必须通过 RetryPolicy，不得硬编码 sleep；6) 所有对外协议用 Protocol 定义，实装与接口分离。"
+    },
+    {
+      "path": "src/forge_agent/spec/**/*.py",
+      "rule": "spec/ 是 AgentSpec 内核（原 agent_spec/）。检查：1) 生成器必须接入 mock_cases smoke + Judge 质量门禁，不得跳过；2) apply 前必须过 CI gate（run_ci_gate），失败不写入 YAML；3) 自愈修复最多 3 轮，超出必须报错而非静默；4) primitive builder 应走注册表/策略模式，不得用 if-elif 链；5) 不得引入垂直领域硬编码（社媒/体育关键词）。"
+    },
+    {
+      "path": "src/forge_agent/pipeline/**/*.py",
+      "rule": "pipeline/ 是编排引擎。检查：1) ChiefAgent 不得硬编码领域文案（足球/社媒），prompt 必须从 config 注入；2) guardrails 逻辑应独立为 GuardRailEngine，不混入决策算法；3) Aggregator 汇总必须产出 AgentBoard 标准契约；4) DAG 执行不得阻塞调用线程，长任务应委托 runtime。"
+    },
+    {
+      "path": "src/forge_agent/integrations/**/*.py",
+      "rule": "integrations/ 是外部集成层。检查：1) IM/Webhook 适配器只通过 runtime 的 trigger/callback 接入，禁止直接调用 Pipeline 或 Agent；2) 每个平台适配器必须实现 IMAdapter 协议（platform/send/parse_event）；3) 入站事件必须归一化为 IMEvent，不得把平台原始结构泄露到 router；4) 不得在适配器内做业务决策（如选哪个 pipeline），决策归 IMRouter。"
+    },
+    {
+      "path": "src/forge_agent/web/**/*.py",
+      "rule": "web/ 是单一 Web 服务。检查：1) routes/ 按功能域拆分（agents/pipelines/runs/spec/llm/bundles/integrations），单个路由文件不得超过 300 行；2) 不得在路由层内联业务逻辑，应委托对应模块；3) api.py 仅做 router 聚合，不含端点实现；4) 所有请求体用 Pydantic BaseModel 校验；5) 异步端点用 async def，不得用同步阻塞调用。"
+    },
+    {
+      "path": "src/forge_agent/judge/**/*.py",
+      "rule": "judge/ 是质量评估层。检查：1) 不得在 __init__.py 中放实现，只做 re-export；2) 模型定义（dataclass）与检查器逻辑分离；3) 检查器必须可独立测试，不依赖运行时上下文；4) Judge 评分维度（一致性/置信度/证据质量）不得硬编码领域阈值。"
+    },
+    {
+      "path": "src/forge_agent/tools/**/*.py",
+      "rule": "tools/ 是统一工具层。检查：1) 所有工具必须通过 registry 注册，不得散落多处；2) MCP 工具调用必须有权限校验（permissions）；3) scraper 必须有限流和重试，不得无限重试；4) 内置示例工具必须标注为示例，不得作为平台必需依赖。"
+    },
+    {
+      "path": "src/forge_agent/storage/**/*.py",
+      "rule": "storage/ 是统一存储层。检查：1) 所有 SQLite store 必须继承 SQLiteConnection，不得自建连接；2) 必须启用 WAL 模式和 busy_timeout；3) 写操作必须显式 commit；4) 查询必须参数化，禁止字符串拼接 SQL（SQL 注入）。"
+    },
+    {
+      "path": "src/forge_agent/llm/**/*.py",
+      "rule": "llm/ 是 LLM 层。检查：1) 必须支持多 provider，不得硬编码单一 provider；2) API Key 必须通过 secrets 管理，不得明文记录日志；3) Token 用量必须记入 usage_store；4) 调用必须有超时和重试，不得无限等待。"
+    },
+    {
+      "path": "tests/**/*.py",
+      "rule": "测试代码质量。检查：1) 测试不得依赖外部网络（除非标 @pytest.mark.network）；2) Mock 必须明确 patch 目标，不得全局 mock；3) 异步测试用 @pytest.mark.asyncio；4) 测试函数必须有明确断言，不得只验证'不抛异常'；5) 不得有 hardcoded sleep，用 pytest 的条件等待。"
+    }
+  ]
+}
