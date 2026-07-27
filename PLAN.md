@@ -1,299 +1,304 @@
 # forge-agent 实施计划
 
-> **版本**：v4
-> **最后更新**：2026-07-03
-> **本文件是唯一执行入口**（取代 `ROADMAP.md` 任务跟踪、`docs/tasks/STATUS.md` 日常更新）
+> **版本**：v5（大改造基线）
+> **最后更新**：2026-07-27
+> **定位**：通用 Agent 编排平台 — 生成即测、Judge 护航、任务托管、IM 触达
+> **本文件是唯一执行入口**（取代 ROADMAP.md 任务跟踪、AGENT_PLAN.md focus）
 
 ---
 
-## 一、产品定义
+## 一、产品定位
 
 ### 一句话
 
-**用户自建 Agent，再从已有 Agent 中组装 Pipeline，运行并查看结果。**
+**自托管的多 Agent 编排平台：用户自建 Agent → 组装 Pipeline → 托管运行 → IM 触达。**
 
-### 核心模型（只有三个概念）
+### 与市面方案的差异化
 
-```text
-Project
-  │
-  ├── Agent          用户自己创建的智能体（可复用）
-  │     └── 配置：prompt、工具、输出格式、mock/真实模式
-  │
-  ├── Pipeline       从 Agent 库中勾选成员，定义编排方式
-  │     └── 配置：agent 列表、并行/串行、Chief 汇总
-  │
-  └── Run            每次 Pipeline 执行产生一条记录
-        └── 内容：各 Agent 报告 + Chief 决策 + 输入 payload
-```
+| 市面痛点 | forge-agent 解法 |
+|---------|-----------------|
+| 生成完即裸奔，质量无保障 | AgentSpec 生成 → mock smoke → Judge 评分 → 失败自愈（最多3轮） |
+| Agent 绑死 Workflow | Agent 一等公民，Pipeline 只是组装，跨 Pipeline 复用 |
+| 平台与框架割裂 | Web UI 自助 + AgentSpec 声明式内核 + 代码生成，低代码与代码可滑动 |
+| 只能手动同步跑 | runtime 任务托管：异步/持久/重试/定时/恢复 |
+| 触达不了真实用户 | integrations/im：飞书/钉钉/企微/Slack 入站触发 + 出站推送 |
+| 多专家协作无结构 | AgentReport/AgentBoard 契约 + Chief 汇总 + Judge 校准 |
 
-### 用户旅程
+### 明确不做（本阶段）
 
-```text
-1. 启动平台          forge-agent up
-2. 创建 Agent A      选模板 → 填参数 → 保存
-3. 创建 Agent B      同上（可不同配置）
-4. 创建 Pipeline     勾选 A、B → Chief 选 generic.chief → 保存
-5. 运行 Pipeline     填 payload（如 {"keyword": "labubu"}）→ Run
-6. 查看结果          运行历史 → 各 Agent 报告 + Chief 汇总
-```
-
-### 设计原则
-
-| 原则 | 说明 |
-|------|------|
-| **Agent 与 Pipeline 解耦** | 同一 Agent 可被多个 Pipeline 引用 |
-| **Web 优先** | 主路径在浏览器；CLI/TUI 给开发者 |
-| **模板降认知** | scraper/analyzer 等只是「建 Agent 时的预设」，不是产品术语 |
-| **mock 默认可用** | 无 API Key 也能跑通；真实 LLM/工具可切换 |
-| **部署后自助** | 长远目标：一套服务、多租户、用户自己建 Agent/Pipeline |
-
-### 明确不做（当前阶段）
-
-- 自然语言建 Pipeline（P4.4 `architect` 高级入口，默认规则+Mock）
-- `forge-agent generate` 写 Python（开发者能力，非主路径）
-- Skill 市场 / SaaS 计费（P3 以后）
+- 画布 Workflow 编辑器（Dify/Flowise territory）
+- 完整 RAG 平台（后置可选）
+- SaaS 计费 / 多租户配额（后置）
 
 ---
 
-## 二、架构映射
+## 二、能力栈
+
+```
+┌─────────────────────────────────────────┐
+│  IM 适配层   飞书/钉钉/企微/Slack        │  触达 + 触发（入站/出站）
+├─────────────────────────────────────────┤
+│  任务托管层   队列/状态/重试/回调/定时    │  持久运行
+├─────────────────────────────────────────┤
+│  Pipeline 引擎  DAG/串并行/Chief         │  编排
+├─────────────────────────────────────────┤
+│  Agent 运行时  BaseAgent/Factory         │  执行
+└─────────────────────────────────────────┘
+```
+
+下两层（Pipeline/Agent）已具备；上两层（runtime/integrations）为本轮大改造新增的基础能力。
+
+---
+
+## 三、目标架构
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│  Web UI（forge-agent up）                                │
-│  /agents/new  /pipelines/new  /pipelines/{id}/run       │
-├─────────────────────────────────────────────────────────┤
-│  REST API          pages.py + api.py                    │
-├─────────────────────────────────────────────────────────┤
-│  存储（LocalTenant）                                      │
-│  agents/*.yaml     pipelines/*.yaml     state/*.json   │
-├─────────────────────────────────────────────────────────┤
-│  运行时                                                   │
-│  launcher → AgentFactory → TeamRunner → ChiefAgent       │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Agent 文件结构（用户自建产物）
-
-```yaml
-# agents/weibo_analyst.yaml
-agents:
-  - agent_id: weibo_analyst
-    name: 微博分析
-    template: prompt_agent
-    config:
-      mock_mode: true
-      prompt: "分析 {platform} 上 {keyword} 的趋势…"
-      tools: [weibo.hot_search]          # 可选
-      variables: { keyword: keyword, platform: platform }
-      output_schema: { verdict: str, confidence: float, ... }
-      output_mapping: { verdict: verdict, ... }
-      mock_response: '{"verdict": "lean_positive", ...}'
-```
-
-### Pipeline 文件结构（用户组装产物）
-
-```yaml
-# pipelines/trend.yaml
-pipeline_id: trend
-name: 趋势分析
-team:
-  team_id: trend_team
-  agent_ids: [weibo_analyst, xhs_analyst]   # 用户勾选的 Agent
-  chief_id: generic.chief                   # 内置汇总 Agent
-  mode: parallel
+forge-agent/
+├── core/                  内核：纯契约与抽象（无业务逻辑）
+│   ├── agent.py           BaseAgent 生命周期 hook（瘦身）
+│   ├── contracts.py       AgentReport / AgentBoard / AgentContext
+│   ├── enums.py           Action / Verdict / AgentStatus
+│   └── capabilities.py    能力协议（search/memory/reflect/log）
+│
+├── spec/                  AgentSpec 内核（原 agent_spec/ 收敛）
+│   ├── models.py          数据模型
+│   ├── generator.py       生成器（策略注册表，6 primitive 合并）
+│   ├── compose.py         编队（原 compose+wire）
+│   ├── ci.py              CI 门禁（原 ci+chain_smoke+smoke）
+│   ├── repair.py          自愈（原 repair+maturity+coverage）
+│   ├── versioning.py      版本
+│   └── profiles/          原语 + schema 配置
+│
+├── judge/                 质量评估
+│   ├── models.py          IssueSeverity/JudgeIssue/DimensionScore/JudgeReport
+│   ├── checkers.py        各 check_*（独立可测）
+│   └── judge.py           Judge 类
+│
+├── runtime/               【新层】任务托管
+│   ├── models.py          TaskRun 状态机
+│   ├── store.py           持久化（复用 SQLite）
+│   ├── runner.py          异步 worker
+│   ├── retry.py           重试策略（指数退避）
+│   ├── triggers.py        触发源 manual/schedule/webhook/im
+│   └── scheduler.py       cron 定时
+│
+├── pipeline/              编排引擎
+│   ├── engine.py          DAG 执行
+│   ├── aggregator.py      Board 汇总
+│   └── chief.py           ChiefAgent（含 guardrails/prompt 拆分）
+│
+├── tools/                 统一工具层
+│   ├── registry.py        工具注册中心
+│   ├── mcp.py             MCP 客户端
+│   ├── scraper.py         抓取
+│   ├── search.py          搜索
+│   └── builtin/           示例工具（标注非必需）
+│
+├── integrations/          【新层】外部集成
+│   ├── im/
+│   │   ├── base.py        IMAdapter 协议
+│   │   ├── feishu.py      飞书
+│   │   ├── dingtalk.py    钉钉
+│   │   ├── wecom.py       企业微信
+│   │   ├── slack.py       Slack
+│   │   ├── formatter.py   AgentReport → IM 卡片
+│   │   └── router.py      入站事件 → 触发 Pipeline
+│   └── webhook/
+│       └── receiver.py    通用 webhook 入口
+│
+├── learning/              复盘成长（与 judge 边界清晰）
+├── storage/               统一存储（ForgeStore + SQLite 底座）
+├── llm/                   LLM 层（多 provider + 密钥 + usage）
+├── platform/              多租户 + 项目隔离
+├── web/                   单一 Web 服务
+│   ├── app.py             唯一 FastAPI app
+│   ├── auth/              认证
+│   ├── routes/
+│   │   ├── agents.py      /agents/*
+│   │   ├── pipelines.py   /pipelines/*
+│   │   ├── runs.py        /runs/* （任务托管 API）
+│   │   ├── spec.py        /agent-spec/*
+│   │   ├── llm.py         /llm/*
+│   │   ├── bundles.py     /bundles/*
+│   │   └── integrations.py /integrations/* （IM/webhook 配置）
+│   ├── observability/     Trace/Metrics（原 dashboard/ 合并）
+│   ├── templates/
+│   └── static/
+├── cli/                   CLI（瘦身）
+└── templates/             项目模板（去垂直化，多领域）
 ```
 
 ---
 
-## 三、现状评估
+## 四、迁移决策矩阵
 
-| 能力 | 状态 | 位置 |
+| 操作 | 对象 | 理由 |
 |------|------|------|
-| Web 创建/编辑/删除 Agent | ✅ | `web/routes/api.py`, `create_agent.html` |
-| Web 创建/编辑/删除 Pipeline | ✅ | `create_pipeline.html` |
-| Web 运行 + 历史 | ✅ | `run_pipeline.html`, `runs.html` |
-| Agent 类型模板（表单预设） | ✅ | `builtin/agent_types/` |
-| Chief 汇总 | ✅ | `builtin/chief_agent.py` |
-| 多租户文件隔离 | ✅ | `platform/local_tenant.py` |
-| 运行结果持久化 | ✅ | `project/state_store.py` |
-| Docker 部署 | ✅ | `Dockerfile`, `docker-compose.yml` |
-
-| 缺口 | 影响 |
-|------|------|
-| Web 无多项目/多租户切换 | 部署多人用时需 Phase 2 |
-| 无登录鉴权 | 公网部署需 Phase 2 |
-| 手动验收未做 | 需本地 `forge-agent up` 走一遍黄金路径 |
+| 保留 | core 契约、spec 内核、judge、pipeline 引擎、llm、platform、storage 底座、Bundle | 核心资产 |
+| 合并 | `dashboard/` → `web/observability/` | 两套 app.py 重叠 |
+| 合并 | `generator/` → `spec/` | 代码生成是 Spec 生成的重模式 |
+| 合并 | `builtin/tools`+`mcp/`+`scraper/`+`search/` → `tools/` | 统一工具层 |
+| 合并 | `agent_spec/` 16模块 → `spec/` 7模块 | ci/smoke/chain_smoke 合一；compose/wire 合一；repair/maturity/coverage 合一 |
+| 移动 | `builtin/chief_agent.py` → `pipeline/chief.py` | Chief 是编排组件，拆 guardrails/prompt |
+| 移动 | `project/state_store.py` → `runtime/store.py` | 结果持久化归运行时 |
+| 移动 | `scheduler/` → `runtime/`（降级为执行组件） | 托管引擎含执行策略 |
+| 瘦身 | `core/base.py` | trace→装饰器；constraint→回 constraints；evolve→回 learning |
+| 删除 | 垂直硬编码（chief 足球文案、社媒门面） | 通用框架不该有 |
+| 新增 | `runtime/` 任务托管 | 基础能力缺口 |
+| 新增 | `integrations/im/` + `webhook/` | IM 协作基础能力缺口 |
 
 ---
 
-## 四、执行阶段
+## 五、执行阶段（按依赖顺序）
 
-### Phase 0 — 跑通主路径 ✅
+### S1 — 架构骨架
 
-**目标**：`forge-agent up` → 建 Agent → 建 Pipeline → 运行 → 看历史，全程 mock。
-
-| ID | 任务 | 验收 | 状态 |
-|----|------|------|------|
-| P0.1 | Pipeline 表单默认 Chief = `generic.chief` | 新建 Pipeline 页默认选中 | ✅ |
-| P0.2 | launcher 运行前注册 `generic.chief` | `_ensure_builtin_agents()` | ✅ |
-| P0.3 | 修复 `_configure_llm` 使用项目所属 tenant 根目录 | 临时目录项目可运行 | ✅ |
-| P0.4 | Web 全流程集成测试 | `pytest tests/integration/test_web_e2e.py` 全绿 | ✅ |
-| P0.5 | README Quick Start 对齐主路径 | 文档以 up → Agent → Pipeline 为准 | ✅ |
-| P0.6 | 手动走一遍黄金路径 | 按下方脚本操作成功 | 🟡 自动化已覆盖，待人工 UI 确认 |
-
-**黄金路径验收脚本**：
-
-```bash
-forge-agent up
-# http://localhost:8787
-
-# 1. + Agent → scraper → weibo_analyst（keyword/platform/tool）
-# 2. + Agent → scraper → xhs_analyst
-# 3. + Pipeline → 勾选两个 Agent → Chief 保持 generic.chief
-# 4. 运行 → payload: {"keyword": "labubu"}
-# 5. 运行历史 → 看到 2 份 Agent 报告 + Chief 汇总
-```
-
-**Phase 0 出口**：`pytest tests/integration/test_web_e2e.py::TestWebGoldenPath::test_p06_golden_path_script` + 下方手动脚本（或 `scripts/golden_path_check.sh`）。
-
----
-
-### Phase 1 — Agent / Pipeline 体验（约 1 周）
-
-**目标**：让「自建 Agent → 组装 Pipeline」更好用，UI 语言统一。
-
-| ID | 任务 | 验收 | 状态 |
-|----|------|------|------|
-| P1.1 | UI 文案：Agent / Pipeline / 运行 | 导航与页面统一中文术语 | ✅ |
-| P1.2 | 空项目引导 | 首页三步引导 + 预设快捷入口 | ✅ |
-| P1.3 | Agent 模板标签 | scraper→数据抓取 等 | ✅ |
-| P1.4 | Agent 快捷编辑 | mock / prompt / tools | ✅ |
-| P1.5 | Pipeline 已选摘要 + Chief 说明 | 创建页实时摘要 | ✅ |
-| P1.6 | 动态 payload 表单 | 按 Agent variables 生成 | ✅ |
-| P1.7 | 结构化结果页 | verdict / evidence / Chief | ✅ |
-| P1.8 | Agent 预设库 | 微博/小红书/得物一键创建 | ✅ |
-
----
-
-### Phase 2 — 部署与多租户（约 1～2 周）
-
-**目标**：部署一套服务，多个租户各自建 Agent/Pipeline。
+**目标**：建 runtime/ + integrations/ 空骨架，定义接口契约，不破坏现有功能。
 
 | ID | 任务 | 验收 |
 |----|------|------|
-| P2.1 | Web 路由 `/t/{tenant}/p/{project}/...` | 一套 up 服务多租户 | ✅ |
-| P2.2 | Web 内新建/切换/列出 Project | 无需 CLI `forge-agent new` | ✅ |
-| P2.3 | 用户注册 → 自动创建 tenant | 新用户有独立命名空间 | ✅ |
-| P2.4 | 登录 + Session；只能访问自己 tenant | 跨 tenant 返回 403 | ✅ |
-| P2.5 | docker-compose volume 持久化数据 | 重启不丢 Agent/Pipeline | ✅ |
-| P2.6 | 部署文档：环境变量、端口、数据目录 | 外人能独立部署 | ✅ |
+| S1.1 | 建 `runtime/` 模块骨架：models/store/runner/retry/triggers/scheduler 空文件 + 接口定义 | import 不报错 |
+| S1.2 | 建 `integrations/im/` + `webhook/` 骨架：base 协议 + 空 adapter | IMAdapter 协议可被 mock 实现 |
+| S1.3 | 定义 TaskRun 状态机：pending→running→succeeded/failed/cancelled/retrying | 单元测试覆盖状态流转 |
 
----
+### S2 — 收拢合并
 
-### Phase 3 — 运行可观测与真实数据（按需）
+**目标**：消除重复抽象，统一模块边界。每步保测试绿。
 
 | ID | 任务 | 验收 |
 |----|------|------|
-| P3.1 | 每次 Run 写入 trace_id + logs | `logs/{trace_id}.json` | ✅ |
-| P3.2 | Web 运行详情展示 Trace | 各 Agent 耗时、输入输出 | ✅ |
-| P3.3 | 租户级 LLM 配置 UI | Web 填 API Key | ✅ |
-| P3.4 | 工具层：scraper_agent + 真实/降级 mock 工具 | 可切换真实数据 | ✅ |
-| P3.5 | E2E：注册 → 建 Agent → 建 Pipeline → 运行 | CI 全绿 | ✅ |
+| S2.1 | `dashboard/` 合并进 `web/observability/`，删除独立 app.py | 单一 web 服务，观测路由可访问 |
+| S2.2 | `generator/` 合并进 `spec/`，收敛为一条生成路径 | 生成功能不丢，单一生成入口 |
+| S2.3 | `builtin/tools`+`mcp/`+`scraper/`+`search/` → `tools/` | 统一工具注册，旧 import 兼容 |
+| S2.4 | `agent_spec/` 16模块 → `spec/` 7模块（ci/smoke/chain_smoke 合并等） | 场景矩阵 20/20 仍绿 |
+| S2.5 | `builtin/chief_agent.py` → `pipeline/chief.py`，拆 GuardRailEngine + ChiefPrompts | Chief 功能不变，可独立测试 guardrails |
+| S2.6 | `project/state_store.py` → `runtime/store.py` | 运行结果持久化迁移 |
+| S2.7 | `scheduler/` 降级为 `runtime/` 内部执行组件 | 现有 pipeline 执行不破 |
+
+### S3 — 任务托管实装
+
+**目标**：runtime/ 从骨架变成可用引擎。
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| S3.1 | `task_runs` 表 + 持久化（复用 SQLite） | run 记录重启不丢 |
+| S3.2 | 异步 runner：提交即返回 run_id，后台执行 | `POST /runs` 不阻塞 |
+| S3.3 | 状态查询 API：`GET /runs/{id}` | 返回 status/进度/结果 |
+| S3.4 | 重试策略：指数退避 + max_attempts | 失败自动重试，记录 attempts |
+| S3.5 | 定时触发：cron 表达式 → 周期创建 run | 定时 pipeline 自动跑 |
+| S3.6 | 恢复：重启扫描 running 态 → 标记 interrupted | 重启不丢运行态 |
+| S3.7 | 回调机制：完成触发 webhook | 回调可被 IM 订阅 |
+
+### S4 — Web 接线
+
+**目标**：拆 api.py，runs API 接 runtime，观测合并。
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| S4.1 | 拆 `web/routes/api.py`（1165行）→ agents/pipelines/runs/spec/llm/bundles/integrations | 原文件仅留 router 聚合 |
+| S4.2 | `/runs` API 接 runtime 层 | 异步提交 + 状态查询可用 |
+| S4.3 | 观测页（原 dashboard）合并进 web，展示 task_run 状态/Trace | 单一服务内可见 |
+| S4.4 | Agent 卡片首屏展示 Judge 分 + 成熟度阶梯 | 质量门禁招牌化 |
+
+### S5 — IM 适配
+
+**目标**：integrations/im 实装，飞书优先，接 runtime。
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| S5.1 | IMAdapter 协议 + 飞书 adapter（入站事件 + 出站消息） | 飞书机器人可收发 |
+| S5.2 | im/router：入站 @机器人/命令 → 触发 Pipeline → 创建 task_run | IM 里 `/run trend` 能触发 |
+| S5.3 | im/formatter：AgentReport → 飞书卡片 | 结果推送可读 |
+| S5.4 | 出站回调：task_run 完成 → 推送 IM | 运行完自动回 IM |
+| S5.5 | 钉钉/企微/Slack adapter（同协议） | 至少再接 1 个 |
+
+### S6 — 核心瘦身
+
+**目标**：解耦 base.py，去垂直残留。
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| S6.1 | `core/base.py` trace 逻辑 → RunTracer 装饰器/mixin | base.py < 300 行 |
+| S6.2 | constraint 逻辑移回 `constraints/` | base 不含 constraint |
+| S6.3 | evolve 编排移回 `learning/`，base 只留 hook | base 不含 learning 编排 |
+| S6.4 | `judge/__init__.py` 拆 models/checkers/judge | __init__ 仅 re-export |
+| S6.5 | 删除 chief 足球硬编码文案 → config 注入 | 通用 Chief 无领域残留 |
+| S6.6 | 统一术语：agent_type/template/primitive 收敛为统一词汇表 | 全局命名一致 |
+
+### S7 — 去垂直化
+
+**目标**：消除"社媒工具"体感，证明通用性。
+
+| ID | 任务 | 验收 |
+|----|------|------|
+| S7.1 | 新增非社媒模板：文档摘要 / 客服路由 / 数据监控告警 | 3 个通用模板可用 |
+| S7.2 | 社媒预设降级为"示例模板"，标注非必需 | 不再当门面 |
+| S7.3 | README/首页改为通用场景 | 无社媒/体育痕迹 |
+| S7.4 | 真实 LLM + 真实 MCP 工具端到端黄金路径 | 非 Mock 跑通一条 |
 
 ---
 
-### Phase 4 — 生态与商业化
-
-| ID | 任务 | 验收 | 状态 |
-|----|------|------|------|
-| P4.1 | Agent/Pipeline Bundle 导入导出 + 模板市场页 | Web 一键导入/导出/发布共享 | ✅ |
-| P4.2 | Pipeline 模板扩展 | 四平台预设 + YAML Bundle 导入 | ✅ |
-| P4.3 | DBTenant + 配额 | 企业 SaaS | ⬜ |
-| P4.4 | 自然语言建 Pipeline | architect 高级入口 | ✅ |
-
----
-
-## 五、执行顺序总览
+## 六、执行顺序总览
 
 ```text
-Phase 0  跑通 ✅（待手动验收）
-    │
-Phase 1  体验 ✅
-    │
-Phase 2  部署（多租户、登录、Project CRUD）  ← ✅ 已完成
-    │
-Phase 3  可观测 + 真实数据  ← Phase 3 基本完成（P3.4 ✅）
-    │
-Phase 4  生态（模板市场 + 智能创建）  ← P4.1/P4.2/P4.4 ✅
+S1 架构骨架   建 runtime/ + integrations/ 接口
+    ↓
+S2 收拢合并   dashboard→web、generator→spec、工具合并、agent_spec 收敛
+    ↓
+S3 任务托管   runtime 实装（状态机+持久化+异步+重试+定时）
+    ↓
+S4 Web 接线   拆 api.py，runs API，观测合并
+    ↓
+S5 IM 适配    飞书优先，接 runtime trigger/callback
+    ↓
+S6 核心瘦身   base.py 解耦、chief 拆解、judge 拆分
+    ↓
+S7 去垂直化   模板/示例/门面通用化
 ```
 
-**当前 focus**：**Agent Generator Phase 2 ✅** — 见 [`AGENT_PLAN.md`](AGENT_PLAN.md) Phase 3。Pipeline / 市场 / P4.3 冻结。
-
----
-
-## 六、验收总入口（Phase 0～2 完成后）
-
-```bash
-# 管理员
-docker compose up -d
-
-# 用户 A（浏览器）
-# 注册 → 新建项目 → 创建 Agent × N → 创建 Pipeline → 运行 → 查看历史
-
-# 用户 B
-# 注册 → 完全看不到 A 的 Agent/Pipeline/Run
-
-# 开发者（可选）
-forge-agent new myproj --template config-driven --tenant acme
-```
+**依赖关系**：runtime（S3）必须先于 IM（S5），因为 IM 的 trigger/callback 依赖 runtime 接口。其余阶段顺序执行，每阶段保测试绿。
 
 ---
 
 ## 七、进度跟踪
 
-| Phase | 进度 | 状态 |
-|-------|------|------|
-| Phase 0 跑通 | 6/6 | ✅ 完成 |
-| Phase 1 体验 | 8/8 | ✅ 完成 |
-| Phase 2 部署 | 6/6 | ✅ 完成 |
-| Phase 3 可观测 | 5/5 | ✅ 完成 |
-| Phase 4 生态 | 3/4 | 🟡 P4.3 按需 |
+| 阶段 | 进度 | 状态 |
+|------|------|------|
+| S1 架构骨架 | 0/3 | ⬜ |
+| S2 收拢合并 | 0/7 | ⬜ |
+| S3 任务托管 | 0/7 | ⬜ |
+| S4 Web 接线 | 0/4 | ⬜ |
+| S5 IM 适配 | 0/5 | ⬜ |
+| S6 核心瘦身 | 0/6 | ⬜ |
+| S7 去垂直化 | 0/4 | ⬜ |
 
 ---
 
 ## 八、决策记录
 
-### 2026-07-03 — 产品模型定稿
+### 2026-07-27 — 方向重定义（v5）
 
-- **核心**：用户自建 Agent → 从 Agent 组装 Pipeline → 运行
-- **不做为主路径**：generate 写代码、Intent 自动生成、Skill 市场
-- **Agent 类型**：降为「创建模板」，不对用户强调 scraper/analyzer/chief
-- **Chief**：内置 `generic.chief`，Pipeline 默认选中
+- **定位**：通用 Agent 编排平台，不绑定任何垂直领域，与 guess_you_like 无关
+- **接受大范围改造**：用户授权架构级重构，非打补丁
+- **保留核心资产**：AgentSpec + Judge + 自愈 + CI 门禁 + BaseAgent 契约
+- **新增基础能力**：runtime 任务托管 + integrations/im（市面基础能力，非高级功能）
+- **消除技术债**：上帝文件拆分、重复抽象合并、过度设计收敛、垂直残留清除
 
-### 2026-07-04 — 本地优先策略
+### 2026-07-27 — 能力栈定稿
 
-- 登录注册（P2.3/P2.4）通过 `FORGE_AGENT_WEB_AUTH=1` 按需开启；默认关闭，本地单机免登录
-- 真实 LLM（P3.3/P3.4）按需；默认 Mock 演示
-- 优先打磨本地 UI：Mock 提示、运行进度、Trace 时间线
-
-### 2026-07-03 — 执行策略
-
-- Phase 0 必须 mock 跑通，不依赖 API Key
-- Phase 1 再打磨 UI/体验
-- Phase 2 再做多租户与登录
-- 垂直场景（社媒趋势）作为 Agent/Pipeline **模板**，不是平台边界
+- 四层栈：IM 适配 → 任务托管 → Pipeline 引擎 → Agent 运行时
+- 下两层已有，上两层本轮补齐
+- runtime 先于 IM，IM 通过 runtime 的 trigger/callback 接入，不侵入核心
 
 ---
 
 ## 九、任务提交规范
 
-完成 tasks 时在 commit message 引用 ID：
-
 ```text
-feat(P0.3): use project tenant root in launcher LLM config
-test(P0.4): fix web golden path e2e
-docs(P0.5): align README with Agent/Pipeline flow
+refactor(S2.1): merge dashboard into web/observability
+feat(S3.2): async run submission returns run_id
+feat(S5.2): im router triggers pipeline from bot command
+chore(S7.3): de-verticalize README to generic scenarios
 ```
 
-每完成一项：更新本节「进度跟踪」表。
+每完成一项：更新第七节「进度跟踪」表。
