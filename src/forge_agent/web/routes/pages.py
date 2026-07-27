@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from forge_agent.agent_spec.maturity import compute_maturity
 from forge_agent.project.agent_runner import default_run_payload
-from forge_agent.project.state_store import StateStore
+from forge_agent.runtime.state_store import StateStore
 from forge_agent.web.agent_types import registry_for
 from forge_agent.web.bundles import build_market_catalog
 from forge_agent.web.context import ProjectContext, base_context, get_project_context

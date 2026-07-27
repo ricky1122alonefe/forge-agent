@@ -16,8 +16,8 @@ from forge_agent.project.launcher import (
     resolve_local_tenant,
 )
 from forge_agent.project.llm_ready import ensure_llm_ready
-from forge_agent.project.state_store import RunRecord, StateStore, generate_run_id
 from forge_agent.registry.registry import get_registry
+from forge_agent.runtime.state_store import RunRecord, StateStore, generate_run_id
 from forge_agent.web.data import get_agent, infer_run_mock_mode
 
 

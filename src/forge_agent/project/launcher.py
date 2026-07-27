@@ -16,8 +16,8 @@ from forge_agent.core.runner import TeamRunner
 from forge_agent.exceptions import ForgeError
 from forge_agent.llm.registry import get_registry
 from forge_agent.platform import ConfigValidator, LLMConfigManager, LocalTenant
-from forge_agent.project.state_store import RunRecord, StateStore, generate_run_id
 from forge_agent.project.tui import run_menu
+from forge_agent.runtime.state_store import RunRecord, StateStore, generate_run_id
 from forge_agent.storage import ForgeStore
 from forge_agent.web.data import infer_run_mock_mode
 from forge_agent.web.llm_settings import load_env_files

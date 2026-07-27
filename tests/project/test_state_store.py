@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from forge_agent.project.state_store import RunRecord, StateStore, generate_run_id
+from forge_agent.runtime.state_store import RunRecord, StateStore, generate_run_id
 
 
 class TestStateStore:

@@ -14,7 +14,7 @@ import pytest_asyncio
 from httpx import ASGITransport
 
 from forge_agent.platform import LocalTenant
-from forge_agent.project.state_store import StateStore
+from forge_agent.runtime.state_store import StateStore
 from forge_agent.web.app import create_app
 
 
