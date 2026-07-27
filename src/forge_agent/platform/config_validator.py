@@ -98,7 +98,7 @@ class ConfigValidator:
 
     def _load_tools(self) -> None:
         """Register built-in tools and tenant/project shared manifests."""
-        from forge_agent.builtin.tools import register_builtin_tools
+        from forge_agent.tools.builtin import register_builtin_tools
 
         register_builtin_tools()
         tenant = LocalTenant(self.tenant_id, root_dir=self.root_dir)

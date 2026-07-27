@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from forge_agent.builtin.tools import register_builtin_tools
 from forge_agent.platform.tool_registry import ToolRegistry, get_tool_registry
+from forge_agent.tools.builtin import register_builtin_tools
 
 
 @dataclass(frozen=True)

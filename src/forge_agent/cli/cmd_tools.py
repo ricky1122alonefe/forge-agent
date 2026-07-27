@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from forge_agent.builtin.tools import register_builtin_tools
 from forge_agent.platform import LocalTenant, get_tool_registry
+from forge_agent.tools.builtin import register_builtin_tools
 
 
 def add(sub: argparse._SubParsersAction) -> None:
