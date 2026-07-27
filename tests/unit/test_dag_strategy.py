@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from forge_agent.core.context import AgentContext
-from forge_agent.scheduler.strategies import DAGStrategy
-from forge_agent.scheduler.tasks import ScheduleResult, ScheduleTask
+from forge_agent.runtime.strategies import DAGStrategy
+from forge_agent.runtime.tasks import ScheduleResult, ScheduleTask
 
 
 def _ctx() -> AgentContext:

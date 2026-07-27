@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 def _ensure_builtin_agents() -> None:
     """Ensure built-in agents (e.g. generic.chief) are registered before a run."""
-    from forge_agent.builtin.chief_agent import ChiefAgent
+    from forge_agent.pipeline.chief import ChiefAgent
     from forge_agent.registry.registry import get_registry
 
     registry = get_registry()

@@ -358,8 +358,8 @@ class TestRaiseSites:
 
     def test_scheduler_duplicate_task(self):
         from forge_agent.core.context import AgentContext
-        from forge_agent.scheduler.scheduler import Scheduler
-        from forge_agent.scheduler.tasks import ScheduleTask
+        from forge_agent.runtime.executor import Scheduler
+        from forge_agent.runtime.tasks import ScheduleTask
 
         s = Scheduler()
         ctx = AgentContext(scope_id="s1", config={})

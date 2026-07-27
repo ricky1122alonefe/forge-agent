@@ -82,7 +82,7 @@ from forge_agent.pipeline.engine import PipelineEngine
 from forge_agent.pipeline.pipeline import Pipeline, PipelineNode
 from forge_agent.registry.decorators import register_agent
 from forge_agent.registry.registry import AgentRegistry, get_registry
-from forge_agent.scheduler.scheduler import Scheduler, ScheduleResult, ScheduleTask
+from forge_agent.runtime.executor import Scheduler, ScheduleResult, ScheduleTask
 
 __all__ = [  # noqa: RUF022
     "Action",

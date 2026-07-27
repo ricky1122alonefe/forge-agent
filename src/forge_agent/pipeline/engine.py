@@ -17,7 +17,7 @@ from forge_agent.core.context import AgentContext
 from forge_agent.core.contracts import AgentBoard, AgentReport
 from forge_agent.pipeline.aggregator import Aggregator
 from forge_agent.pipeline.pipeline import NodeType, Pipeline, PipelineNode
-from forge_agent.scheduler.scheduler import Scheduler, ScheduleTask
+from forge_agent.runtime.executor import Scheduler, ScheduleTask
 
 log = logging.getLogger(__name__)
 

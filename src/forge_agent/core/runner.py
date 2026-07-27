@@ -20,9 +20,9 @@ from forge_agent.core.mission import Mission
 from forge_agent.core.team import Team
 from forge_agent.pipeline.aggregator import Aggregator
 from forge_agent.registry.registry import get_registry
-from forge_agent.scheduler.scheduler import Scheduler
-from forge_agent.scheduler.strategies import ParallelStrategy
-from forge_agent.scheduler.tasks import ScheduleTask
+from forge_agent.runtime.executor import Scheduler
+from forge_agent.runtime.strategies import ParallelStrategy
+from forge_agent.runtime.tasks import ScheduleTask
 from forge_agent.storage import ForgeStore
 
 log = logging.getLogger(__name__)

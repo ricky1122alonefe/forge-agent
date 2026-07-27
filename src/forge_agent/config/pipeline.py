@@ -91,7 +91,7 @@ class PipelineLoader:
         """Execute the configured pipeline and return the final AgentBoard."""
         # Ensure the generic chief is registered (idempotent; needed because
         # module-level decorators only run on first import).
-        from forge_agent.builtin.chief_agent import ChiefAgent
+        from forge_agent.pipeline.chief import ChiefAgent
 
         registry = get_registry()
         if "generic.chief" not in registry:

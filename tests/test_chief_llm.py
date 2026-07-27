@@ -6,9 +6,9 @@ from typing import Any
 
 import pytest
 
-from forge_agent.builtin.chief_agent import ChiefAgent
 from forge_agent.core.contracts import AgentReport
 from forge_agent.core.enums import Action, Verdict
+from forge_agent.pipeline.chief import ChiefAgent
 
 
 def _make_report(
