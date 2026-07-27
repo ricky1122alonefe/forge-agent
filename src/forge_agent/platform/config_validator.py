@@ -12,7 +12,6 @@ from typing import Any, ClassVar
 
 import yaml
 
-from forge_agent.core.factory import AgentFactory
 from forge_agent.exceptions import ConfigValidationError
 from forge_agent.platform.local_tenant import LocalTenant
 from forge_agent.platform.tool_registry import get_tool_registry
@@ -38,6 +37,8 @@ class ConfigValidator:
         self._load_tools()
 
         # Discover supported agent templates dynamically.
+        from forge_agent.core.factory import AgentFactory
+
         self._templates = set(AgentFactory().list_templates())
 
     # ------------------------------------------------------------------

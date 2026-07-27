@@ -5,12 +5,12 @@ from __future__ import annotations
 import pytest
 
 from forge_agent.agent_spec.from_type import generate_from_agent_type
-from forge_agent.agent_spec.generator import _hints_from_requirements, generate_spec
 from forge_agent.agent_spec.models import AgentPrimitive, SchemaProfile
 from forge_agent.agent_spec.smoke import smoke_run_spec
 from forge_agent.builtin import AgentTypeRegistry
 from forge_agent.core.agent_type import AgentType
 from forge_agent.generator.requirements import AgentRequirements
+from forge_agent.spec.generator import _hints_from_requirements, generate_spec
 
 
 class TestReasonerAgentType:
