@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-gray-600">
+        <a href="/traces" class="hover:text-indigo-600">Traces</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-900">{{ trace.trace_id }}</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Trace Details</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <span class="text-sm text-gray-500">Trace ID</span>
+                <p class="font-mono text-sm text-gray-900">{{ trace.trace_id }}</p>
+            </div>
+            <div>
+                <span class="text-sm text-gray-500">Pipeline ID</span>
+                <p class="text-sm text-gray-900">{{ trace.pipeline_id or '—' }}</p>
+            </div>
+            <div>
+                <span class="text-sm text-gray-500">Start Time</span>
+                <p class="text-sm text-gray-900">{{ trace.start_time[:19] if trace.start_time else '—' }}</p>
+            </div>
+            <div>
+                <span class="text-sm text-gray-500">End Time</span>
+                <p class="text-sm text-gray-900">{{ trace.end_time[:19] if trace.end_time else '—' }}</p>
+            </div>
+            <div>
+                <span class="text-sm text-gray-500">Duration</span>
+                <p class="text-sm text-gray-900">{{ "%.2f" | format(trace.duration_ms) }} ms</p>
+            </div>
+            <div>
+                <span class="text-sm text-gray-500">Span Count</span>
+                <p class="text-sm text-gray-900">{{ trace.spans|length }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attributes -->
+    {% if trace.attributes %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">Attributes</h3>
+        <dl class="space-y-2">
+            {% for key, value in trace.attributes.items() %}
+            <div class="flex">
+                <dt class="text-sm font-medium text-gray-500 w-48">{{ key }}</dt>
+                <dd class="text-sm text-gray-900">{{ value }}</dd>
+            </div>
+            {% endfor %}
+        </dl>
+    </div>
+    {% endif %}
+
+    <!-- Spans Timeline -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Spans Timeline</h3>
+        </div>
+        {% if trace.spans %}
+        <div class="divide-y divide-gray-200">
+            {% for span in trace.spans %}
+            <div class="p-6 hover:bg-gray-50">
+                <div class="flex items-start justify-between mb-2">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-900">{{ span.name }}</h4>
+                        <p class="text-xs text-gray-500 font-mono">{{ span.span_id }}</p>
+                    </div>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                        {% if span.status == 'error' %}bg-red-100 text-red-800
+                        {% elif span.status == 'ok' %}bg-green-100 text-green-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ span.status }}
+                    </span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mt-2">
+                    <div>
+                        <span class="text-gray-500">Type:</span> {{ span.span_type or '—' }}
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Duration:</span> {{ "%.2f" | format(span.duration_ms or 0) }} ms
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Start:</span> {{ span.start_time[:19] if span.start_time else '—' }}
+                    </div>
+                    <div>
+                        <span class="text-gray-500">End:</span> {{ span.end_time[:19] if span.end_time else '—' }}
+                    </div>
+                </div>
+                {% if span.attributes %}
+                <div class="mt-3 bg-gray-50 rounded p-3">
+                    <p class="text-xs font-medium text-gray-700 mb-1">Attributes:</p>
+                    <dl class="text-xs space-y-1">
+                        {% for key, value in span.attributes.items() %}
+                        <div class="flex">
+                            <dt class="text-gray-500 w-32">{{ key }}:</dt>
+                            <dd class="text-gray-900">{{ value }}</dd>
+                        </div>
+                        {% endfor %}
+                    </dl>
+                </div>
+                {% endif %}
+                {% if span.error_message %}
+                <div class="mt-3 bg-red-50 border border-red-200 rounded p-3">
+                    <p class="text-xs font-medium text-red-800">Error:</p>
+                    <p class="text-xs text-red-700 mt-1">{{ span.error_message }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <p class="text-gray-500">No spans recorded for this trace.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

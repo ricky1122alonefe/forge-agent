@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from forge_agent.core.agent_type import AgentType
-from forge_agent.generator.prompts import (
+from forge_agent.spec.codegen.prompts import (
     ANALYZER_SYSTEM,
     CODE_GENERATOR_SYSTEM,
     GENERAL_SYSTEM,
@@ -42,7 +42,7 @@ class TestGetSystemPrompt:
     def test_unknown_type_falls_back_to_general(self) -> None:
         """If an unknown type is passed, should fall back to GENERAL_SYSTEM."""
         # Simulate by passing a non-enum value via dict.get fallback
-        from forge_agent.generator.prompts import _TYPE_PROMPTS
+        from forge_agent.spec.codegen.prompts import _TYPE_PROMPTS
 
         result = _TYPE_PROMPTS.get("nonexistent", GENERAL_SYSTEM)
         assert result is GENERAL_SYSTEM

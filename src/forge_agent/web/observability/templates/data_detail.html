@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Data: {{ agent_id }} — forge-agent Dashboard{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    .record-row:hover { background-color: #f9fafb; }
+    #chart-container { position: relative; height: 300px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="mb-6">
+        <a href="/data" class="text-sm text-gray-500 hover:text-indigo-600">Data</a>
+        <span class="text-gray-400 mx-2">/</span>
+        <span class="text-sm text-gray-700 font-medium font-mono">{{ agent_id }}</span>
+    </div>
+
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">{{ agent_id }}</h2>
+        <div class="flex items-center gap-4 text-sm text-gray-500">
+            <span>Records: <span class="font-semibold text-gray-700">{{ summary.get('total_records', 0) }}</span></span>
+            <span>First: <span class="font-mono">{{ summary.get('first_record', 'N/A') }}</span></span>
+            <span>Last: <span class="font-mono">{{ summary.get('last_record', 'N/A') }}</span></span>
+        </div>
+    </div>
+
+    <!-- Time-series Chart -->
+    {% if available_fields %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Time Series</h3>
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-600">Field:</label>
+                <select id="chart-field" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+                    {% for f in available_fields %}
+                    <option value="{{ f }}">{{ f }}</option>
+                    {% endfor %}
+                </select>
+                <button id="chart-refresh" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+                    Refresh
+                </button>
+            </div>
+        </div>
+        <div id="chart-container">
+            <canvas id="timeseries-chart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Records Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Recent Records</h3>
+        </div>
+        {% if records %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-medium text-gray-600">Timestamp</th>
+                        <th class="px-4 py-3 text-left font-medium text-gray-600">Data</th>
+                        <th class="px-4 py-3 text-left font-medium text-gray-600">URL</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for rec in records %}
+                    <tr class="record-row">
+                        <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap">{{ rec.timestamp }}</td>
+                        <td class="px-4 py-3">
+                            <div class="max-w-lg">
+                                <code class="text-xs bg-gray-100 px-2 py-1 rounded block overflow-hidden text-ellipsis whitespace-nowrap"
+                                      title='{{ rec.data | tojson }}'>
+                                    {{ rec.data | tojson }}
+                                </code>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">
+                            {% if rec.url %}
+                            <a href="{{ rec.url }}" target="_blank" class="text-indigo-600 hover:underline">{{ rec.url }}</a>
+                            {% else %}
+                            <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center text-gray-500">
+            <p>No records found for this agent.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+    "use strict";
+
+    var chartCanvas = document.getElementById("timeseries-chart");
+    var fieldSelect = document.getElementById("chart-field");
+    var refreshBtn = document.getElementById("chart-refresh");
+    var chart = null;
+
+    function loadChart(fieldName) {
+        var agentId = "{{ agent_id }}";
+        fetch("/api/data/" + encodeURIComponent(agentId) + "/timeseries?field_name=" + encodeURIComponent(fieldName) + "&limit=200")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var series = data.series || [];
+                if (!series.length) {
+                    if (chart) { chart.destroy(); chart = null; }
+                    return;
+                }
+                // Reverse for chronological order
+                series.reverse();
+                var labels = series.map(function(d) { return d.timestamp; });
+                var values = series.map(function(d) { return d.value; });
+
+                if (chart) { chart.destroy(); }
+                chart = new Chart(chartCanvas, {
+                    type: "line",
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: fieldName,
+                            data: values,
+                            borderColor: "#4f46e5",
+                            backgroundColor: "rgba(79,70,229,0.1)",
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 2,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: {
+                                ticks: { maxTicksLimit: 10, font: { size: 10 } },
+                                grid: { display: false },
+                            },
+                            y: {
+                                ticks: { font: { size: 10 } },
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(function(err) { console.error("Chart load failed:", err); });
+    }
+
+    if (fieldSelect) {
+        loadChart(fieldSelect.value);
+        refreshBtn.addEventListener("click", function() { loadChart(fieldSelect.value); });
+        fieldSelect.addEventListener("change", function() { loadChart(fieldSelect.value); });
+    }
+})();
+</script>
+{% endblock %}
