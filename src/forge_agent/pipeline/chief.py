@@ -43,6 +43,7 @@ class ChiefAgent(BaseAgent):
         self.temperature = float((config or {}).get("temperature", 0.2))
         self.max_tokens = (config or {}).get("max_tokens")
         self.system_prompt = (config or {}).get("system_prompt")
+        self.domain_label = (config or {}).get("domain_label", "综合")
         self.mock_mode = bool((config or {}).get("mock_mode", False))
         self.mock_response = (config or {}).get("mock_response", "")
         self.guard_rules: list[dict[str, Any]] = list((config or {}).get("guard_rules", []))
@@ -273,7 +274,7 @@ class ChiefAgent(BaseAgent):
         """Build a Chinese/English prompt summarizing the evidence board."""
         board = observation.get("board", {})
         lines = [
-            "你是一位足球赛事综合分析首席。请基于以下专家证据板输出最终决策。",
+            f"你是一位{self.domain_label}分析首席。请基于以下专家证据板输出最终决策。",
             "",
             "=== 专家报告 ===",
         ]
@@ -333,10 +334,9 @@ class ChiefAgent(BaseAgent):
         )
         return "\n".join(lines)
 
-    @staticmethod
-    def _default_system_prompt() -> str:
+    def _default_system_prompt(self) -> str:
         return (
-            "你是一位足球赛事综合分析首席。"
+            f"你是一位{self.domain_label}分析首席。"
             "你只会基于专家证据板做推理，不会臆测外部数据。"
             "当存在硬风险闸门时，必须降低推荐档位，不能直接给出 execute。"
             "输出必须是合法 JSON。"

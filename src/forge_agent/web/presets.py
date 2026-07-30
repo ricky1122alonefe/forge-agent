@@ -14,6 +14,9 @@ AGENT_TEMPLATE_LABELS: dict[str, str] = {
     "monitor": "指标监控",
     "generator": "内容生成",
     "chief": "决策汇总",
+    "doc_summarizer": "文档摘要",
+    "cs_router": "客服路由",
+    "data_monitor": "数据监控",
 }
 
 
@@ -37,6 +40,7 @@ AGENT_PRESETS: list[dict[str, Any]] = [
             "platform": "weibo",
             "tool": "weibo.hot_search",
         },
+        "example": True,
     },
     {
         "preset_id": "xhs_trend",
@@ -49,6 +53,7 @@ AGENT_PRESETS: list[dict[str, Any]] = [
             "platform": "xiaohongshu",
             "tool": "xiaohongshu.search",
         },
+        "example": True,
     },
     {
         "preset_id": "dewu_trend",
@@ -61,6 +66,7 @@ AGENT_PRESETS: list[dict[str, Any]] = [
             "platform": "dewu",
             "tool": "dewu.search",
         },
+        "example": True,
     },
     {
         "preset_id": "douyin_trend",
@@ -72,6 +78,42 @@ AGENT_PRESETS: list[dict[str, Any]] = [
             "keyword": "labubu",
             "platform": "douyin",
             "tool": "douyin.hot",
+        },
+        "example": True,
+    },
+    # -- Generic (non-social-media) presets --
+    {
+        "preset_id": "doc_summary",
+        "name": "文档摘要",
+        "description": "提取文档关键点、情感和行动项",
+        "agent_type": "doc_summarizer",
+        "default_agent_id": "doc_summarizer",
+        "params": {
+            "document_text": "Please summarise this document...",
+            "max_points": "5",
+        },
+    },
+    {
+        "preset_id": "cs_route",
+        "name": "客服路由",
+        "description": "分类客户查询并建议路由和初始回复",
+        "agent_type": "cs_router",
+        "default_agent_id": "cs_router",
+        "params": {
+            "query": "我想退款",
+            "categories": "billing,technical,general,complaint",
+        },
+    },
+    {
+        "preset_id": "data_monitor_cpu",
+        "name": "CPU 监控告警",
+        "description": "监控 CPU 使用率并在超阈值时告警",
+        "agent_type": "data_monitor",
+        "default_agent_id": "cpu_monitor",
+        "params": {
+            "metric_name": "cpu_usage",
+            "current_value": "45",
+            "threshold": "80",
         },
     },
 ]
@@ -127,6 +169,30 @@ PIPELINE_PRESETS: list[dict[str, Any]] = [
         "pipeline_name": "微博趋势分析",
         "pipeline_description": "微博热搜趋势分析",
         "agent_presets": ["weibo_trend"],
+        "chief_id": "generic.chief",
+        "mode": "parallel",
+        "example": True,
+    },
+    # -- Generic pipeline presets --
+    {
+        "preset_id": "generic_doc_analysis",
+        "name": "文档分析 Pipeline",
+        "description": "文档摘要 + 客服路由并行，Chief 汇总（通用场景）",
+        "pipeline_id": "doc_analysis",
+        "pipeline_name": "文档分析",
+        "pipeline_description": "文档摘要与客服路由并行分析",
+        "agent_presets": ["doc_summary", "cs_route"],
+        "chief_id": "generic.chief",
+        "mode": "parallel",
+    },
+    {
+        "preset_id": "generic_monitoring",
+        "name": "监控告警 Pipeline",
+        "description": "数据监控 + 文档摘要并行，Chief 汇总（通用场景）",
+        "pipeline_id": "monitoring",
+        "pipeline_name": "监控告警",
+        "pipeline_description": "数据监控与文档摘要并行分析",
+        "agent_presets": ["data_monitor_cpu", "doc_summary"],
         "chief_id": "generic.chief",
         "mode": "parallel",
     },

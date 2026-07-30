@@ -1,0 +1,66 @@
+agent_type:
+  type_id: doc_summarizer
+  name: Document Summarizer
+  description: |
+    Summarises long documents into key points, sentiment, and action items.
+    Generic — works on any text: reports, emails, articles, meeting notes.
+  domain: generic
+  template: prompt_agent
+  params:
+    - name: document_text
+      type: string
+      required: true
+      description: The document text to summarise.
+    - name: max_points
+      type: string
+      required: false
+      description: Maximum number of key points to extract.
+      default: "5"
+  prompt_template: |
+    You are a document summariser. Read the following document and extract key points.
+
+    Document:
+    {document_text}
+
+    Respond with a JSON object containing:
+    - verdict: one of [lean_positive, lean_neutral, lean_negative, risk]
+    - confidence: a number between 0.0 and 1.0 (how confident in the summary)
+    - risk: a number between 0.0 and 1.0 (risk level mentioned in document)
+    - evidence: a list of up to {max_points} key-point strings
+    - recommended_action: one of [execute, watch, hold, alert]
+    - metrics: an object with {word_count, sentiment: positive|neutral|negative}
+  output_schema:
+    type: object
+    properties:
+      verdict:
+        type: string
+        enum: [lean_positive, lean_neutral, lean_negative, risk]
+      confidence:
+        type: number
+        minimum: 0
+        maximum: 1
+      risk:
+        type: number
+        minimum: 0
+        maximum: 1
+      evidence:
+        type: array
+        items:
+          type: string
+      recommended_action:
+        type: string
+        enum: [execute, watch, hold, alert]
+      metrics:
+        type: object
+    required: [verdict, confidence, risk, evidence, recommended_action, metrics]
+  output_mapping:
+    verdict: verdict
+    confidence: confidence
+    risk: risk
+    evidence: evidence
+    recommended_action: recommended_action
+    metrics: metrics
+  mock_response: |
+    {"verdict": "lean_neutral", "confidence": 0.85, "risk": 0.15,
+     "evidence": ["Key point 1 from document", "Key point 2 from document", "Key point 3 from document"],
+     "recommended_action": "watch", "metrics": {"word_count": 500, "sentiment": "neutral"}}

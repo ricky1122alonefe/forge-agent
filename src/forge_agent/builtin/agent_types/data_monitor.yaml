@@ -1,0 +1,73 @@
+agent_type:
+  type_id: data_monitor
+  name: Data Monitor
+  description: |
+    Evaluates data metrics against thresholds and triggers alerts on anomalies.
+    Generic — works on any numeric metric stream (CPU, revenue, error rate, etc.).
+  domain: generic
+  template: prompt_agent
+  params:
+    - name: metric_name
+      type: string
+      required: true
+      description: Name of the metric to monitor (e.g. cpu_usage, revenue, error_rate).
+    - name: current_value
+      type: string
+      required: true
+      description: Current metric value.
+    - name: threshold
+      type: string
+      required: false
+      description: Alert threshold value.
+      default: "100"
+  prompt_template: |
+    You are a data monitoring agent. Evaluate the following metric.
+
+    Metric: {metric_name}
+    Current value: {current_value}
+    Alert threshold: {threshold}
+
+    Respond with a JSON object containing:
+    - verdict: one of [lean_positive, lean_neutral, lean_negative, risk]
+      (positive=normal, negative=above threshold, risk=critical)
+    - confidence: a number between 0.0 and 1.0
+    - risk: a number between 0.0 and 1.0 (anomaly severity)
+    - evidence: a list of strings explaining the assessment
+    - recommended_action: one of [execute, watch, hold, alert]
+      (execute=acknowledge, watch=monitor, alert=page on-call)
+    - metrics: an object with {metric_name, current_value, threshold, deviation_pct}
+  output_schema:
+    type: object
+    properties:
+      verdict:
+        type: string
+        enum: [lean_positive, lean_neutral, lean_negative, risk]
+      confidence:
+        type: number
+        minimum: 0
+        maximum: 1
+      risk:
+        type: number
+        minimum: 0
+        maximum: 1
+      evidence:
+        type: array
+        items:
+          type: string
+      recommended_action:
+        type: string
+        enum: [execute, watch, hold, alert]
+      metrics:
+        type: object
+    required: [verdict, confidence, risk, evidence, recommended_action, metrics]
+  output_mapping:
+    verdict: verdict
+    confidence: confidence
+    risk: risk
+    evidence: evidence
+    recommended_action: recommended_action
+    metrics: metrics
+  mock_response: |
+    {"verdict": "lean_neutral", "confidence": 0.95, "risk": 0.20,
+     "evidence": ["cpu_usage=45%, threshold=80%", "within normal range"],
+     "recommended_action": "watch", "metrics": {"metric_name": "cpu_usage", "current_value": 45, "threshold": 80, "deviation_pct": -43.75}}
