@@ -200,24 +200,15 @@ class BaseAgent(abc.ABC):
         return None
 
     def _bind_log_context(self) -> None:
-        """Bind this agent's identifying fields to the log contextvars.
+        """Bind this agent's identifying fields to the log contextvars."""
+        from forge_agent.core.trace_runtime import bind_agent_context
 
-        Anything logged inside an Agent's lifecycle/run automatically
-        carries these fields — no manual plumbing needed in observe /
-        decide / act / reflect / learn.
-        """
-        from forge_agent.observability.logger import bind_context
-
-        bind_context(
-            agent_id=self.agent_id,
-            domain=self.domain,
-            agent_version=self.version,
-        )
+        bind_agent_context(self.agent_id, self.domain, self.version)
 
     def _unbind_log_context(self) -> None:
-        from forge_agent.observability.logger import unbind_context
+        from forge_agent.core.trace_runtime import unbind_agent_context
 
-        unbind_context("agent_id", "domain", "agent_version", "run_id")
+        unbind_agent_context()
 
     # ====================================================================
     # Run cycle (Template Method — override hooks, not the cycle)
@@ -227,37 +218,27 @@ class BaseAgent(abc.ABC):
         self._status = AgentStatus.RUNNING
         # Bind run_id in addition to the agent fields so every nested
         # log line carries both "which agent" and "which run".
-        from forge_agent.observability.logger import bind_context, unbind_context
-        from forge_agent.observability.trace import SpanType, get_trace_manager
-
-        bind_context(
-            agent_id=self.agent_id,
-            domain=self.domain,
-            agent_version=self.version,
-            run_id=ctx.run_id,
+        from forge_agent.core.trace_runtime import (
+            bind_run_context,
+            end_span,
+            run_step_traced,
+            start_agent_span,
+            unbind_run_context,
         )
 
-        tm = get_trace_manager()
-        trace = tm.current_trace
-        agent_span = tm.start_span(
-            name=f"{self.agent_id}.run",
-            span_type=SpanType.AGENT,
-            trace=trace,
-            attributes={"agent_id": self.agent_id, "run_id": ctx.run_id},
-        )
+        bind_run_context(self.agent_id, self.domain, self.version, ctx.run_id)
+        agent_span, trace = start_agent_span(self.agent_id, ctx.run_id)
         try:
-            observation = await self._run_step("observe", ctx, SpanType.OBSERVE, trace)
-            decision = await self._run_step(
-                "decide", ctx, SpanType.DECIDE, trace, observation=observation
-            )
-            result = await self._run_step("act", ctx, SpanType.ACT, trace, decision=decision)
+            observation = await run_step_traced(self, "observe", ctx, trace)
+            decision = await run_step_traced(self, "decide", ctx, trace, observation=observation)
+            result = await run_step_traced(self, "act", ctx, trace, decision=decision)
             result = await self._apply_constraints(ctx, result)
             # Post-execution hooks (best-effort — never break the run)
             try:
-                await self._run_step(
+                await run_step_traced(
+                    self,
                     "reflect",
                     ctx,
-                    SpanType.REFLECT,
                     trace,
                     observation=observation,
                     decision=decision,
@@ -266,10 +247,10 @@ class BaseAgent(abc.ABC):
             except Exception as exc:
                 self.log("warning", f"reflect() failed: {exc}")
             try:
-                await self._run_step(
+                await run_step_traced(
+                    self,
                     "learn",
                     ctx,
-                    SpanType.LEARN,
                     trace,
                     observation=observation,
                     decision=decision,
@@ -277,58 +258,27 @@ class BaseAgent(abc.ABC):
                 )
             except Exception as exc:
                 self.log("warning", f"learn() failed: {exc}")
-            tm.end_span(agent_span, status="ok")
+            end_span(agent_span)
             return result
         except Exception as exc:
-            tm.end_span(agent_span, status="error", error_message=str(exc))
+            end_span(agent_span, status="error", error=str(exc))
             self.log("error", f"Agent {self.agent_id} run failed: {exc}")
             return self._error_report(ctx, exc)
         finally:
             self._status = AgentStatus.READY
-            # Clear only the per-run key; keep agent_id / domain in case
-            # the agent is reused within the same task.
-            unbind_context("run_id")
+            unbind_run_context()
 
     async def _run_step(
         self,
         step_name: str,
         ctx: AgentContext,
-        span_type: Any,
         trace: Any,
         **kwargs: Any,
     ) -> Any:
-        """Execute a single agent step with trace span recording."""
-        from forge_agent.observability.trace import get_trace_manager
+        """Execute a single lifecycle step with trace span (S6.1: delegates to trace_runtime)."""
+        from forge_agent.core.trace_runtime import run_step_traced
 
-        tm = get_trace_manager()
-        span = tm.start_span(
-            name=f"{self.agent_id}.{step_name}",
-            span_type=span_type,
-            trace=trace,
-            attributes={"step": step_name},
-        )
-        try:
-            if step_name == "observe":
-                result = await self.observe(ctx)
-            elif step_name == "decide":
-                result = await self.decide(ctx, kwargs["observation"])
-            elif step_name == "act":
-                result = await self.act(ctx, kwargs["decision"])
-            elif step_name == "reflect":
-                result = await self.reflect(
-                    ctx, kwargs["observation"], kwargs["decision"], kwargs["result"]
-                )
-            elif step_name == "learn":
-                result = await self.learn(
-                    ctx, kwargs["observation"], kwargs["decision"], kwargs["result"]
-                )
-            else:
-                result = None
-            tm.end_span(span, status="ok")
-            return result
-        except Exception as exc:
-            tm.end_span(span, status="error", error_message=str(exc))
-            raise
+        return await run_step_traced(self, step_name, ctx, trace, **kwargs)
 
     async def _apply_constraints(
         self,
@@ -337,55 +287,18 @@ class BaseAgent(abc.ABC):
     ) -> AgentReport:
         """Check the agent output against the configured constraint engine.
 
-        If no engine is configured, returns ``result`` unchanged. If a policy
-        violation is found, the report is rewritten to a blocked state and the
-        violation details are attached in ``constraint_result``.
+        Delegates to ``constraints.runtime.apply_constraints`` (S6.2).
         """
-        if self.constraint_engine is None:
-            return result
+        from forge_agent.constraints.runtime import apply_constraints
 
-        text_parts = [
-            *result.evidence,
-            *result.warnings,
-            str(result.recommended_action.value),
-        ]
-        text = " ".join(text_parts)
-
-        try:
-            check = await self.constraint_engine.check_output(
-                text,
-                metadata={
-                    "agent_id": self.agent_id,
-                    "run_id": ctx.run_id,
-                    "scope_id": ctx.scope_id,
-                    "domain": self.domain,
-                },
-            )
-        except Exception as exc:
-            self.log("warning", f"constraint check failed: {exc}")
-            return result
-
-        result.constraint_result = check.to_dict()
-
-        if not check.allowed:
-            self.log(
-                "warning",
-                f"Constraint violation(s) blocked output: "
-                f"{[v.policy_id for v in check.violations]}",
-            )
-            result.verdict = Verdict.RISK
-            result.risk = 1.0
-            result.confidence = 0.0
-            result.recommended_action = Action.WATCH
-            result.warnings.append(
-                "Output blocked by policy: "
-                + ", ".join(
-                    f"{v.policy_id} ({v.severity}) matched '{v.matched_text}'"
-                    for v in check.violations
-                )
-            )
-
-        return result
+        return await apply_constraints(
+            agent_id=self.agent_id,
+            domain=self.domain,
+            ctx=ctx,
+            result=result,
+            engine=self.constraint_engine,
+            log_fn=self.log,
+        )
 
     @abc.abstractmethod
     async def observe(self, ctx: AgentContext) -> dict[str, Any]:
@@ -446,70 +359,14 @@ class BaseAgent(abc.ABC):
     # ====================================================================
 
     async def evolve(self, ctx: AgentContext) -> dict[str, Any]:
-        """Self-iteration hook.
+        """Self-iteration hook — delegates to ``learning.evolve`` (S6.3).
 
-        Performs a full evolution cycle:
-            1. Run reflection on the last execution
-            2. Check if evolution is needed via PromptOptimizer
-            3. If needed, evolve the prompt and register new version
-            4. Return evolution result
-
+        Performs a full evolution cycle: reflection → optimiser → evolve.
         Override in subclasses for custom evolution strategies.
         """
-        from forge_agent.learning.optimizer import PromptOptimizer
+        from forge_agent.learning.evolve import run_evolution
 
-        # Build a reflection signal from the last run
-        # We need observation/decision/result from the last run cycle
-        # Since evolve() is called independently, we reconstruct from memory
-        try:
-            recent = await self.memory.query(agent_id=self.agent_id)
-        except Exception:
-            recent = []
-
-        if not recent:
-            return {"evolved": False, "reason": "no execution history to reflect on"}
-
-        # Get the most recent execution
-        last_run = recent[-1] if recent else {}
-        observation = last_run.get("observation", {})
-        decision = last_run.get("decision", {})
-        result = last_run.get("result", {})
-
-        # Run reflection
-        try:
-            signal = await self.reflector.reflect(
-                agent_id=self.agent_id,
-                context=ctx.to_dict(),
-                observation=observation,
-                decision=decision,
-                result=result,
-            )
-        except Exception as exc:
-            self.log("warning", f"evolve(): reflection failed: {exc}")
-            return {"evolved": False, "reason": f"reflection failed: {exc}"}
-
-        # Create optimizer and check if evolution is needed
-        optimizer = PromptOptimizer(prompt_manager=self.prompt_manager)
-        if not optimizer.should_evolve(signal):
-            return {
-                "evolved": False,
-                "reason": "reflection score above threshold",
-                "score": signal.get("score"),
-            }
-
-        # Perform evolution
-        try:
-            evolve_result = await optimizer.evolve(self.agent_id, signal)
-            if evolve_result.get("evolved"):
-                self.log(
-                    "info",
-                    f"evolve(): {self.agent_id} evolved "
-                    f"{evolve_result.get('old_version')} → {evolve_result.get('new_version')}",
-                )
-            return evolve_result
-        except Exception as exc:
-            self.log("error", f"evolve(): evolution failed: {exc}")
-            return {"evolved": False, "reason": f"evolution failed: {exc}"}
+        return await run_evolution(self, ctx)
 
     # ====================================================================
     # Convenience methods

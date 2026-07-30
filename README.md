@@ -161,7 +161,7 @@ forge-agent new my-project --template config-driven --tenant acme
 forge-agent up --tenant-id acme --project-id my-project
 ```
 
-可选模板：`config-driven`（低代码 YAML）、`basic`、`stock`、`football`、`social`、`office`
+可选模板：`config-driven`（低代码 YAML）、`basic`、`stock`、`doc_summarizer`、`cs_router`、`data_monitor`
 
 ### 配置 LLM（可选，关闭 mock 时需要）
 
@@ -272,7 +272,7 @@ forge-agent/
 │   ├── builtin/             # reference agents
 │   └── utils/
 ├── examples/
-│   └── football_match_agent/   # migrated from guess_you_like
+│   └── generic_agents/        # doc summarizer, CS router, data monitor
 ├── tests/                   # unit + integration + e2e
 ├── docs/                    # mkdocs documentation
 └── pyproject.toml
@@ -348,10 +348,19 @@ other's bindings.
 - [x] **v0.3** — MCP native integration + observability dashboard + Docker
 - [ ] **v0.4** — Self-iteration loop + hot reload + production governance
 
-## Migration from `guess_you_like/match_agents/`
+## Examples
 
-See `examples/football_match_agent/` for a 1:1 mapping from the v1
-function-based agents to v2 `BaseAgent` subclasses.
+Built-in agent type templates (`builtin/agent_types/`):
+
+| Type | Description |
+|------|-------------|
+| `doc_summarizer` | Summarise documents — key points, sentiment, action items |
+| `cs_router` | Customer service query classification and routing |
+| `data_monitor` | Metric monitoring with threshold-based alerting |
+| `reasoner` | General-purpose LLM reasoning agent |
+| `scraper` | Data scraping agent (example presets: weibo/xhs/dewu) |
+
+Use `forge-agent agent-types` to list all available types.
 
 ## License
 
