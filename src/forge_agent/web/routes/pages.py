@@ -58,6 +58,7 @@ async def index(request: Request, ctx: Ctx) -> HTMLResponse:
                 {
                     **agent,
                     "mock_mode": get_agent_config(project_root, agent["agent_id"])["mock_mode"],
+                    "maturity": compute_maturity(agent),
                 }
                 for agent in agents
             ],
